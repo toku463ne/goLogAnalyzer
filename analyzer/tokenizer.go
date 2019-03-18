@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 
@@ -8,14 +9,14 @@ import (
 )
 
 func getEnItems(content []byte, items1 *items, regStr string) []int {
-	//content = bytes.ToLower(content)
+	content = bytes.ToLower(content)
 	content = remTags.ReplaceAll(content, []byte(" "))
 	content = norm.NFC.Bytes(content)
 	words := regexp.MustCompile(fmt.Sprintf("%s|%s", wordReStr, regStr)).FindAll(content, -1)
 	result := make([]int, 0)
 	for _, w := range words {
 		word := string(w)
-		if len(word) <= 1 {
+		if len(word) <= 2 {
 			continue
 		}
 		if _, ok := english[word]; ok == false {
