@@ -28,10 +28,8 @@ func getEnItems(content []byte, items1 *items, regStr string) []int {
 }
 
 func tokenizeLine(line string, timeStampEndCol int,
-	trans1 *trans, items1 *items, regStr string, rowNum int) {
+	trans1 *trans, items1 *items, regStr string, excludeRegStr string, rowNum int) {
 	var timeStamp string
-	maxTranID := 0
-	maxItemID := 0
 	if len(line) > timeStampEndCol {
 		timeStamp = line[:timeStampEndCol]
 		line = line[timeStampEndCol:]
@@ -42,14 +40,18 @@ func tokenizeLine(line string, timeStampEndCol int,
 	if searchReg(line, regStr) == false {
 		return
 	}
+	if searchReg(line, excludeRegStr) {
+		return
+	}
+
 	trans1.mask.append(rowNum)
 	bline := []byte(line)
 
 	tran := getEnItems(bline, items1, regStr)
 
-	if bolShowProgress {
-		fmt.Printf("\rOn %d maxid=%d", maxTranID, maxItemID)
-	}
+	//if bolShowProgress {
+	//	fmt.Printf("\rOn %d maxid=%d", maxTranID, maxItemID)
+	//}
 	if len(tran) > 0 {
 		trans1.add(timeStamp, tran, line)
 	}

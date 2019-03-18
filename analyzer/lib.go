@@ -42,7 +42,7 @@ func bitOr(b1 *bitarray.BitArray, b2 *bitarray.BitArray) *bitarray.BitArray {
 }
 
 func searchReg(s, reStr string) bool {
-	re := regexp.MustCompile(reStr)
+	re := regexp.MustCompile(fmt.Sprintf(".*%s.*", reStr))
 	if re.MatchString(s) {
 		return true
 	}

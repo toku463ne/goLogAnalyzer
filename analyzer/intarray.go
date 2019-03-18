@@ -14,6 +14,14 @@ func newIntArray() *intArray {
 	return a
 }
 
+func genIntArrayFromSlice(s []int) *intArray {
+	a := new(intArray)
+	a.a = s
+	a.pos = len(s) - 1
+	a.incSize = 1000
+	return a
+}
+
 func (a *intArray) set(i, val int) {
 	if len(a.a) == 0 {
 		a.a = make([]int, 1000)

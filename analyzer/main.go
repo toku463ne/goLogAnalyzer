@@ -45,19 +45,21 @@ func RunDCI(args map[string]string) error {
 	if ok == false {
 		regStr = ""
 	}
+	excludeRegStr, ok := args["exclude"]
+	if ok == false {
+		excludeRegStr = ""
+	}
+	a, err := newFileAnalyzer(file, col, regStr, excludeRegStr)
 
-	a, err := newFileAnalyzer(file, col, regStr)
-
-	a.loadMatrix()
-	dci, err := newDCIClosed(a.matrix, minSup, true)
+	ldci := newLargeDCIClosed(minSup, &a.trans, &a.items, true)
 	if err != nil {
 		return err
 	}
-	err = dci.run()
+	err = ldci.run()
 	if err != nil {
 		return err
 	}
-	err = dci.outDCIClosed(fmt.Sprintf("%s/closedsets.txt", workdir), &a.items,
+	err = ldci.outLargeDCIClosed(fmt.Sprintf("%s/closedsets.txt", workdir),
 		a.rowNum, regStr, a.trans.mask)
 	if err != nil {
 		return err
@@ -87,27 +89,42 @@ func RunYu(args map[string]string) error {
 	if ok == false {
 		regStr = ""
 	}
+	excludeRegStr, ok := args["exclude"]
+	if ok == false {
+		excludeRegStr = ""
+	}
 
-	a, err := newFileAnalyzer(file, col, regStr)
+	a, err := newFileAnalyzer(file, col, regStr, excludeRegStr)
 	if err != nil {
 		return err
 	}
-	a.loadMatrix()
-	idf := newIdfScores(a.matrix)
 
-	switch op {
-	case "list":
-		sumlen, err := argParseANum(args, "sumlen")
-		if err != nil {
-			return err
+	ltrans := a.trans.tranList.len()
+	for pos := 0; pos < ltrans; pos += maxBitMatrixXLen {
+		xLen := 0
+		if maxBitMatrixXLen > ltrans-pos {
+			xLen = ltrans - pos
+		} else {
+			xLen = maxBitMatrixXLen
 		}
-		err = idf.outYuScoreByTime(fmt.Sprintf("%s/yuscore.csv", workdir), &a.trans, sumlen)
-		if err != nil {
-			return err
+		matrix, _, _ := tranPart2BitMatrix(&a.trans, &a.items,
+			pos, xLen)
+
+		idf := newIdfScores(matrix)
+
+		switch op {
+		case "list":
+			sumlen, err := argParseANum(args, "sumlen")
+			if err != nil {
+				return err
+			}
+			err = idf.outYuScoreByTime(fmt.Sprintf("%s/yuscore.csv", workdir), &a.trans, sumlen)
+			if err != nil {
+				return err
+			}
+		case "stat":
+			idf.yuStatistics(&a.trans)
 		}
-	case "stat":
-		idf.yuStatistics(&a.trans)
 	}
-
 	return nil
 }

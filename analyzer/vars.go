@@ -18,4 +18,5 @@ var (
 	autoIncreaseSizeSmall = 1000
 	bolShowProgress       = true
 	printClosedSetNum     = 20
+	maxBitMatrixXLen      = 10000
 )

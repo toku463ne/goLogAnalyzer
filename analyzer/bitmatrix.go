@@ -84,3 +84,28 @@ func tran2BitMatrix(trans1 *trans, items1 *items) *bitMatrix {
 	}
 	return matrix
 }
+
+func tranPart2BitMatrix(trans1 *trans, items1 *items,
+	tranStart, tranCnt int) (*bitMatrix, map[int]int, []int) {
+	subItemsMap := make(map[int]int)
+	subItems := newIntArray()
+	j := 0
+	for i := 0; i < tranCnt; i++ {
+		tran := trans1.get(tranStart + i)
+		for _, item := range tran {
+			if _, ok := subItemsMap[item]; !ok {
+				subItemsMap[item] = j
+				subItems.append(item)
+				j++
+			}
+		}
+	}
+	matrix := newBitMatrix(tranCnt, j+1)
+	for i := 0; i < tranCnt; i++ {
+		tran := trans1.get(tranStart + i)
+		for _, item := range tran {
+			matrix.set(i, subItemsMap[item])
+		}
+	}
+	return matrix, subItemsMap, subItems.getSlice()
+}

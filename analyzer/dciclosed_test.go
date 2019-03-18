@@ -12,8 +12,9 @@ func TestDCIClosed_Run(t *testing.T) {
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
-	a.loadMatrix()
-	dci, err := newDCIClosed(a.matrix, 2, true)
+	//a.loadMatrix()
+	matrix := tran2BitMatrix(&a.trans, &a.items)
+	dci, err := newDCIClosed(matrix, 2, true)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
 		return
@@ -104,8 +105,9 @@ func TestDCIClosed_Run3(t *testing.T) {
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
-	a.loadMatrix()
-	dci, err := newDCIClosed(a.matrix, 2, true)
+	//a.loadMatrix()
+	matrix := tran2BitMatrix(&a.trans, &a.items)
+	dci, err := newDCIClosed(matrix, 2, true)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
 		return
@@ -116,23 +118,19 @@ func TestDCIClosed_Run3(t *testing.T) {
 	/*
 		0 1 2
 		0 3 1 4
+		0 3 1 4
 		0 3 1 1
 	*/
 	want1 := [][]int{
+		{4, 3, 0, 1},
+		{3, 0, 1},
 		{0, 1},
-		{0, 1, 4, 3},
-		{0, 1, 3},
-		{4, 3},
-		{4, 3, 1},
-		{1},
-		{1, 3},
-		{3},
 	}
 	got1 := dci.closedSetsToArray()
 	if !reflect.DeepEqual(got1, want1) {
 		t.Errorf("closedSets = %v, want %v", got1, want1)
 	}
-	want2 := []int{4, 2, 3, 4, 3, 5, 4, 5}
+	want2 := []int{2, 3, 4}
 	got2 := dci.closedSupp.getSlice()
 	if !reflect.DeepEqual(got2, want2) {
 		t.Errorf("closedSup = %v, want %v", got2, want2)
@@ -146,8 +144,9 @@ func TestDCIClosed_Run2(t *testing.T) {
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
-	a.loadMatrix()
-	dci, err := newDCIClosed(a.matrix, 2, false)
+	//a.loadMatrix()
+	matrix := tran2BitMatrix(&a.trans, &a.items)
+	dci, err := newDCIClosed(matrix, 2, false)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
 		return
@@ -183,8 +182,9 @@ func TestDCIClosed4_Run(t *testing.T) {
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
-	a.loadMatrix()
-	dci, err := newDCIClosed(a.matrix, 2, true)
+	//a.loadMatrix()
+	matrix := tran2BitMatrix(&a.trans, &a.items)
+	dci, err := newDCIClosed(matrix, 2, true)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
 		return

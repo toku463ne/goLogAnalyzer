@@ -12,7 +12,6 @@ import (
 type FileAnalyzer struct {
 	filepath        string
 	timeStampEndCol int
-	matrix          *bitMatrix
 	items           items
 	trans           trans
 	rowNum          int
@@ -20,13 +19,13 @@ type FileAnalyzer struct {
 
 // NewFileAnalyzer ... new analyzer object
 func newFileAnalyzer(filepath string,
-	timeStampEndCol int, regStr string) (*FileAnalyzer, error) {
+	timeStampEndCol int, regStr, excludeRegStr string) (*FileAnalyzer, error) {
 	a := new(FileAnalyzer)
 	a.filepath = filepath
 	a.timeStampEndCol = timeStampEndCol
 	a.items = *newItems()
 	a.trans = *newTrans()
-	rowNum, err := a.tokenizeFile(regStr)
+	rowNum, err := a.tokenizeFile(regStr, excludeRegStr)
 	a.rowNum = rowNum
 	if err != nil {
 		return nil, err
@@ -34,11 +33,11 @@ func newFileAnalyzer(filepath string,
 	return a, nil
 }
 
-func (a *FileAnalyzer) loadMatrix() {
-	a.matrix = tran2BitMatrix(&a.trans, &a.items)
-}
+//func (a *FileAnalyzer) loadMatrix() {
+//	a.matrix = tran2BitMatrix(&a.trans, &a.items)
+//}
 
-func (a *FileAnalyzer) tokenizeFile(regStr string) (int, error) {
+func (a *FileAnalyzer) tokenizeFile(regStr, excludeRegStr string) (int, error) {
 	file, err := os.Open(a.filepath)
 	defer file.Close()
 
@@ -56,7 +55,7 @@ func (a *FileAnalyzer) tokenizeFile(regStr string) (int, error) {
 			eof = true
 		}
 
-		tokenizeLine(line, a.timeStampEndCol, &a.trans, &a.items, regStr, i)
+		tokenizeLine(line, a.timeStampEndCol, &a.trans, &a.items, regStr, excludeRegStr, i)
 		if eof {
 			break
 		}

@@ -65,3 +65,11 @@ func (a *int2dArray) copy() *int2dArray {
 func (a *int2dArray) finalize() {
 	a.a = a.a[:a.pos+1]
 }
+
+func (a *int2dArray) toIntArraySlice() []*intArray {
+	a2d := make([]*intArray, len(a.getSlice()))
+	for i, s := range a.getSlice() {
+		a2d[i] = genIntArrayFromSlice(s)
+	}
+	return a2d
+}

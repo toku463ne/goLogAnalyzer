@@ -34,9 +34,11 @@ func main() {
 	case "dci":
 		usagestr = analyzer.UsageDCI()
 		err = analyzer.RunDCI(args)
-	case "yu":
-		usagestr = analyzer.UsageYu()
-		err = analyzer.RunYu(args)
+	/*
+		case "yu":
+			usagestr = analyzer.UsageYu()
+			err = analyzer.RunYu(args)
+	*/
 	default:
 		usage()
 		return

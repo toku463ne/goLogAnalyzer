@@ -26,31 +26,6 @@ type DCIClosed struct {
 	showTIDs    bool
 }
 
-/*
-// NewDCIClosed ... Constructor of DCIClosed
-//    tranList is list of transactions; ex) [[1,2], [3,5], [3,7,5,3]]
-func NewDCIClosed(tranList [][]int, maxItemID int, minSupp int) (*DCIClosed, error) {
-	dci := new(DCIClosed)
-	dci.closedCount = 0
-	dci.maxItemID = maxItemID
-	dci.tidsCount = len(tranList)
-	dci.closedSets = make([]*intArray, 0)
-	dci.minSupp = minSupp
-	dci.closedSupp = new(intArray)
-
-	dci.matrix = newBitMatrix(dci.tidsCount, maxItemID+1)
-	for i := 0; i < dci.tidsCount; i++ {
-		for _, itemID := range tranList[i] {
-			if err := dci.matrix.set(i, itemID); err != nil {
-				return nil, errors.Wrap(err, fmt.Sprintf("tid=%d itemid=%d", i, itemID))
-			}
-		}
-	}
-	//printMatrix(dci.matrix)
-	return dci, nil
-}
-*/
-
 // NewDCIClosed ... Constructor of DCIClosed
 //    tranList is list of transactions; ex) [[1,2], [3,5], [3,7,5,3]]
 //func NewDCIClosed(trans1 *trans, items1 *items, minSupp int) (*DCIClosed, error) {
@@ -64,10 +39,10 @@ func newDCIClosed(matrix *bitMatrix, minSupp int, showTIDs bool) (*DCIClosed, er
 	dci.lastTIDs = newIntArray()
 	dci.showTIDs = showTIDs
 
-	//dci.matrix = tran2BitMatrix(trans1, items1)
-	dci.matrix = matrix
-
-	dci.maxItemID = dci.matrix.yLen - 1
+	if matrix != nil {
+		dci.matrix = matrix
+		dci.maxItemID = dci.matrix.yLen - 1
+	}
 
 	//printMatrix(dci.matrix)
 	return dci, nil
@@ -93,7 +68,7 @@ func (dci *DCIClosed) run() error {
 
 	for i := 0; i <= dci.maxItemID; i++ {
 		supp := m.getSupportFirstTime(i)
-		if supp >= dci.minSupp && supp < m.xLen {
+		if supp >= dci.minSupp {
 			postset.append(i)
 		}
 	}
@@ -341,7 +316,7 @@ func (dci *DCIClosed) getClosedWordsSorted(items1 *items) ([][]string,
 	return cw, sup, ftid, ltid
 }
 
-func (dci *DCIClosed) getClosedWordsSortedSerched(items1 *items, regStr string, mask *intArray) ([][]string,
+func (dci *DCIClosed) getClosedWordsSortedSearched(items1 *items, regStr string, mask *intArray) ([][]string,
 	[]int, []int, []int) {
 	s, sup, ftid, ltid := dci.getSortedClosedSets()
 	cw := make([][]string, 0)
@@ -383,7 +358,7 @@ func (dci *DCIClosed) outDCIClosed(filepath string, items1 *items,
 	if regStr == "" {
 		tokens, sup, ftid, ltid = dci.getClosedWordsSorted(items1)
 	} else {
-		tokens, sup, ftid, ltid = dci.getClosedWordsSortedSerched(items1, regStr, mask)
+		tokens, sup, ftid, ltid = dci.getClosedWordsSortedSearched(items1, regStr, mask)
 	}
 	ou, err := os.Create(filepath)
 	if err != nil {
@@ -444,5 +419,5 @@ func (dci *DCIClosed) prevBit(b *bitarray.BitArray, lastIdx int, itemID int) (in
 			return i, nil
 		}
 	}
-	return -1, errors.New("Next bit does not exist")
+	return -1, errors.New("Previous bit does not exist")
 }
