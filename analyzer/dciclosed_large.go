@@ -34,10 +34,11 @@ func newLargeDCIClosed(minSupp int, trans1 *trans,
 
 func (ldci LargeDCIClosed) run() error {
 	closedsetsMap := make(map[string][]int)
-	suppMap := make(map[string]int)
-	lfirstTIDsMap := make(map[string]int)
-	llastTIDsMap := make(map[string]int)
+	//suppMap := make(map[string]int)
+	//lfirstTIDsMap := make(map[string]int)
+	//llastTIDsMap := make(map[string]int)
 	ltrans := ldci.trans.tranList.len()
+
 	for pos := 0; pos < ltrans; pos += maxBitMatrixXLen {
 		xLen := 0
 		if maxBitMatrixXLen > ltrans-pos {
@@ -56,11 +57,10 @@ func (ldci LargeDCIClosed) run() error {
 			return err
 		}
 		a := dci.closedSetsToArray()
-		firstTIDs := dci.firstTIDs.getSlice()
-		lastTIDs := dci.lastTIDs.getSlice()
-		supps := dci.closedSupp.getSlice()
-		for i, b := range a {
-			sort.Ints(b)
+		//firstTIDs := dci.firstTIDs.getSlice()
+		//lastTIDs := dci.lastTIDs.getSlice()
+		//supps := dci.closedSupp.getSlice()
+		for _, b := range a {
 			k := ""
 			//b2 := newIntArray()
 			b2 := make([]int, len(b))
@@ -68,6 +68,7 @@ func (ldci LargeDCIClosed) run() error {
 				//b2.append(items[v])
 				b2[j] = items[v]
 			}
+			sort.Ints(b2)
 			for _, c := range b2 {
 				if k == "" {
 					k = fmt.Sprintf("%d", c)
@@ -78,27 +79,85 @@ func (ldci LargeDCIClosed) run() error {
 			if _, ok := closedsetsMap[k]; !ok {
 				closedsetsMap[k] = b2
 			}
-			fTID := firstTIDs[i]
-			if lfTID, ok := lfirstTIDsMap[k]; ok {
-				if fTID < lfTID {
-					lfirstTIDsMap[k] = fTID
-				}
-			} else {
-				lfirstTIDsMap[k] = fTID
-			}
-			lTID := lastTIDs[i]
-			if llTID, ok := llastTIDsMap[k]; ok {
-				if lTID < llTID {
-					llastTIDsMap[k] = lTID
-				}
-			} else {
-				llastTIDsMap[k] = lTID
-			}
-			suppMap[k] += supps[i]
+			//fTID := firstTIDs[i] + pos
+			//fmt.Printf("key=%s ftid=%d %+v\n", k, fTID, b2)
+
+			//if k == "0,90,297" {
+			//	tmp, ok := lfirstTIDsMap[k]
+			//	fmt.Printf("k=%s tmp=%v ok=%d", k, tmp, ok)
+			//}
+			//fmt.Printf("ftid=%d\n", fTID)
+			//if fTID == 397 {
+			//	fmt.Printf("k=%s", k)
+			//}
+
+			//if lfTID, ok := lfirstTIDsMap[k]; ok {
+			//	if fTID < lfTID {
+			//		lfirstTIDsMap[k] = fTID
+			//	}
+			//} else {
+			//	lfirstTIDsMap[k] = fTID
+			//}
+
+			//lTID := lastTIDs[i] + pos
+			//if llTID, ok := llastTIDsMap[k]; ok {
+			//	if llTID < lTID {
+			//		llastTIDsMap[k] = lTID
+			//	}
+			//} else {
+			//	llastTIDsMap[k] = lTID
+			//}
+			//if k == "0,33" {
+			//	fmt.Printf("key=%s ftid=%d ltid=%d %+v\n", k, lfirstTIDsMap[k], llastTIDsMap[k], b2)
+			//}
+
+			//suppMap[k] += supps[i]
 		}
 	}
+	suppMap := make(map[string]int)
+	lfirstTIDsMap := make(map[string]int)
+	llastTIDsMap := make(map[string]int)
 	for k := range closedsetsMap {
-		ldci.closedSets.append(closedsetsMap[k])
+		cs := closedsetsMap[k]
+		for tranID, tran := range ldci.trans.getSlice() {
+			csInTran := true
+			for _, citemID := range cs {
+				citemIDInTran := false
+				for _, titemID := range tran {
+					if citemID == titemID {
+						citemIDInTran = true
+						break
+					}
+				}
+				if citemIDInTran == false {
+					csInTran = false
+					break
+				}
+			}
+			if csInTran {
+				if _, ok := suppMap[k]; ok {
+					suppMap[k]++
+				} else {
+					suppMap[k] = 1
+				}
+				if lfTID, ok := lfirstTIDsMap[k]; ok {
+					if tranID < lfTID {
+						lfirstTIDsMap[k] = tranID
+					}
+				} else {
+					lfirstTIDsMap[k] = tranID
+				}
+				if llTID, ok := llastTIDsMap[k]; ok {
+					if tranID > llTID {
+						llastTIDsMap[k] = tranID
+					}
+				} else {
+					llastTIDsMap[k] = tranID
+				}
+			}
+		}
+
+		ldci.closedSets.append(cs)
 		//ldci.closedSets = append(ldci.closedSets, closedsetsMap[k])
 		ldci.closedSupp.append(suppMap[k])
 		ldci.firstTIDs.append(lfirstTIDsMap[k])

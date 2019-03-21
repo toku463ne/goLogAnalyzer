@@ -7,17 +7,17 @@ import (
 
 func TestLargeDCIClosed_Run(t *testing.T) {
 	bolShowProgress = false
-	a, err := newFileAnalyzer("inputs/sample.txt", 0, "")
+	a, err := newFileAnalyzer("inputs/sample.txt", 0, "", "")
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
-	ldci := newLargeDCIClosed(2, &a.trans, &a.items, true)
+	ldci := newLargeDCIClosed(2, a.trans, a.items, true)
 	err = ldci.run()
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
 	want1 := [][]int{
-		{3}, {1}, {0, 1}, {3, 4}, {1, 3}, {0, 1, 3}, {1, 3, 4}, {0, 1, 3, 4},
+		{1}, {3}, {1, 3}, {0, 1}, {3, 4}, {0, 1, 3}, {1, 3, 4}, {0, 1, 3, 4},
 	}
 	//got1 := ldci.closedSets.getSlice()
 	//closedsets, supb, ftid, ltid, err := ldci.getSortedClosedSets()
@@ -34,10 +34,26 @@ func TestLargeDCIClosed_Run(t *testing.T) {
 	}
 	want3 := []int{1, 0, 0, 1, 1, 2, 1, 2}
 	if !reflect.DeepEqual(ftid, want3) {
-		t.Errorf("supports = %v, want %v", ftid, want3)
+		t.Errorf("first tids = %v, want %v", ftid, want3)
 	}
 	want4 := []int{5, 5, 5, 4, 5, 5, 4, 4}
 	if !reflect.DeepEqual(ltid, want4) {
-		t.Errorf("supports = %v, want %v", ltid, want4)
+		t.Errorf("last tids = %v, want %v", ltid, want4)
+	}
+}
+
+func TestLargeDCIClosed2_Run(t *testing.T) {
+	bolShowProgress = false
+	maxBitMatrixXLen = 100
+	a, err := newFileAnalyzer("inputs/syslog.1", 16, "", "")
+	//fmt.Printf("items=%+v", a.items.items.getSlice())
+	//a, err := newFileAnalyzer("../../kamailio.log", 40, "", "")
+	if err != nil {
+		t.Errorf("%+v", err)
+	}
+	ldci := newLargeDCIClosed(2, a.trans, a.items, true)
+	err = ldci.run()
+	if err != nil {
+		t.Errorf("%+v", err)
 	}
 }

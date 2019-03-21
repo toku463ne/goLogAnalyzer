@@ -27,14 +27,14 @@ func Test_idfScores_yuStatistics(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a, err := newFileAnalyzer(tt.args.filepath, tt.args.timeStampEndCol, "")
+			a, err := newFileAnalyzer(tt.args.filepath, tt.args.timeStampEndCol, "", "")
 			if err != nil {
 				t.Errorf("%+v", err)
 			}
 			//a.loadMatrix()
-			matrix := tran2BitMatrix(&a.trans, &a.items)
+			matrix := tran2BitMatrix(a.trans, a.items)
 			idf := newIdfScores(matrix)
-			count, maxYu, minYu, mean, std := idf.yuStatistics(&a.trans)
+			count, maxYu, minYu, mean, std := idf.yuStatistics(a.trans)
 			if count != tt.want.count {
 				t.Errorf("yuStatistics count: got=%d want=%d", count, tt.want.count)
 			}

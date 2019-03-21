@@ -37,10 +37,10 @@ func tokenizeLine(line string, timeStampEndCol int,
 		timeStamp = ""
 	}
 
-	if searchReg(line, regStr) == false {
+	if regStr != "" && searchReg(line, regStr) == false {
 		return
 	}
-	if searchReg(line, excludeRegStr) {
+	if excludeRegStr != "" && searchReg(line, excludeRegStr) {
 		return
 	}
 

@@ -51,7 +51,7 @@ func RunDCI(args map[string]string) error {
 	}
 	a, err := newFileAnalyzer(file, col, regStr, excludeRegStr)
 
-	ldci := newLargeDCIClosed(minSup, &a.trans, &a.items, true)
+	ldci := newLargeDCIClosed(minSup, a.trans, a.items, true)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func RunYu(args map[string]string) error {
 		} else {
 			xLen = maxBitMatrixXLen
 		}
-		matrix, _, _ := tranPart2BitMatrix(&a.trans, &a.items,
+		matrix, _, _ := tranPart2BitMatrix(a.trans, a.items,
 			pos, xLen)
 
 		idf := newIdfScores(matrix)
@@ -118,12 +118,12 @@ func RunYu(args map[string]string) error {
 			if err != nil {
 				return err
 			}
-			err = idf.outYuScoreByTime(fmt.Sprintf("%s/yuscore.csv", workdir), &a.trans, sumlen)
+			err = idf.outYuScoreByTime(fmt.Sprintf("%s/yuscore.csv", workdir), a.trans, sumlen)
 			if err != nil {
 				return err
 			}
 		case "stat":
-			idf.yuStatistics(&a.trans)
+			idf.yuStatistics(a.trans)
 		}
 	}
 	return nil

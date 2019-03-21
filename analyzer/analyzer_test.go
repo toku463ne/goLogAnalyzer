@@ -26,7 +26,7 @@ func TestFileAnalyzer_tokenizeFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a, err := newFileAnalyzer(tt.fields.filepath, tt.fields.timeStampEndCol, "")
+			a, err := newFileAnalyzer(tt.fields.filepath, tt.fields.timeStampEndCol, "", "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FileAnalyzer.tokenizeFile() error = %v, wantErr %v", err, tt.wantErr)
 			} else {

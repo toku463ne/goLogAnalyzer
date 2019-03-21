@@ -12,8 +12,8 @@ import (
 type FileAnalyzer struct {
 	filepath        string
 	timeStampEndCol int
-	items           items
-	trans           trans
+	items           *items
+	trans           *trans
 	rowNum          int
 }
 
@@ -23,8 +23,8 @@ func newFileAnalyzer(filepath string,
 	a := new(FileAnalyzer)
 	a.filepath = filepath
 	a.timeStampEndCol = timeStampEndCol
-	a.items = *newItems()
-	a.trans = *newTrans()
+	a.items = newItems()
+	a.trans = newTrans()
 	rowNum, err := a.tokenizeFile(regStr, excludeRegStr)
 	a.rowNum = rowNum
 	if err != nil {
@@ -55,7 +55,7 @@ func (a *FileAnalyzer) tokenizeFile(regStr, excludeRegStr string) (int, error) {
 			eof = true
 		}
 
-		tokenizeLine(line, a.timeStampEndCol, &a.trans, &a.items, regStr, excludeRegStr, i)
+		tokenizeLine(line, a.timeStampEndCol, a.trans, a.items, regStr, excludeRegStr, i)
 		if eof {
 			break
 		}

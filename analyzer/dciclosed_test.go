@@ -8,12 +8,12 @@ import (
 func TestDCIClosed_Run(t *testing.T) {
 	bolShowProgress = false
 
-	a, err := newFileAnalyzer("inputs/sample.txt", 0, "")
+	a, err := newFileAnalyzer("inputs/sample.txt", 0, "", "")
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
 	//a.loadMatrix()
-	matrix := tran2BitMatrix(&a.trans, &a.items)
+	matrix := tran2BitMatrix(a.trans, a.items)
 	dci, err := newDCIClosed(matrix, 2, true)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
@@ -61,7 +61,7 @@ func TestDCIClosed_Run(t *testing.T) {
 		{"melon", "lemon"},
 		{"lemon"}}
 	want4 := []int{4, 2, 3, 4, 3, 5, 4, 5}
-	got3, got4 := dci.getClosedWords(&a.items)
+	got3, got4 := dci.getClosedWords(a.items)
 	if !reflect.DeepEqual(got3, want3) {
 		t.Errorf("GetClosedWords = %v, want %v", got3, want3)
 	}
@@ -80,7 +80,7 @@ func TestDCIClosed_Run(t *testing.T) {
 		{"apple", "melon", "orange", "lemon"},
 	}
 	want6 := []int{5, 5, 4, 4, 4, 3, 3, 2}
-	got5, got6, got7, got8 := dci.getClosedWordsSorted(&a.items)
+	got5, got6, got7, got8 := dci.getClosedWordsSorted(a.items)
 	if !reflect.DeepEqual(got5, want5) {
 		t.Errorf("GetClosedWordsSorted trans got = %v, want %v", got5, want5)
 	}
@@ -101,12 +101,12 @@ func TestDCIClosed_Run(t *testing.T) {
 func TestDCIClosed_Run3(t *testing.T) {
 	bolShowProgress = false
 
-	a, err := newFileAnalyzer("inputs/sample1.txt", 0, "")
+	a, err := newFileAnalyzer("inputs/sample1.txt", 0, "", "")
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
 	//a.loadMatrix()
-	matrix := tran2BitMatrix(&a.trans, &a.items)
+	matrix := tran2BitMatrix(a.trans, a.items)
 	dci, err := newDCIClosed(matrix, 2, true)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
@@ -140,12 +140,12 @@ func TestDCIClosed_Run3(t *testing.T) {
 func TestDCIClosed_Run2(t *testing.T) {
 	bolShowProgress = false
 
-	a, err := newFileAnalyzer("inputs/sample.txt", 0, "apple")
+	a, err := newFileAnalyzer("inputs/sample.txt", 0, "apple", "")
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
 	//a.loadMatrix()
-	matrix := tran2BitMatrix(&a.trans, &a.items)
+	matrix := tran2BitMatrix(a.trans, a.items)
 	dci, err := newDCIClosed(matrix, 2, false)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
@@ -178,12 +178,12 @@ func TestDCIClosed_Run2(t *testing.T) {
 func TestDCIClosed4_Run(t *testing.T) {
 	bolShowProgress = false
 
-	a, err := newFileAnalyzer("/var/log/syslog", 10, "")
+	a, err := newFileAnalyzer("/var/log/syslog", 10, "", "")
 	if err != nil {
 		t.Errorf("%+v", err)
 	}
 	//a.loadMatrix()
-	matrix := tran2BitMatrix(&a.trans, &a.items)
+	matrix := tran2BitMatrix(a.trans, a.items)
 	dci, err := newDCIClosed(matrix, 2, true)
 	if err != nil {
 		t.Errorf("newDCIClosed() error = %v", err)
