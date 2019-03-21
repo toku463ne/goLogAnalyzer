@@ -2,12 +2,31 @@ package analyzer
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"strconv"
 
 	"github.com/damnever/bitarray"
 )
+
+func logmsg(logLevel int, msg string) {
+	if curLogLevel <= logLevel {
+		log.Printf("%s\n", msg)
+	}
+}
+
+func logDebug(msg string) {
+	logmsg(logLevelDebug, fmt.Sprintf("DEBUG - %s", msg))
+}
+
+func logInfo(msg string) {
+	logmsg(logLevelInfo, fmt.Sprintf("INFO - %s", msg))
+}
+
+func logError(msg string) {
+	logmsg(logLevelError, fmt.Sprintf("ERROR - %s", msg))
+}
 
 func bitAnd(b1 *bitarray.BitArray, b2 *bitarray.BitArray) *bitarray.BitArray {
 	a1 := b1.ToArray()

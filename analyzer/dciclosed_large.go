@@ -34,11 +34,8 @@ func newLargeDCIClosed(minSupp int, trans1 *trans,
 
 func (ldci LargeDCIClosed) run() error {
 	closedsetsMap := make(map[string][]int)
-	//suppMap := make(map[string]int)
-	//lfirstTIDsMap := make(map[string]int)
-	//llastTIDsMap := make(map[string]int)
 	ltrans := ldci.trans.tranList.len()
-
+	logInfo("DCIClosed algorithm...")
 	for pos := 0; pos < ltrans; pos += maxBitMatrixXLen {
 		xLen := 0
 		if maxBitMatrixXLen > ltrans-pos {
@@ -57,9 +54,6 @@ func (ldci LargeDCIClosed) run() error {
 			return err
 		}
 		a := dci.closedSetsToArray()
-		//firstTIDs := dci.firstTIDs.getSlice()
-		//lastTIDs := dci.lastTIDs.getSlice()
-		//supps := dci.closedSupp.getSlice()
 		for _, b := range a {
 			k := ""
 			//b2 := newIntArray()
@@ -79,41 +73,10 @@ func (ldci LargeDCIClosed) run() error {
 			if _, ok := closedsetsMap[k]; !ok {
 				closedsetsMap[k] = b2
 			}
-			//fTID := firstTIDs[i] + pos
-			//fmt.Printf("key=%s ftid=%d %+v\n", k, fTID, b2)
-
-			//if k == "0,90,297" {
-			//	tmp, ok := lfirstTIDsMap[k]
-			//	fmt.Printf("k=%s tmp=%v ok=%d", k, tmp, ok)
-			//}
-			//fmt.Printf("ftid=%d\n", fTID)
-			//if fTID == 397 {
-			//	fmt.Printf("k=%s", k)
-			//}
-
-			//if lfTID, ok := lfirstTIDsMap[k]; ok {
-			//	if fTID < lfTID {
-			//		lfirstTIDsMap[k] = fTID
-			//	}
-			//} else {
-			//	lfirstTIDsMap[k] = fTID
-			//}
-
-			//lTID := lastTIDs[i] + pos
-			//if llTID, ok := llastTIDsMap[k]; ok {
-			//	if llTID < lTID {
-			//		llastTIDsMap[k] = lTID
-			//	}
-			//} else {
-			//	llastTIDsMap[k] = lTID
-			//}
-			//if k == "0,33" {
-			//	fmt.Printf("key=%s ftid=%d ltid=%d %+v\n", k, lfirstTIDsMap[k], llastTIDsMap[k], b2)
-			//}
-
-			//suppMap[k] += supps[i]
 		}
+		matrix = nil
 	}
+	logInfo("Calculating support of closed sets")
 	suppMap := make(map[string]int)
 	lfirstTIDsMap := make(map[string]int)
 	llastTIDsMap := make(map[string]int)

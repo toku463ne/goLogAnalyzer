@@ -13,7 +13,10 @@ var (
 	wordReStr = `[\pL\p{Mc}\p{Mn}.%]{2,}`
 	//wordSegmenter = regexp.MustCompile(`[0-9\pL\p{Mc}\p{Mn}-_'.]+`)
 	//wordSegmenter         = regexp.MustCompile(`[\pL\p{Mc}\p{Mn}.%]+`)
-
+	logLevelError         = 1
+	logLevelInfo          = 2
+	logLevelDebug         = 3
+	curLogLevel           = logLevelInfo
 	autoIncreaseSize      = 1000
 	autoIncreaseSizeSmall = 1000
 	bolShowProgress       = true

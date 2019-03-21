@@ -44,7 +44,7 @@ func (a *FileAnalyzer) tokenizeFile(regStr, excludeRegStr string) (int, error) {
 	if err != nil {
 		return -1, errors.Wrapf(err, fmt.Sprintf("file open error: %s", a.filepath))
 	}
-
+	logInfo(fmt.Sprintf("tokenizing file %s", a.filepath))
 	reader := bufio.NewReader(file)
 	var line string
 	eof := false
