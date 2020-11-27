@@ -1,52 +1,77 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	"./analyzer"
 )
 
-func usage() {
-	fmt.Printf(`usage: ./0 op_name args
-Parse log file and show the result.
-op_name: 
-	%s
-	%s`,
-		analyzer.UsageDCI(), analyzer.UsageYu())
-	fmt.Print("\n")
+var (
+	iniFlag  = flag.NewFlagSet("init", flag.ContinueOnError)
+	runFlag  = flag.NewFlagSet("run", flag.ContinueOnError)
+	testFlag = flag.NewFlagSet("test", flag.ContinueOnError)
+)
+
+func help() {
 
 }
 
+func destroy() error {
+	iniFile := iniFlag.String("c", "", "Ini file")
+	iniFlag.Parse(os.Args[2:])
+	err := analyzer.Destroy(*iniFile)
+	return err
+}
+
+/*
+func initData() error {
+	iniFile := iniFlag.String("c", "", "Ini file")
+	iniFlag.Parse(os.Args[2:])
+	err := analyzer.Init(*iniFile)
+	return err
+}
+*/
+
+func run() error {
+	iniFile := runFlag.String("c", "", "Ini file")
+	verbose := runFlag.Bool("v", false, "verbose")
+	runFlag.Parse(os.Args[2:])
+	fmt.Printf("run = %v %t\n", *iniFile, *verbose)
+	err := analyzer.Run(*iniFile, *verbose)
+	return err
+}
+
+func test() error {
+	testName := runFlag.String("n", "", "Name test")
+	testFlag.Parse(os.Args[2:])
+	switch *testName {
+
+	}
+	return nil
+}
+
 func main() {
-	var err error
 	if len(os.Args) < 2 {
-		usage()
 		return
 	}
-	logmsg("started")
-	operation := os.Args[1]
-	args := argParse(os.Args[2:])
-	usagestr := ""
-	os.Mkdir("report", 0755)
-	args["workdir"] = "report"
-	switch operation {
-	case "dci":
-		usagestr = analyzer.UsageDCI()
-		err = analyzer.RunDCI(args)
-	/*
-		case "yu":
-			usagestr = analyzer.UsageYu()
-			err = analyzer.RunYu(args)
-	*/
+	var err error
+	opt := os.Args[1]
+	switch opt {
+	case "destroy":
+		err = destroy()
+	//case "init":
+	//	err = initData()
+	case "run":
+		err = run()
+	case "test":
+		err = test()
 	default:
-		usage()
-		return
+		flag.Parse()
 	}
 	if err != nil {
-		fmt.Printf("%+v\n", err)
-		fmt.Printf("%s", usagestr)
-		return
+		fmt.Printf("%+v", err)
 	}
-	logmsg("finished")
+
 }

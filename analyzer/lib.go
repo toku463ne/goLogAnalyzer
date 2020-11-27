@@ -2,12 +2,18 @@ package analyzer
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/damnever/bitarray"
+	"github.com/pkg/errors"
 )
 
 func logmsg(logLevel int, msg string) {
@@ -17,15 +23,15 @@ func logmsg(logLevel int, msg string) {
 }
 
 func logDebug(msg string) {
-	logmsg(logLevelDebug, fmt.Sprintf("DEBUG - %s", msg))
+	logmsg(cLogLevelDebug, fmt.Sprintf("DEBUG - %s", msg))
 }
 
 func logInfo(msg string) {
-	logmsg(logLevelInfo, fmt.Sprintf("INFO - %s", msg))
+	logmsg(cLogLevelInfo, fmt.Sprintf("INFO - %s", msg))
 }
 
 func logError(msg string) {
-	logmsg(logLevelError, fmt.Sprintf("ERROR - %s", msg))
+	logmsg(cLogLevelError, fmt.Sprintf("ERROR - %s", msg))
 }
 
 func bitAnd(b1 *bitarray.BitArray, b2 *bitarray.BitArray) *bitarray.BitArray {
@@ -79,41 +85,25 @@ func getMapKeys(m map[string]interface{}) []string {
 	return keys
 }
 
-func printStatistics(title string,
-	count int,
-	maxScore float64,
-	minScore float64,
-	avg float64,
-	std float64,
-	comment string) {
-	fmt.Printf("--- %s ---\n", title)
-	fmt.Printf("Counts: %d\n", count)
-	fmt.Printf("Max score: %f\n", maxScore)
-	fmt.Printf("Min score: %f\n", minScore)
-	fmt.Printf("Average: %f\n", avg)
-	fmt.Printf("Standard deviation: %f\n", std)
-	fmt.Printf("%s\n", comment)
-}
-
-// Round 四捨五入
+// Round ...
 func Round(num, places float64) float64 {
 	shift := math.Pow(10, places)
 	return roundInt(num*shift) / shift
 }
 
-// RoundUp 切り上げ
+// RoundUp ...
 func RoundUp(num, places float64) float64 {
 	shift := math.Pow(10, places)
 	return roundUpInt(num*shift) / shift
 }
 
-// RoundDown 切り捨て
+// RoundDown ...
 func RoundDown(num, places float64) float64 {
 	shift := math.Pow(10, places)
 	return math.Trunc(num*shift) / shift
 }
 
-// roundInt 四捨五入(整数)
+// roundInt
 func roundInt(num float64) float64 {
 	t := math.Trunc(num)
 	if math.Abs(num-t) >= 0.5 {
@@ -122,7 +112,7 @@ func roundInt(num float64) float64 {
 	return t
 }
 
-// roundInt 切り上げ(整数)
+// roundInt
 func roundUpInt(num float64) float64 {
 	t := math.Trunc(num)
 	return t + math.Copysign(1, num)
@@ -140,19 +130,163 @@ func argParseANum(args map[string]string, key string) (int, error) {
 	return vs, nil
 }
 
-/*
-func sortDecSliceBy(slice []interface{},
-	ref []interface{},
-	less func(i, j int) bool) ([]interface{}, bool) {
-	if len(slice) != len(ref) {
-		return nil, false
-	}
-	ref2 := make([]interface{}, len(ref))
-	copy(ref2, ref)
-	sort.SliceStable(ref2, less)
-	slice2 := make([]interface{}, len(slice))
-	for i := 0; i < len(ref2); i++ {
+func removeNewLine(str string) string {
+	return reNewline.Copy().ReplaceAllString(str, "")
+}
+func timeToString(t time.Time) string {
+	str := t.Format(cTimestampLayout)
+	return str
+}
 
+func epochToString(epoch int64) string {
+	str := timeToString(time.Unix(epoch, 0).UTC())
+	return str
+}
+
+func copyFile(src, dst string) (int64, error) {
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		return 0, err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return 0, fmt.Errorf("%s is not a regular file", src)
+	}
+
+	source, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer destination.Close()
+	nBytes, err := io.Copy(destination, source)
+	return nBytes, err
+}
+
+func _pivot(a []int64, i, j int) int {
+	k := i + 1
+	for k <= j && a[i] == a[k] {
+		k++
+	}
+	if k > j {
+		return -1
+	}
+	if a[i] >= a[k] {
+		return i
+	}
+	return k
+}
+
+func _partition(a []int64, s []string, i, j int, x int64) int {
+	l := i
+	r := j
+
+	for l <= r {
+		for l <= j && a[l] < x {
+			l++
+		}
+		for r >= i && a[r] >= x {
+			r--
+		}
+		if l > r {
+			break
+		}
+		t := a[l]
+		s1 := s[l]
+		a[l] = a[r]
+		s[l] = s[r]
+		a[r] = t
+		s[r] = s1
+		l++
+		r--
+	}
+	return l
+}
+
+func quickSort(a []int64, s []string, i, j int) {
+	if i == j {
+		return
+	}
+	p := _pivot(a, i, j)
+	if p != -1 {
+		k := _partition(a, s, i, j, a[p])
+		quickSort(a, s, i, k-1)
+		quickSort(a, s, k, j)
 	}
 }
+
+/*
+func loadIni(iniFile1 string) error {
+	//if isIniLoaded {
+	//	return nil
+	//}
+	iniFile := iniFile1
+
+	var err error
+	cfg, err = ini.Load(iniFile)
+	if err != nil {
+		return err
+	}
+
+	//isIniLoaded = true
+	return nil
+}
 */
+
+func timespecToTime(ts syscall.Timespec) time.Time {
+	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+}
+
+func getSortedGlob(pathRegex string) ([]int64, []string) {
+	fileNames, _ := filepath.Glob(pathRegex)
+	if fileNames == nil {
+		return nil, nil
+	}
+	filesEpoch := make([]int64, len(fileNames))
+
+	for i, fileName := range fileNames {
+		file, _ := os.Stat(fileName)
+		//ts, _ := times.Stat(fileName)
+		t := file.ModTime()
+		//t := ts.BirthTime()
+		filesEpoch[i] = t.Unix()
+	}
+
+	quickSort(filesEpoch, fileNames, 0, len(fileNames)-1)
+	return filesEpoch, fileNames
+}
+
+func extError(err error, msg string) error {
+	return errors.WithStack(errors.Wrapf(err, msg))
+}
+
+func countDigits(i int) (count int) {
+	for i != 0 {
+
+		i /= 10
+		count = count + 1
+	}
+	return count
+}
+
+func intSliceToString(insl []int) []string {
+	ousl := make([]string, len(insl))
+	for i, v := range insl {
+		ousl[i] = fmt.Sprint(v)
+	}
+	return ousl
+}
+
+func ensureDir(dirPath string) error {
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		os.MkdirAll(dirPath, 0755)
+	} else if err != nil {
+		return err
+	}
+	return nil
+}

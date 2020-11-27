@@ -41,6 +41,9 @@ func (a *intArray) set(i, val int) {
 }
 
 func (a *intArray) get(i int) int {
+	if i >= len(a.a)-1 {
+		a.set(i, 0)
+	}
 	return a.a[i]
 }
 
