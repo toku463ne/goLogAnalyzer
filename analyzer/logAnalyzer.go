@@ -21,6 +21,7 @@ type logAnalyzerVars struct {
 	maxBlocks          int
 	absenceCheck       bool
 	minSupportPerBlock float64
+	logLevel           string
 }
 
 type closedItemSet struct {
@@ -81,6 +82,7 @@ func newLogAnalyzerByVars(v *logAnalyzerVars) (*logAnalyzer, error) {
 	a.linesInBlock = v.linesInBlock
 	a.maxBlocks = v.maxBlocks
 	a.absenceCheck = v.absenceCheck
+	setLogLevelByStr(v.logLevel)
 
 	if err := a.init(); err != nil {
 		return nil, err
@@ -228,6 +230,9 @@ func (a *logAnalyzer) loadIni(iniFile string) error {
 			a.absenceCheck = k.MustBool(a.absenceCheck)
 		case "minSupportPerBlock":
 			a.minSupportPerBlock = k.MustFloat64(a.minSupportPerBlock)
+		case "logLevel":
+			logLevel := k.MustString("")
+			setLogLevelByStr(logLevel)
 		}
 	}
 	return nil
@@ -393,6 +398,7 @@ func (a *logAnalyzer) run(targetLinesCnt int) error {
 				break
 			}
 		}
+		logDebug(fmt.Sprintf("a.rarAnal.runBeforeNextBlock(%d)", linesToProcess))
 		cnt, err := a.rarAnal.runBeforeNextBlock(linesToProcess)
 		if err != nil {
 			return err
@@ -401,12 +407,15 @@ func (a *logAnalyzer) run(targetLinesCnt int) error {
 		if cnt <= 0 {
 			break
 		}
+		logDebug(fmt.Sprintf("linesProcessed = %d", linesProcessed))
 
 		if a.absenceCheck && a.rarAnal.currBlock != nil && a.rarAnal.currBlock.completed {
 			ra := a.rarAnal
+			logDebug(fmt.Sprintf("collectFrequency block=%d", ra.currBlockID))
 			if err := a.collectFrequency(ra.currBlockID, ra.trans, ra.items); err != nil {
 				return err
 			}
+			logDebug(fmt.Sprintf("collectAbsence block=%d", ra.currBlockID))
 			if err := a.collectAbsence(ra.currBlockID); err != nil {
 				return err
 			}

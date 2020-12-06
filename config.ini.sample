@@ -9,3 +9,4 @@ absenceCheck = true
 frequencyThreshold = 0.5
 minSupportPerBlock = 0.02
 absenceThreshold = 0.7
+logLevel = info

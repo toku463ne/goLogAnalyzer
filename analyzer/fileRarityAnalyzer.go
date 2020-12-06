@@ -46,11 +46,7 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 				scoreAvg,
 				text,
 			)
-			if verbose {
-				logDebug(msg)
-			} else {
-				logInfo(msg)
-			}
+			logInfo(msg)
 		}
 	}
 

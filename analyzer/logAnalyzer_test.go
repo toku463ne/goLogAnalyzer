@@ -24,6 +24,7 @@ func TestLogAnalyzer_run1(t *testing.T) {
 	iniV.absenceCheck = true
 	iniV.rarityThreshold = 0.5
 	iniV.absenceThreshold = 0.5
+	iniV.logLevel = "debug"
 
 	verbose = false
 

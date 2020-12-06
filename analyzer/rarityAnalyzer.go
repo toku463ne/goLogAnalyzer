@@ -15,6 +15,8 @@ type block struct {
 	lastEpoch   int64
 	scoreSum    float64
 	scoreSqrSum float64
+	scoreGapMax float64
+	scoreGapMin float64
 	completed   bool
 }
 
@@ -402,12 +404,19 @@ func (a *rarityAnalyzer) initCurrBlock(blockID int) {
 }
 
 func (a *rarityAnalyzer) nextBlock() {
+	if a.currBlock != nil {
+		msg := fmt.Sprintf("block=%d finished: gapMax=%f gapMin=%f",
+			a.currBlock.blockID,
+			a.currBlock.scoreGapMax,
+			a.currBlock.scoreGapMin)
+		logDebug(msg)
+	}
+
 	a.currBlockID++
 	if a.currBlockID-a.maxBlocks >= 0 {
 		a.currBlockID = 0
 	}
 	a.initCurrBlock(a.currBlockID)
-	logInfo(fmt.Sprintf("block=%d", a.currBlockID))
 }
 
 func (a *rarityAnalyzer) postBlock() error {
@@ -480,6 +489,12 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 				scoreGap = 0
 			} else {
 				scoreGap = (score - scoreAvg) / scoreStd
+			}
+			if a.currBlock.scoreGapMax == 0 || a.currBlock.scoreGapMax < scoreGap {
+				a.currBlock.scoreGapMax = scoreGap
+			}
+			if a.currBlock.scoreGapMin == 0 || a.currBlock.scoreGapMin > scoreGap {
+				a.currBlock.scoreGapMin = scoreGap
 			}
 			a.outputFunc(a.name, a.rowID, a.rarityThreshold,
 				score, scoreGap, scoreAvg, scoreStd, cnt, te)

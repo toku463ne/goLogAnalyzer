@@ -57,7 +57,7 @@ func (fp *filePointer) open() error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	logInfo(fmt.Sprintf("Opened %s", fp.files[0]))
+	logDebug(fmt.Sprintf("Opened %s", fp.files[0]))
 	row := 0
 	if currRow > 0 {
 		for r.next() {
@@ -108,6 +108,7 @@ func (fp *filePointer) next() bool {
 		fp.e = errors.WithStack(err)
 		return false
 	}
+	logDebug(fmt.Sprintf("Opened %s", fp.files[fp.pos]))
 	fp.r = r
 
 	return fp.r.next()

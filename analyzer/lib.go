@@ -16,6 +16,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+func setLogLevelByStr(logLevelStr string) {
+	switch logLevelStr {
+	case "error":
+		curLogLevel = cLogLevelError
+	case "debug":
+		curLogLevel = cLogLevelDebug
+	default:
+		curLogLevel = cLogLevelInfo
+	}
+}
+
 func logmsg(logLevel int, msg string) {
 	if curLogLevel <= logLevel {
 		log.Printf("%s\n", msg)
@@ -219,24 +230,6 @@ func quickSort(a []int64, s []string, i, j int) {
 		quickSort(a, s, k, j)
 	}
 }
-
-/*
-func loadIni(iniFile1 string) error {
-	//if isIniLoaded {
-	//	return nil
-	//}
-	iniFile := iniFile1
-
-	var err error
-	cfg, err = ini.Load(iniFile)
-	if err != nil {
-		return err
-	}
-
-	//isIniLoaded = true
-	return nil
-}
-*/
 
 func timespecToTime(ts syscall.Timespec) time.Time {
 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
