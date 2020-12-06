@@ -19,8 +19,8 @@ loganal run [-p LOGPATH] [-v]
   Starts log analyzation.
   Cannot use -c and -p together.
     -c CONFIGFILE: The path of config file in ini format. 
-	-v verbose
-	-p LOGPATH: Path of the logfile.
+    -v verbose
+    -p LOGPATH: Path of the logfile.
 loganal clanup [-c CONFIGFILE]
   Cleans up the analyzation data in previous analysis
     -c CONFIGFILE: The path of config file in ini format. 

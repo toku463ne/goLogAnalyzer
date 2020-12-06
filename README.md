@@ -25,21 +25,31 @@ Copy config.ini.sample and edit.
 [LogFile]
 linesInBlock = 1000
 maxBlocks = 10
-rootDir = ~/loganal ## files will be saved under this directory
-logName = syslog ## label of the logfile
+rootDir = ~/loganal 
+logName = syslog 
 logPathRegex = /var/log/syslog* 
 rarityThreshold = 0.8  
 frequencyCheck = true
 frequencyThreshold = 0.5
 minSupportPerBlock = 0.02
-absencyThreshold = 0.5
+absenceThreshold = 0.0
 ```
 
 and run the command below
 ```
-loganal -c config.ini
+loganal run -c config.ini
 ```
-or if the file name of the config is "config.ini", just run 
+or to just run with default parameters without saving anything, run below
 ```
-loganal
+loganal run -p '/var/log/syslog*'
+```
+  
+you can output all lines by passing "-v" option  
+```
+loganal run -c config.ini -v
+```
+  
+To cleanup the saved files, run below
+```
+loganal cleanup -c config.ini
 ```
