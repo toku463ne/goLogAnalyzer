@@ -20,9 +20,12 @@ func TestLogAnalyzer_run1(t *testing.T) {
 	iniV.linesInBlock = 5
 	iniV.maxBlocks = 3
 	iniV.useDB = true
-	iniV.frequencyCheck = true
 	iniV.minSupportPerBlock = 0.1
-	verbose = true
+	iniV.absenceCheck = true
+	iniV.rarityThreshold = 0.5
+	iniV.absenceThreshold = 0.5
+
+	verbose = false
 
 	if _, err := copyFile("inputs/sample3.log.1",
 		fmt.Sprintf("%s/sample3.log.1", testDir)); err != nil {
@@ -69,18 +72,18 @@ func TestLogAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	if err := a.run(); err != nil {
+	if err := a.run(0); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
 
-	if a.rarAnal.rowNum != 5 {
+	if a.rarAnal.rowNum != 6 {
 		t.Errorf("rowNum is wrong")
 		return
 	}
 
-	if a.rarAnal.rowID != 5 {
+	if a.rarAnal.rowID != 6 {
 		t.Errorf("rowID does not match!")
 		return
 	}
@@ -120,6 +123,44 @@ func TestLogAnalyzer_run1(t *testing.T) {
 
 	if v[2] != "5" {
 		t.Errorf("blockCnt is incorrect")
+		return
+	}
+
+	db2 := a.dciDB
+	table = db2.tables["closedItemSets"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 5 {
+		t.Errorf("count of closedItemSets is not correct")
+		return
+	}
+	table = db2.tables["closedItemKeys"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 5 {
+		t.Errorf("count of closedItemKeys is not correct")
+		return
+	}
+
+	db3 := a.absAnal.db
+	table = db3.tables["lastStatus"]
+	v, err = table.select1rec(nil, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if v[0] != "0" {
+		t.Errorf("lastRowID is incorrect")
+		return
+	}
+	if v[1] != "0" {
+		t.Errorf("lastBlockID is incorrect")
 		return
 	}
 
@@ -164,17 +205,17 @@ func TestLogAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	if err := a.run(); err != nil {
+	if err := a.run(0); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
 
-	if a.rarAnal.rowNum != 5 {
+	if a.rarAnal.rowNum != 6 {
 		t.Errorf("currCount is wrong")
 		return
 	}
-	if a.rarAnal.rowID != 10 {
+	if a.rarAnal.rowID != 11 {
 		t.Errorf("rowID does not match!")
 		return
 	}
@@ -187,107 +228,378 @@ func TestLogAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	a.close()
-}
-
-/*
-	db, err = newDB()
+	db2 = a.dciDB
+	table = db2.tables["closedItemSets"]
+	cnt, err = table.count(nil, "*")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-
-	v, err = db.select1row("logBlocks",
-		[]string{"blockID", "lastRow", "lastEpoch"},
-		[]string{fmt.Sprintf("logID=%d", a.logID),
-			fmt.Sprintf("blockID = (select max(blockID) from logBlocks where logID=%d)", a.logID)})
-	if v == nil || len(v) != 3 {
-		t.Errorf("no rows")
+	if cnt != 10 {
+		t.Errorf("count of closedItemSets is not correct")
 		return
 	}
-	if v == nil || len(v) != 3 {
-		t.Errorf("logBlocks table must have a row")
+	table = db2.tables["closedItemKeys"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 10 {
+		t.Errorf("count of closedItemKeys is not correct")
 		return
 	}
 
-	if v[0] != "2" {
+	db3 = a.absAnal.db
+	table = db3.tables["lastStatus"]
+	v, err = table.select1rec(nil, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if v[0] != "5" {
+		t.Errorf("lastRowID is incorrect")
+		return
+	}
+	if v[1] != "1" {
 		t.Errorf("lastBlockID is incorrect")
 		return
 	}
-	if v[1] != "7" {
-		t.Errorf("lastRow is incorrect")
-		return
+
+	a.close()
+}
+
+func TestLogAnalyzer_run2_blocks(t *testing.T) {
+	testItemsCount := func(testname string, items1 items,
+		words []string, okIfExist bool) bool {
+		for _, word := range words {
+			itemID, ok := items1.getItemID(word)
+			if ok == false {
+				if okIfExist {
+					t.Errorf("%s testItemsCount reason: %s", testname, word)
+				} else {
+					continue
+				}
+			}
+			cnt := items1.getCount(itemID)
+			if okIfExist && cnt == 0 || !okIfExist && cnt > 0 {
+				t.Errorf("%s testItemsCount reason: %s", testname, word)
+				return false
+			}
+		}
+		return true
 	}
 
-	file, _ := os.Stat("tmp/sample3.log")
-	filesEpoch := file.ModTime().Unix()
-	if v[2] != fmt.Sprintf("%d", filesEpoch) {
-		t.Errorf("timestamps don't match")
-		return
-	}
-
-	v, err = db.select1row("items",
-		[]string{"cnt"},
-		[]string{"logID=1", "blockID=2", "word='006'"})
+	iniV := new(logAnalyzerVars)
+	iniV.name = "TestLogAnalyzer_run2_blocks"
+	testDir, err := ensureTestDir(iniV.name)
 	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
+	iniV.logPathRegex = fmt.Sprintf("%s/sample4.log*", testDir)
+	iniV.linesInBlock = 5
+	iniV.maxBlocks = 3
+	iniV.useDB = true
+	iniV.minSupportPerBlock = 0.1
+	iniV.absenceCheck = true
+	iniV.rarityThreshold = 0.5
+	iniV.absenceThreshold = 0.5
+
+	verbose = false
+
+	if _, err := copyFile("inputs/sample4.log",
+		fmt.Sprintf("%s/sample4.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a, err := newLogAnalyzerByVars(iniV)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+
+	if err := a.destroy(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.run(15); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
 
-	if v == nil || len(v) != 1 {
-		t.Errorf("items table must have a row")
-		return
-	}
-	if v[0] != "1" {
-		t.Errorf("count is not correct")
+	if a.rarAnal.rowNum != 15 {
+		t.Errorf("currCount is wrong")
 		return
 	}
 
-	scores := make([]float64, 11)
-	s := 0.0
-	ss := 0.0
-	blockID := 1
-	for i := range scores {
-		score := math.Log(float64(i+1)) + 1
-		scores[i] = score
-		s += score
-		ss += score * score
-		if i%5 == 4 {
-			v, err = db.select1row("logBlocks",
-				[]string{"scoreSum", "scoreSqrSum"},
-				[]string{"logID=1", fmt.Sprintf("blockID=%d", blockID)})
-			if err != nil {
-				println(err)
-				t.Errorf("%v", err)
-				return
-			}
-			s = Round(s, 4)
-			s1, _ := (strconv.ParseFloat(v[0], 64))
-			s1 = Round(s1, 4)
-			if s1 != s {
-				t.Errorf("scoreSum don't match")
-				return
-			}
-			ss = Round(ss, 4)
-			ss1, _ := strconv.ParseFloat(v[1], 64)
-			ss1 = Round(ss1, 4)
-			if ss1 != ss {
-				t.Errorf("scoreSqrSum don't match")
-				return
-			}
-			s = 0
-			ss = 0
-			blockID++
-		}
+	if testItemsCount("frq true rowNum=15", *a.frqAnal.items,
+		[]string{"a005", "a010", "a015"}, true) == false {
+		return
 	}
 
-	db.close()
+	if testItemsCount("frq false rowNum=15", *a.frqAnal.items,
+		[]string{"a001", "a016"}, false) == false {
+		return
+	}
 
-	if err := a.tokenize(false); err != nil {
+	if testItemsCount("abs true rowNum=15", *a.absAnal.items,
+		[]string{"a002", "a005", "a010"}, true) == false {
+		return
+	}
+
+	if testItemsCount("abs false rowNum=15", *a.absAnal.items,
+		[]string{"a001", "a011", "a015"}, false) == false {
+		return
+	}
+
+	if err := a.run(1); err != nil {
+		println(err)
 		t.Errorf("%v", err)
 		return
 	}
+
+	if a.rarAnal.rowNum != 16 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+
+	if testItemsCount("frq true rowNum=16", *a.frqAnal.items,
+		[]string{"a002", "a005", "a010", "a015"}, true) == false {
+		return
+	}
+	if testItemsCount("frq false rowNum=16", *a.frqAnal.items,
+		[]string{"a001", "a016"}, false) == false {
+		return
+	}
+
+	if testItemsCount("abs true rowNum=16", *a.absAnal.items,
+		[]string{"a002", "a005", "a010"}, true) == false {
+		return
+	}
+	if testItemsCount("abs false rowNum=16", *a.absAnal.items,
+		[]string{"a001", "a011", "a016", "a017"}, false) == false {
+		return
+	}
+
+	if err := a.run(4); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	if a.rarAnal.rowNum != 20 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+
+	if a.rarAnal.scoreCount != 15 {
+		t.Errorf("scoreCount is wrong")
+		return
+	}
+
+	if testItemsCount("frq true rowNum=20", *a.frqAnal.items,
+		[]string{"a007", "a015", "a020"}, true) == false {
+		return
+	}
+	if testItemsCount("frq false rowNum=20", *a.frqAnal.items,
+		[]string{"a006", "a021"}, false) == false {
+		return
+	}
+	if testItemsCount("abs true rowNum=20", *a.absAnal.items,
+		[]string{"a005", "a010"}, true) == false {
+		return
+	}
+	if testItemsCount("abs false rowNum=20", *a.absAnal.items,
+		[]string{"a001", "a011", "a016", "a017"}, false) == false {
+		return
+	}
+
+	if err := a.run(5); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	if a.rarAnal.rowNum != 25 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+
+	if a.rarAnal.scoreCount != 15 {
+		t.Errorf("scoreCount is wrong")
+		return
+	}
+
+	if testItemsCount("frq true rowNum=25", *a.frqAnal.items,
+		[]string{"a012", "a025"}, true) == false {
+		return
+	}
+	if testItemsCount("frq false rowNum=25", *a.frqAnal.items,
+		[]string{"a010", "a011", "a009"}, false) == false {
+		return
+	}
+	if testItemsCount("abs true rowNum=25", *a.absAnal.items,
+		[]string{"a007", "a020"}, true) == false {
+		return
+	}
+	if testItemsCount("abs false rowNum=25", *a.absAnal.items,
+		[]string{"a001", "a006", "a021"}, false) == false {
+		return
+	}
+
 	a.close()
 }
-*/
+
+func TestLogAnalyzer_run3_middle(t *testing.T) {
+
+	iniV := new(logAnalyzerVars)
+	iniV.name = "TestLogAnalyzer_run3_middle"
+	testDir, err := ensureTestDir(iniV.name)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
+	iniV.logPathRegex = fmt.Sprintf("%s/sample5.log", testDir)
+	iniV.linesInBlock = 10
+	iniV.maxBlocks = 20
+	iniV.useDB = true
+	iniV.minSupportPerBlock = 0.1
+	iniV.absenceCheck = true
+	iniV.rarityThreshold = 0.5
+	iniV.absenceThreshold = 0.0
+
+	verbose = false
+
+	if _, err := copyFile("inputs/sample5.log",
+		fmt.Sprintf("%s/sample5.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a, err := newLogAnalyzerByVars(iniV)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+
+	err = a.destroy()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	err = a.loadDB()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	cnt, err := a.rarAnal.countTargetLines()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 200 {
+		t.Errorf("countTargetLines does not match!")
+		return
+	}
+
+	if err := a.run(0); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	db := a.dciDB
+	table := db.tables["closedItemSets"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 200 {
+		t.Errorf("count of closedItemSets is not correct")
+		return
+	}
+	db = a.absAnal.db
+	table = db.tables["items"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 12 {
+		t.Errorf("count of closedItemSets is not correct")
+		return
+	}
+}
+
+func TestLogAnalyzer_run4_nodb(t *testing.T) {
+	//name := "TestLogAnalyzer_run4_nodb"
+	logPathRegex := "inputs/sample5.log"
+	iniV := new(logAnalyzerVars)
+	iniV.name = "TestLogAnalyzer_run4_nodb"
+	iniV.rootDir = ""
+	iniV.logPathRegex = logPathRegex
+	iniV.linesInBlock = 10
+	iniV.maxBlocks = 20
+	iniV.useDB = false
+	iniV.minSupportPerBlock = 0.1
+	iniV.absenceCheck = false
+	iniV.rarityThreshold = 0.5
+	iniV.absenceThreshold = 0.0
+
+	verbose = false
+
+	a, err := newLogAnalyzerByVars(iniV)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+
+	cnt, err := a.rarAnal.countTargetLines()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 200 {
+		t.Errorf("countTargetLines does not match!")
+		return
+	}
+
+	if err := a.run(0); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	blocks := a.rarAnal.blocks
+	if len(blocks) != 20 {
+		t.Errorf("Number of blocks does not match!")
+		return
+	}
+	for i, block := range blocks {
+		if block == nil {
+			t.Errorf("A block is not expected to be nil!")
+			return
+		}
+		if i != block.blockID {
+			t.Errorf("A block must have blockID!")
+			return
+		}
+		if block.blockCnt != 10 {
+			t.Errorf("BlockCnt is not as expected!")
+			return
+		}
+	}
+
+}

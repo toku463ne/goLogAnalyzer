@@ -47,12 +47,15 @@ func newCsvTable(name string, columns []string,
 
 func (t *csvTable) getPath(partitionID string) string {
 	path := ""
-	if partitionID != "" {
-		path = fmt.Sprintf("%s/%s_%0"+fmt.Sprint(maxBlockDitigs)+"s.csv",
-			t.baseDir, t.name, partitionID)
+	filename := ""
+	if partitionID == "*" {
+		filename = fmt.Sprintf("%s_*.csv", t.name)
+	} else if partitionID != "" {
+		filename = fmt.Sprintf("%s_%0"+fmt.Sprint(maxBlockDitigs)+"s.csv", t.name, partitionID)
 	} else {
-		path = fmt.Sprintf("%s/%s.csv", t.baseDir, t.name)
+		filename = fmt.Sprintf("%s.csv", t.name)
 	}
+	path = fmt.Sprintf("%s/%s", t.baseDir, filename)
 	return path
 }
 

@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"strconv"
 	"time"
@@ -10,137 +9,90 @@ import (
 	"github.com/pkg/errors"
 )
 
-type outputScoreFunc func(
-	name string, rowID int64,
-	scoreThreshold float64,
-	score, scoreGap, scoreAvg, scoreStd float64,
-	cnt int,
-	text string)
-
 type block struct {
 	blockID     int
 	blockCnt    int
 	lastEpoch   int64
 	scoreSum    float64
 	scoreSqrSum float64
-}
-
-type rarityAnalyzerVars struct {
-	name            string
-	useDB           bool
-	filterRe        string
-	xFilterRe       string
-	rootDir         string
-	logPathRegex    string
-	rarityThreshold float64
-	linesInBlock    int
-	maxBlocks       int
+	completed   bool
 }
 
 type rarityAnalyzer struct {
-	name            string
-	useDB           bool
-	filterRe        string
-	xFilterRe       string
-	rowID           int64
-	rowNum          int
-	rootDir         string
-	logPathRegex    string
-	db              *csvDB
-	items           *items
-	trans           *trans
-	blocks          []*block
-	scoreCount      int
-	scoreSum        float64
-	scoreSqrSum     float64
-	lastMsg         string
-	currBlockID     int
-	linesInBlock    int
-	maxBlocks       int
-	targetLinesCnt  int
-	fp              *filePointer
-	rarityThreshold float64
-	lastFileEpoch   int64
-	lastFileRow     int
-	outputFunc      outputScoreFunc
-	haveStatistics  bool
-}
+	// fields
+	name                  string
+	filterRe              string
+	xFilterRe             string
+	rowID                 int64
+	rootDir               string
+	useDB                 bool
+	db                    *csvDB
+	items                 *items
+	trans                 *trans
+	blocks                []*block
+	scoreCount            int
+	scoreSum              float64
+	scoreSqrSum           float64
+	currBlock             *block
+	currBlockID           int
+	rowNum                int
+	linesInBlock          int
+	maxBlocks             int
+	targetLinesCnt        int
+	maxTargetLinesCnt     int
+	rarityThreshold       float64
+	haveStatistics        bool
+	linesProcessedInBlock int
+	lastFileEpoch         int64
+	lastFileRow           int
 
-func newRarityAnalyzer() *rarityAnalyzer {
-	a := new(rarityAnalyzer)
-	a.name = "rarityAnal"
-	//a.logPathRegex = v.logPathRegex
-	a.useDB = true
-	a.rootDir = fmt.Sprintf("./%s", a.name)
-	a.rarityThreshold = 0.8
-	a.linesInBlock = 10000
-	a.maxBlocks = 1000
-	a.haveStatistics = true
-	a.outputFunc = outputScoreFunc(func(name string, rowID int64,
+	// functions
+	outputFunc func(
+		name string, rowID int64,
 		scoreThreshold float64,
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
-		text string) {
-		if verbose || scoreGap > scoreThreshold {
-			msg := fmt.Sprintf("%s %5d s=%5.2f g=%5.2f a=%5.2f d=%5.2f c=%5d | %s",
-				name,
-				rowID,
-				score,
-				scoreGap,
-				scoreAvg,
-				scoreStd,
-				cnt,
-				text,
-			)
-			println(msg)
-		}
-	})
-	return a
+		text string)
+	setTargetLinesCnt func(int) error
+	countTargetLines  func() (int, error)
+
+	pointerNext      func() bool
+	pointerText      func() string
+	pointerOpen      func() error
+	pointerClose     func()
+	pointerCurrEpoch func() int64
+	pointerCurrName  func() string
+	pointerPos       func() int
+	pointerErr       func() error
 }
 
-func newRarityAnalyzerByVars(v *rarityAnalyzerVars) (*rarityAnalyzer, error) {
-	a := newRarityAnalyzer()
-	a.name = v.name
-	a.useDB = v.useDB
-	a.filterRe = v.filterRe
-	a.xFilterRe = v.xFilterRe
-	a.rootDir = v.rootDir
-	a.logPathRegex = v.logPathRegex
-	a.rarityThreshold = v.rarityThreshold
-	a.linesInBlock = v.linesInBlock
-	a.maxBlocks = v.maxBlocks
-
-	if err := a.init(); err != nil {
-		return nil, err
-	}
-	return a, nil
+func newBlock(blockID int) *block {
+	b := new(block)
+	b.blockID = blockID
+	b.completed = false
+	return b
 }
 
 func (a *rarityAnalyzer) init() error {
 	a.items = newItems()
-
 	maxBlockNum := int(math.Pow10(maxBlockDitigs))
 	if a.maxBlocks >= maxBlockNum {
 		return fmt.Errorf("maxBlocks can't be %d or bigger", maxBlockNum)
 	}
-	a.blocks = make([]*block, a.maxBlocks)
 
 	a.currBlockID = -1
-	a.lastFileEpoch = 0.0
-	a.lastFileRow = 0
 
-	if err := ensureDir(a.rootDir); err != nil {
-		return err
-	}
-
+	a.blocks = make([]*block, a.maxBlocks)
 	if a.useDB {
+		if err := ensureDir(a.rootDir); err != nil {
+			return err
+		}
 		db, err := getRarityAnalDB(a.rootDir, a.maxBlocks)
 		if err != nil {
 			return err
 		}
 		a.db = db
 	}
-
 	return nil
 }
 
@@ -175,53 +127,11 @@ func (a *rarityAnalyzer) loadDB() error {
 	return nil
 }
 
-func (a *rarityAnalyzer) openFP(logPathRegex string,
-	lastEpoch int64, lastRow int) error {
-	a.fp = newFilePointer(logPathRegex, lastEpoch, lastRow)
-	return a.fp.open()
-}
-
-func (a *rarityAnalyzer) run() error {
-	targetLinesCnt, err := a.countTargetLines()
-	if err != nil {
-		return err
-	}
-	a.targetLinesCnt = targetLinesCnt
-	if err := a.openFP(a.logPathRegex, a.lastFileEpoch, a.lastFileRow); err != nil {
-		return err
-	}
-	for {
-		a.currBlockID = a.nextBlockID(a.currBlockID)
-
-		ok, err := a.runBlock(a.currBlockID)
-		if err != nil {
-			return err
-		}
-		if ok == false {
-			break
-		}
-		if a.rowNum+a.linesInBlock > a.targetLinesCnt {
-			break
-		}
-	}
-	return nil
-}
-
 func (a *rarityAnalyzer) close() {
 	if a.db != nil {
 		a.db = nil
 	}
-	if a.fp != nil {
-		a.fp.close()
-	}
-}
-
-func (a *rarityAnalyzer) nextBlockID(blockID int) int {
-	blockID++
-	if blockID-a.maxBlocks >= 0 {
-		blockID = 0
-	}
-	return blockID
+	a.pointerClose()
 }
 
 func (a *rarityAnalyzer) loadDBItems() error {
@@ -327,8 +237,7 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 			return errors.WithStack(err)
 		}
 
-		b := new(block)
-		b.blockID = blockID
+		b := newBlock(blockID)
 		b.blockCnt = blockCnt
 		b.lastEpoch = tmpEpoch2
 		b.scoreSum = scoreSum
@@ -345,22 +254,7 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 	return nil
 }
 
-func (a *rarityAnalyzer) countTargetLines() (int, error) {
-	targetLinesCntCnt := 0
-	if err := a.openFP(a.logPathRegex, a.lastFileEpoch, a.lastFileRow); err != nil {
-		return -1, err
-	}
-	defer a.fp.close()
-	for a.fp.next() {
-		targetLinesCntCnt++
-	}
-	if err := a.fp.err(); err != nil {
-		return -1, err
-	}
-	return targetLinesCntCnt, nil
-}
-
-func (a *rarityAnalyzer) tokenizeLine(line string, row int) bool {
+func (a *rarityAnalyzer) tokenizeLine(line string) bool {
 	isAdded := false
 
 	if a.filterRe != "" && searchReg(line, a.filterRe) == false {
@@ -370,7 +264,7 @@ func (a *rarityAnalyzer) tokenizeLine(line string, row int) bool {
 		return isAdded
 	}
 
-	a.trans.mask.append(row)
+	a.trans.mask.append(a.linesProcessedInBlock)
 	bline := []byte(line)
 
 	tran := getEnItems(bline, a.items, a.filterRe)
@@ -387,112 +281,59 @@ func (a *rarityAnalyzer) tokenizeLine(line string, row int) bool {
 	return isAdded
 }
 
-func (a *rarityAnalyzer) runBlock(blockID int) (bool, error) {
-	a.trans = newTrans()
-	a.items.clearNewCount()
-	if blockID >= 0 {
-		if err := a.deleteOld(blockID); err != nil {
-			return false, err
-		}
-	}
-
-	ok, b, err := a.tokenizeBlock(blockID)
-	if ok == false || err != nil {
-		return ok, err
-	}
-	if a.useDB && blockID >= 0 {
-		if err := a.saveLastStatus(blockID); err != nil {
-			return false, err
-		}
-		if err := a.saveBlock(b); err != nil {
-			return false, err
-		}
-		if err := a.saveItems(blockID); err != nil {
-			return false, err
-		}
-	}
-	return true, nil
-}
-
 func (a *rarityAnalyzer) deleteOld(blockID int) error {
+	if blockID < 0 {
+		return nil
+	}
 	b := a.blocks[blockID]
+	if b == nil {
+		return nil
+	}
+
 	blockIDstr := fmt.Sprint(blockID)
-	if b != nil {
-		a.scoreCount -= b.blockCnt
-		a.scoreSum -= b.scoreSum
-		a.scoreSqrSum -= b.scoreSqrSum
-		if a.useDB {
-			a.db.tables["logBlocks"].deletePartition(blockIDstr)
-			a.db.tables["items"].deletePartition(blockIDstr)
+
+	a.scoreCount -= b.blockCnt
+	a.scoreSum -= b.scoreSum
+	a.scoreSqrSum -= b.scoreSqrSum
+	if a.useDB {
+		rows, err := a.db.tables["items"].query(nil, fmt.Sprint(blockID))
+		if err != nil {
+			return err
 		}
-		a.blocks[blockID] = nil
-	}
-	return nil
-}
-
-func (a *rarityAnalyzer) tokenizeBlock(blockID int) (bool, *block, error) {
-	linesProcessedInBlock := 0
-	var blockScoreSum float64
-	var blockScoreSqrSum float64
-	var scoreAvg float64
-	var scoreStd float64
-	var scoreGap float64
-
-	for a.fp.next() {
-		a.rowNum++
-		a.rowID++
-
-		linesProcessedInBlock++
-		te := a.fp.text()
-		isAdded := a.tokenizeLine(te, linesProcessedInBlock)
-
-		if isAdded && a.haveStatistics {
-			score := a.trans.getLastScore()
-			scoreSqr := score * score
-			blockScoreSum += score
-			blockScoreSqrSum += scoreSqr
-			a.scoreSum += score
-			a.scoreSqrSum += scoreSqr
-			a.scoreCount++
-			cnt := a.scoreCount
-			scoreAvg = a.scoreSum / float64(cnt)
-			scoreStd = math.Sqrt(a.scoreSqrSum / float64(cnt))
-			if scoreStd == 0 {
-				scoreGap = 0
-			} else {
-				scoreGap = (score - scoreAvg) / scoreStd
+		if rows == nil || len(rows) == 0 {
+			return nil
+		}
+		for _, v := range rows {
+			itemID, ok := a.items.getItemID(v[0])
+			if !ok {
+				continue
 			}
-			a.outputFunc(a.name, a.rowID, a.rarityThreshold,
-				score, scoreGap, scoreAvg, scoreStd, cnt, te)
-		}
-		if a.linesInBlock > 0 && linesProcessedInBlock >= a.linesInBlock && blockID >= 0 {
-			break
-		}
-	}
-	if err := a.fp.err(); err == io.EOF {
-		if a.linesInBlock > 0 && linesProcessedInBlock < a.linesInBlock {
-			return false, nil, nil
-		}
-	} else if err != nil {
-		return false, nil, err
-	}
-	b := new(block)
-	b.blockID = blockID
-	b.scoreSqrSum = blockScoreSqrSum
-	b.scoreSum = blockScoreSum
 
-	return true, b, nil
+			cnt, err := strconv.Atoi(v[1])
+			if err != nil {
+				return errors.WithStack(err)
+			}
+			a.items.addCount(itemID, -cnt)
+
+		}
+
+		a.db.tables["logBlocks"].deletePartition(blockIDstr)
+		a.db.tables["items"].deletePartition(blockIDstr)
+	}
+	a.blocks[blockID] = nil
+
+	return nil
 }
 
 func (a *rarityAnalyzer) saveLastStatus(blockID int) error {
 	// save last status
-	epoch := a.fp.currFileEpoch()
+	epoch := a.pointerCurrEpoch()
 	cond := map[string]string{}
 	row := map[string]string{
 		"lastRowID":       fmt.Sprint(a.rowID),
 		"lastBlockID":     fmt.Sprint(a.currBlockID),
-		"fileName":        a.fp.currFile(),
-		"lastRow":         fmt.Sprint(a.fp.row()),
+		"fileName":        a.pointerCurrName(),
+		"lastRow":         fmt.Sprint(a.pointerPos()),
 		"modifiedEpoch":   fmt.Sprint(epoch),
 		"modifiedUtcTime": fmt.Sprint(epochToString(epoch)),
 	}
@@ -503,7 +344,11 @@ func (a *rarityAnalyzer) saveLastStatus(blockID int) error {
 	return nil
 }
 
-func (a *rarityAnalyzer) saveBlock(b *block) error {
+func (a *rarityAnalyzer) saveBlock() error {
+	b := a.currBlock
+	if b == nil {
+		return nil
+	}
 	blockID := b.blockID
 	// save block
 	cond := map[string]string{
@@ -545,4 +390,137 @@ func (a *rarityAnalyzer) saveItems(blockID int) error {
 
 func (a *rarityAnalyzer) destroy() error {
 	return a.db.dropAllTables()
+}
+
+func (a *rarityAnalyzer) initCurrBlock(blockID int) {
+	a.trans = newTrans()
+	a.items.clearNewCount()
+	if a.blocks[blockID] != nil {
+		a.items = a.items.getNonZeroItems()
+	}
+	a.currBlock = newBlock(blockID)
+}
+
+func (a *rarityAnalyzer) nextBlock() {
+	a.currBlockID++
+	if a.currBlockID-a.maxBlocks >= 0 {
+		a.currBlockID = 0
+	}
+	a.initCurrBlock(a.currBlockID)
+}
+
+func (a *rarityAnalyzer) postBlock() error {
+	blockID := a.currBlockID
+	if blockID >= 0 && a.currBlock != nil {
+		if err := a.deleteOld(blockID); err != nil {
+			return err
+		}
+
+		if a.useDB {
+			if err := a.saveLastStatus(blockID); err != nil {
+				return err
+			}
+			if err := a.saveBlock(); err != nil {
+				return err
+			}
+			if err := a.saveItems(blockID); err != nil {
+				return err
+			}
+		}
+		a.blocks[a.currBlockID] = a.currBlock
+	}
+	return nil
+}
+
+func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error) {
+	var scoreAvg float64
+	var scoreStd float64
+	var scoreGap float64
+	linesProcessed := 0
+
+	a.setTargetLinesCnt(targetLinesCnt)
+	if a.targetLinesCnt > 0 && a.rowNum >= a.targetLinesCnt {
+		return 0, nil
+	}
+
+	if a.rowNum == 0 && forcedBlockID < 0 {
+		a.nextBlock()
+	}
+
+	if forcedBlockID >= 0 {
+		a.initCurrBlock(forcedBlockID)
+		a.currBlockID = forcedBlockID
+	}
+
+	if err := a.pointerOpen(); err != nil {
+		return 0, err
+	}
+
+	for a.pointerNext() {
+		if a.currBlock.completed && forcedBlockID < 0 {
+			a.nextBlock()
+		}
+		te := a.pointerText()
+		isAdded := a.tokenizeLine(te)
+
+		if isAdded && a.haveStatistics {
+			score := a.trans.getLastScore()
+			scoreSqr := score * score
+			a.currBlock.scoreSum += score
+			a.currBlock.scoreSqrSum += scoreSqr
+			a.currBlock.blockCnt++
+			a.scoreSum += score
+			a.scoreSqrSum += scoreSqr
+			a.scoreCount++
+			cnt := a.scoreCount
+			scoreAvg = a.scoreSum / float64(cnt)
+			scoreStd = math.Sqrt(a.scoreSqrSum / float64(cnt))
+			if scoreStd == 0 {
+				scoreGap = 0
+			} else {
+				scoreGap = (score - scoreAvg) / scoreStd
+			}
+			a.outputFunc(a.name, a.rowID, a.rarityThreshold,
+				score, scoreGap, scoreAvg, scoreStd, cnt, te)
+		}
+
+		a.linesProcessedInBlock++
+		a.rowNum++
+		a.rowID++
+
+		//if a.name == "test.rare" && a.rowNum >= 1000 {
+		//	fmt.Printf("%d | %s\n", a.rowNum, te)
+		//}
+		linesProcessed++
+		if a.linesInBlock > 0 && a.linesProcessedInBlock >= a.linesInBlock {
+			a.currBlock.completed = true
+			if err := a.postBlock(); err != nil {
+				return linesProcessed, err
+			}
+			a.linesProcessedInBlock = 0
+		}
+		if a.targetLinesCnt > 0 && a.rowNum >= a.targetLinesCnt {
+			break
+		}
+	}
+	if a.linesInBlock == 0 {
+		if err := a.postBlock(); err != nil {
+			return linesProcessed, err
+		}
+		a.linesProcessedInBlock = 0
+	}
+	return linesProcessed, nil
+}
+
+func (a *rarityAnalyzer) runBeforeNextBlock(targetLinesCnt int) (int, error) {
+	if a.linesInBlock <= 0 {
+		return a.run(targetLinesCnt, -1)
+	}
+	linesToProcess := a.linesInBlock - a.linesProcessedInBlock
+	if targetLinesCnt > 0 {
+		if targetLinesCnt < linesToProcess {
+			linesToProcess = targetLinesCnt
+		}
+	}
+	return a.run(linesToProcess, -1)
 }

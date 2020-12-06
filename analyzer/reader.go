@@ -3,6 +3,7 @@ package analyzer
 import (
 	"bufio"
 	"compress/gzip"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -16,6 +17,7 @@ type reader struct {
 	rowNum   int
 	mode     string
 	filename string
+	e        error
 }
 
 func newReader(filename string) (*reader, error) {
@@ -40,6 +42,7 @@ func newReader(filename string) (*reader, error) {
 			return nil, errors.WithStack(err)
 		}
 		lr.scanner = bufio.NewScanner(zr)
+		lr.zr = zr
 	} else {
 		lr.scanner = bufio.NewScanner(fd)
 	}
@@ -52,12 +55,20 @@ func (lr *reader) next() bool {
 	ok := lr.scanner.Scan()
 	if ok {
 		lr.rowNum++
+	} else {
+		err := lr.scanner.Err()
+		if err == nil {
+			lr.e = io.EOF
+		} else if err != nil {
+			lr.e = err
+		}
 	}
 	return ok
 }
 
 func (lr *reader) err() error {
-	return lr.scanner.Err()
+	//return lr.scanner.Err()
+	return lr.e
 }
 
 func (lr *reader) text() string {
@@ -77,4 +88,16 @@ func (lr *reader) close() {
 	if lr.fd != nil {
 		lr.fd.Close()
 	}
+}
+
+func (lr *reader) isOpen() bool {
+	if lr.mode == cRModeGZip {
+		if lr.zr == nil {
+			return false
+		}
+	}
+	if lr.fd == nil {
+		return false
+	}
+	return true
 }

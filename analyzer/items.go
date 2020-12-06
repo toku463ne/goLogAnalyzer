@@ -73,10 +73,35 @@ func (i *items) getCount(itemID int) int {
 	return i.counts.get(itemID)
 }
 
+func (i *items) addCount(itemID, cnt int) {
+	orgcnt := i.counts.get(itemID)
+	i.counts.set(itemID, orgcnt+cnt)
+}
+
+func (i *items) clearCount(itemID int) {
+	i.counts.set(itemID, 0)
+}
+
+func (i *items) getItemID(word string) (int, bool) {
+	itemID, ok := i.itemMap[word]
+	return itemID, ok
+}
+
 func (i *items) getNewCount(itemID int) int {
 	return i.newCounts.get(itemID)
 }
 
 func (i *items) clearNewCount() {
 	i.newCounts = newIntArray()
+}
+
+func (i *items) getNonZeroItems() *items {
+	i2 := newItems()
+	for k, v := range i.itemMap {
+		cnt := i.getCount(v)
+		if cnt > 0 {
+			i2.regist(k, cnt, false)
+		}
+	}
+	return i2
 }

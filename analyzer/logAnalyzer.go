@@ -8,7 +8,6 @@ import (
 	"github.com/go-ini/ini"
 )
 
-// mainly for test
 type logAnalyzerVars struct {
 	name               string
 	useDB              bool
@@ -17,34 +16,37 @@ type logAnalyzerVars struct {
 	rootDir            string
 	logPathRegex       string
 	rarityThreshold    float64
-	frequencyThreshold float64
-	absencyThreshold   float64
+	absenceThreshold   float64
 	linesInBlock       int
 	maxBlocks          int
-	frequencyCheck     bool
+	absenceCheck       bool
 	minSupportPerBlock float64
 }
 
+type closedItemSet struct {
+	text     string
+	lastLine string
+}
+
 type logAnalyzer struct {
-	rarAnal *rarityAnalyzer
-	frqAnal *rarityAnalyzer
-	absAnal *rarityAnalyzer
+	rarAnal *fileRarityAnalyzer
+	frqAnal *splitRarityAnalyzer
+	absAnal *itemAbsenceAnalyzer
 
-	name               string
-	useDB              bool
-	filterRe           string
-	xFilterRe          string
-	rootDir            string
-	logPathRegex       string
-	rarityThreshold    float64
-	frequencyThreshold float64
-	absencyThreshold   float64
-	linesInBlock       int
-	maxBlocks          int
+	name             string
+	useDB            bool
+	filterRe         string
+	xFilterRe        string
+	rootDir          string
+	logPathRegex     string
+	rarityThreshold  float64
+	absenceThreshold float64
+	linesInBlock     int
+	maxBlocks        int
+	closedItemSets   map[string]closedItemSet
 
-	frequencyCheck     bool
+	absenceCheck       bool
 	minSupportPerBlock float64
-	freqClosedItems    map[string]string
 
 	dciDB *csvDB
 }
@@ -56,13 +58,12 @@ func newLogAnalyzer() *logAnalyzer {
 	a.useDB = true
 	a.rootDir = fmt.Sprintf("./%s", a.name)
 	a.rarityThreshold = 0.8
-	a.absencyThreshold = 0.7
+	a.absenceThreshold = 0.7
 	a.linesInBlock = 10000
 	a.maxBlocks = 1000
-	a.frequencyCheck = true
-	a.frequencyThreshold = 0.5
+	a.absenceCheck = true
 	a.minSupportPerBlock = 0.1
-	a.freqClosedItems = make(map[string]string, 1000)
+	a.closedItemSets = make(map[string]closedItemSet, 1000)
 
 	return a
 }
@@ -76,9 +77,10 @@ func newLogAnalyzerByVars(v *logAnalyzerVars) (*logAnalyzer, error) {
 	a.rootDir = v.rootDir
 	a.logPathRegex = v.logPathRegex
 	a.rarityThreshold = v.rarityThreshold
-	a.frequencyThreshold = v.frequencyThreshold
+	a.absenceThreshold = v.absenceThreshold
 	a.linesInBlock = v.linesInBlock
 	a.maxBlocks = v.maxBlocks
+	a.absenceCheck = v.absenceCheck
 
 	if err := a.init(); err != nil {
 		return nil, err
@@ -95,8 +97,34 @@ func newLogAnalyzerByIni(iniFile string) (*logAnalyzer, error) {
 	return a, err
 }
 
+func newLogAnalyzerByDefaults(pathRegex string) (*logAnalyzer, error) {
+	tmp := strings.Split(pathRegex, "/")
+	if len(tmp) <= 1 {
+		tmp = strings.Split(pathRegex, "\\")
+	}
+	name := tmp[len(tmp)-1]
+
+	a := newLogAnalyzer()
+	a.name = name
+	a.useDB = false
+	a.filterRe = ""
+	a.xFilterRe = ""
+	a.rootDir = "."
+	a.logPathRegex = pathRegex
+	a.rarityThreshold = 0.8
+	a.absenceThreshold = 0.0
+	a.linesInBlock = 0
+	a.maxBlocks = 100
+	a.absenceCheck = false
+
+	if err := a.init(); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
 func (a *logAnalyzer) init() error {
-	ra := newRarityAnalyzer()
+	ra := newFileRarityAnalyzer()
 	ra.name = fmt.Sprintf("%s.rare", a.name)
 	ra.useDB = a.useDB
 	ra.filterRe = a.filterRe
@@ -106,77 +134,68 @@ func (a *logAnalyzer) init() error {
 	ra.rarityThreshold = a.rarityThreshold
 	ra.linesInBlock = a.linesInBlock
 	ra.maxBlocks = a.maxBlocks
-	a.rarAnal = ra
-
 	if err := ra.init(); err != nil {
 		return err
 	}
+	a.rarAnal = ra
 
-	if a.frequencyCheck {
-		// collect frequency
-		fa := newRarityAnalyzer()
-		fa.name = fmt.Sprintf("%s.freq", a.name)
-		fa.useDB = true
-		fa.rootDir = fmt.Sprintf("%s/freqDB", a.rootDir)
-		fa.logPathRegex = ""
-		//da.rarityThreshold = a.frequencyThreshold //frequencyThreshold is not a mistake
-		fa.linesInBlock = 0
-		fa.maxBlocks = a.maxBlocks
-		fa.haveStatistics = false
-		fa.outputFunc = outputScoreFunc(func(name string, rowID int64,
-			scoreThreshold float64,
-			score, scoreGap, scoreAvg, scoreStd float64,
-			cnt int,
-			text string) {
-			return
-		})
-		if err := fa.init(); err != nil {
-			return err
-		}
-		a.frqAnal = fa
-		db, err := getDCIClosedDB(fmt.Sprintf("%s/dciDB", a.rootDir), a.maxBlocks)
+	if a.absenceCheck {
+		a.useDB = true
+		ra.useDB = true
+		db, err := getClosedItemsDB(fmt.Sprintf("%s/closedItemsDB", a.rootDir), a.maxBlocks)
 		if err != nil {
 			return err
 		}
 		a.dciDB = db
 
-		// collect absence
-		aa := newRarityAnalyzer()
+		// collect frequency
+		fa := newSplitRarityAnalyzer()
+		fa.name = fmt.Sprintf("%s.freq", a.name)
+		fa.useDB = true
+		fa.rootDir = fmt.Sprintf("%s/frequencyDB", a.rootDir)
+		fa.linesInBlock = 0
+		fa.maxBlocks = a.maxBlocks
+		fa.haveStatistics = false
+		if err := fa.init(); err != nil {
+			return err
+		}
+		a.frqAnal = fa
+
+		aa := newItemAbsenceAnalyzer()
 		aa.name = fmt.Sprintf("%s.absn", a.name)
 		aa.useDB = true
-		aa.rootDir = fmt.Sprintf("%s/absentDB", a.rootDir)
-		aa.logPathRegex = ""
-		aa.rarityThreshold = a.absencyThreshold //absencyThreshold is not a mistake
+		aa.rootDir = fmt.Sprintf("%s/absenceDB", a.rootDir)
+		aa.rarityThreshold = a.absenceThreshold //absencyThreshold is not a mistake
 		aa.linesInBlock = 0
 		aa.maxBlocks = a.maxBlocks
 		aa.haveStatistics = true
-		aa.outputFunc = outputScoreFunc(func(name string, rowID int64,
+		aa.outputFunc = func(name string, rowID int64,
 			scoreThreshold float64,
 			score, scoreGap, scoreAvg, scoreStd float64,
 			cnt int,
 			text string) {
 			text = strings.Replace(text, ",", "", -1)
-			text2 := a.freqClosedItems[text]
-			if verbose || scoreGap > scoreThreshold {
-				msg := fmt.Sprintf("%s %5d s=%5.2f g=%5.2f a=%5.2f d=%5.2f c=%5d | %s",
+			text2 := a.closedItemSets[text].text
+			text3 := a.closedItemSets[text].lastLine
+			if verbose || scoreGap >= scoreThreshold {
+				msg := fmt.Sprintf("%s s=%5.2f g=%5.2f a=%5.2f | %s | %s",
 					name,
-					rowID,
 					score,
 					scoreGap,
 					scoreAvg,
-					scoreStd,
-					cnt,
 					text2,
+					text3,
 				)
 				println(msg)
 			}
-		})
+		}
+
 		if err := aa.init(); err != nil {
 			return err
 		}
 		a.absAnal = aa
-
 	}
+
 	return nil
 }
 
@@ -199,10 +218,10 @@ func (a *logAnalyzer) loadIni(iniFile string) error {
 			a.maxBlocks = k.MustInt(a.maxBlocks)
 		case "rarityThreshold":
 			a.rarityThreshold = k.MustFloat64(a.rarityThreshold)
-		case "absencyThreshold":
-			a.absencyThreshold = k.MustFloat64(a.absencyThreshold)
-		case "frequencyCheck":
-			a.frequencyCheck = k.MustBool(a.frequencyCheck)
+		case "absenceThreshold":
+			a.absenceThreshold = k.MustFloat64(a.absenceThreshold)
+		case "absenceCheck":
+			a.absenceCheck = k.MustBool(a.absenceCheck)
 		case "minSupportPerBlock":
 			a.minSupportPerBlock = k.MustFloat64(a.minSupportPerBlock)
 		}
@@ -220,14 +239,14 @@ func (a *logAnalyzer) loadDB() error {
 	if err := a.absAnal.loadDB(); err != nil {
 		return err
 	}
-	if err := a.loadDBFreqItemSets(); err != nil {
+	if err := a.loadDBclosedItemSets(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (a *logAnalyzer) loadDBFreqItemSets() error {
-	rows, err := a.dciDB.tables["frequentItemSets"].query(nil, "*")
+func (a *logAnalyzer) loadDBclosedItemSets() error {
+	rows, err := a.dciDB.tables["closedItemSets"].query(nil, "*")
 	if err != nil {
 		return err
 	}
@@ -235,25 +254,27 @@ func (a *logAnalyzer) loadDBFreqItemSets() error {
 		return nil
 	}
 	for _, v := range rows {
-		a.freqClosedItems[v[0]] = v[1]
+		a.closedItemSets[v[0]] = closedItemSet{v[1], v[3]}
 	}
 	return nil
 }
 
 func (a *logAnalyzer) close() {
-	a.frqAnal.close()
 	a.rarAnal.close()
-	a.absAnal.close()
+	if a.absenceCheck {
+		a.frqAnal.close()
+		a.absAnal.close()
+	}
 }
 
 func (a *logAnalyzer) destroy() error {
-	if err := a.frqAnal.destroy(); err != nil {
-		return err
-	}
 	if err := a.rarAnal.destroy(); err != nil {
 		return err
 	}
 	if err := a.dciDB.dropAllTables(); err != nil {
+		return err
+	}
+	if err := a.frqAnal.destroy(); err != nil {
 		return err
 	}
 	if err := a.absAnal.destroy(); err != nil {
@@ -263,69 +284,31 @@ func (a *logAnalyzer) destroy() error {
 	return nil
 }
 
-func (a *logAnalyzer) run() error {
-	ra := a.rarAnal
-	targetLinesCnt, err := ra.countTargetLines()
-	if err != nil {
-		return err
-	}
-	ra.targetLinesCnt = targetLinesCnt
-	if err := ra.openFP(ra.logPathRegex, ra.lastFileEpoch, ra.lastFileRow); err != nil {
-		return err
-	}
-	for {
-		ra.currBlockID = ra.nextBlockID(ra.currBlockID)
-		ok, err := ra.runBlock(ra.currBlockID)
-		if err != nil {
-			return err
-		}
-		if ok == false {
-			break
-		}
-		blockID := ra.currBlockID
-		if err := a.dropPartitions(blockID); err != nil {
-			return err
-		}
-		if err := a.collectFrequency(blockID, ra.trans, ra.items); err != nil {
-			return err
-		}
-
-		if err := a.collectAbsence(blockID); err != nil {
-			return err
-		}
-
-		if ra.rowNum+ra.linesInBlock > ra.targetLinesCnt {
-			break
-		}
-	}
-	return nil
-}
-
 func (a *logAnalyzer) dropPartitions(blockID int) error {
 	blockIDstr := fmt.Sprint(blockID)
-	if err := a.dciDB.tables["frequentItemSets"].dropPartition(blockIDstr); err != nil {
+	if err := a.dciDB.tables["closedItemSets"].dropPartition(blockIDstr); err != nil {
 		return err
 	}
-	if err := a.dciDB.tables["frequentItemFirstLines"].dropPartition(blockIDstr); err != nil {
+	if err := a.dciDB.tables["closedItemFirstLines"].dropPartition(blockIDstr); err != nil {
 		return err
 	}
-	if err := a.dciDB.tables["frequentItemLastLines"].dropPartition(blockIDstr); err != nil {
+	if err := a.dciDB.tables["closedItemLastLines"].dropPartition(blockIDstr); err != nil {
 		return err
 	}
-	if err := a.dciDB.tables["frequentItemSetsDotted"].dropPartition(blockIDstr); err != nil {
+	if err := a.dciDB.tables["closedItemSetsKeys"].dropPartition(blockIDstr); err != nil {
 		return err
 	}
-	if err := a.dciDB.tables["frequentItemSetsAbsent"].dropPartition(blockIDstr); err != nil {
+	if err := a.dciDB.tables["closedItemSetsAbsent"].dropPartition(blockIDstr); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (a *logAnalyzer) getFreqItemString(fi []string) string {
+func (a *logAnalyzer) getClosedItemString(fi []string) string {
 	return strings.Join(fi, " ")
 }
 
-func (a *logAnalyzer) getFreqItemKey(fi []string) string {
+func (a *logAnalyzer) getClosedItemKey(fi []string) string {
 	return strings.Join(fi, ".")
 }
 
@@ -346,89 +329,88 @@ func (a *logAnalyzer) collectFrequency(blockID int, trans1 *trans, items1 *items
 		return err
 	}
 
-	closedSets, supps, firstTIDs, lastTIDs := dci.getClosedWordsSorted(items1)
+	closedSets, supps, _, lastTIDs := dci.getClosedWordsSorted(items1)
 	rows1 := make([][]string, len(supps))
 	rows2 := make([][]string, len(supps))
-	rows3 := make([][]string, len(supps))
-	rows4 := make([][]string, len(supps))
-	table := a.dciDB.tables["frequentItemSets"]
+	table := a.dciDB.tables["closedItemSets"]
 	cols := table.colMap
 	for i, cs := range closedSets {
-		tev := a.getFreqItemString(cs)
-		tek := a.getFreqItemKey(cs)
-		row1 := make([]string, 3)
+		tek := a.getClosedItemKey(cs)
+		tev := a.getClosedItemString(cs)
+		fis := new(closedItemSet)
+		fis.text = tev
+		fis.lastLine = trans1.doc.get(lastTIDs[i])
+		row1 := make([]string, 4)
 		row2 := make([]string, 1)
-		row3 := make([]string, 1)
-		row4 := make([]string, 1)
-		row1[cols["support"]] = fmt.Sprint(supps[i])
 		row1[cols["key"]] = tek
 		row1[cols["itemSets"]] = tev
-		row2[cols["line"]] = trans1.doc.get(firstTIDs[i])
-		row3[cols["line"]] = trans1.doc.get(lastTIDs[i])
-		row4[cols["line"]] = tek
-		a.freqClosedItems[tek] = tev
+		row1[cols["support"]] = fmt.Sprint(supps[i])
+		row1[cols["lastLine"]] = fis.lastLine
+		row2[cols["key"]] = tek
+		a.closedItemSets[tek] = *fis
 		rows1[i] = row1
 		rows2[i] = row2
-		rows3[i] = row3
-		rows4[i] = row4
 	}
-	if err := a.dciDB.tables["frequentItemSets"].insertRows(rows1,
+	if err := a.dciDB.tables["closedItemSets"].insertRows(rows1,
 		blockIDstr); err != nil {
 		return err
 	}
-	if err := a.dciDB.tables["frequentItemFirstLines"].insertRows(rows2,
+	if err := a.dciDB.tables["closedItemKeys"].insertRows(rows2,
 		blockIDstr); err != nil {
 		return err
 	}
-	if err := a.dciDB.tables["frequentItemLastLines"].insertRows(rows3,
-		blockIDstr); err != nil {
-		return err
-	}
-	if err := a.dciDB.tables["frequentItemSetsDotted"].insertRows(rows4,
-		blockIDstr); err != nil {
+	fa := a.frqAnal
+	fa.setLines(rows2)
+	if _, err := fa.run(0, blockID); err != nil {
 		return err
 	}
 
-	fa := a.frqAnal
-	freqPath := a.dciDB.tables["frequentItemSetsDotted"].getPath(fmt.Sprint(blockID))
-	if err := fa.openFP(freqPath, 0, 0); err != nil {
-		return err
-	}
-	fa.currBlockID = blockID
-	if _, err := fa.runBlock(blockID); err != nil {
+	return nil
+}
+
+func (a *logAnalyzer) collectAbsence(blockID int) error {
+	aa := a.absAnal
+	aa.setAbsItems(a.frqAnal.items)
+	if _, err := aa.run(0, blockID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (a *logAnalyzer) collectAbsence(blockID int) error {
-	fa := a.frqAnal
-	// save item
-	items := fa.items
-	rows := [][]string{}
-	table := a.dciDB.tables["frequentItemSetsAbsent"]
-	cols := table.colMap
-	for itemID, cnt := range items.newCounts.getSlice() {
-		if cnt == 0 {
-			row := make([]string, len(cols))
-			row[cols["line"]] = string(items.items.get(itemID))
-			rows = append(rows, row)
+func (a *logAnalyzer) run(targetLinesCnt int) error {
+	linesProcessed := 0
+	linesToProcess := 0
+	for {
+		if targetLinesCnt > 0 {
+			linesToProcess = targetLinesCnt - linesProcessed
+			if linesToProcess <= 0 {
+				break
+			}
+		}
+		cnt, err := a.rarAnal.runBeforeNextBlock(linesToProcess)
+		if err != nil {
+			return err
+		}
+		linesProcessed += cnt
+		if cnt <= 0 {
+			break
+		}
+
+		if a.absenceCheck && a.rarAnal.currBlock != nil && a.rarAnal.currBlock.completed {
+			ra := a.rarAnal
+			if err := a.collectFrequency(ra.currBlockID, ra.trans, ra.items); err != nil {
+				return err
+			}
+			if err := a.collectAbsence(ra.currBlockID); err != nil {
+				return err
+			}
+		}
+		if cnt < a.linesInBlock {
+			break
+		}
+		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
+			break
 		}
 	}
-	if err := a.dciDB.tables["frequentItemSetsAbsent"].insertRows(rows,
-		fmt.Sprint(blockID)); err != nil {
-		return err
-	}
-	aa := a.absAnal
-	absenPath := a.dciDB.tables["frequentItemSetsAbsent"].getPath(fmt.Sprint(blockID))
-	if err := aa.openFP(absenPath, 0, 0); err != nil {
-		return err
-	}
-	aa.currBlockID = blockID
-	if _, err := aa.runBlock(blockID); err != nil {
-		return err
-	}
-
 	return nil
-
 }

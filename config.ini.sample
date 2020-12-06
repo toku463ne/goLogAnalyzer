@@ -1,0 +1,11 @@
+[LogFile]
+linesInBlock = 1000
+maxBlocks = 10
+rootDir = /mnt/c/Users/kot/loganal
+logName = "test"
+logPathRegex = /mnt/c/Users/kot/loganal/realtest/test.log*
+rarityThreshold = 0.8
+absenceCheck = true
+frequencyThreshold = 0.5
+minSupportPerBlock = 0.02
+absenceThreshold = 0.7

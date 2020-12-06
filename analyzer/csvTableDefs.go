@@ -20,27 +20,15 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	return newCsvDB(baseDir, d)
 }
 
-func getDCIClosedDB(baseDir string, maxPartitions int) (*csvDB, error) {
+func getClosedItemsDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	d := map[string]csvTableDef{
-		"frequentItemSets": csvTableDef{
-			"frequentItemSets",
-			[]string{"key", "itemSets", "support"},
+		"closedItemSets": csvTableDef{
+			"closedItemSets",
+			[]string{"key", "itemSets", "support", "lastLine"},
 			maxPartitions},
-		"frequentItemFirstLines": csvTableDef{
-			"frequentItemFirstLines",
-			[]string{"line"},
-			maxPartitions},
-		"frequentItemLastLines": csvTableDef{
-			"frequentItemLastLines",
-			[]string{"line"},
-			maxPartitions},
-		"frequentItemSetsDotted": csvTableDef{
-			"frequentItemSetsDotted",
-			[]string{"line"},
-			maxPartitions},
-		"frequentItemSetsAbsent": csvTableDef{
-			"frequentItemSetsAbsent",
-			[]string{"line"},
+		"closedItemKeys": csvTableDef{
+			"closedItemKeys",
+			[]string{"key"},
 			maxPartitions},
 	}
 	return newCsvDB(baseDir, d)

@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"io"
+
 	"github.com/pkg/errors"
 )
 
@@ -79,8 +81,10 @@ func (fp *filePointer) next() bool {
 	ok := fp.r.next()
 	err := fp.r.err()
 	fp.e = err
-	if ok == false && err != nil {
-		return false
+	if !ok {
+		if err != nil && err != io.EOF {
+			return false
+		}
 	}
 	if ok {
 		fp.e = nil
@@ -88,7 +92,7 @@ func (fp *filePointer) next() bool {
 	}
 
 	if fp.pos+1 >= len(fp.files) {
-		fp.e = nil
+		fp.e = io.EOF
 		return false
 	}
 	if fp.r != nil {
@@ -125,4 +129,11 @@ func (fp *filePointer) close() {
 		fp.r = nil
 	}
 	fp.pos = 0
+}
+
+func (fp *filePointer) isOpen() bool {
+	if fp.r == nil || fp.r.isOpen() == false {
+		return false
+	}
+	return true
 }
