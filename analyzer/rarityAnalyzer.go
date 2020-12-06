@@ -407,6 +407,7 @@ func (a *rarityAnalyzer) nextBlock() {
 		a.currBlockID = 0
 	}
 	a.initCurrBlock(a.currBlockID)
+	logInfo(fmt.Sprintf("block=%d", a.currBlockID))
 }
 
 func (a *rarityAnalyzer) postBlock() error {

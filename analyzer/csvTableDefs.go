@@ -24,7 +24,7 @@ func getClosedItemsDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	d := map[string]csvTableDef{
 		"closedItemSets": csvTableDef{
 			"closedItemSets",
-			[]string{"key", "itemSets", "support", "lastLine"},
+			[]string{"support", "key", "itemSets", "lastLine"},
 			maxPartitions},
 		"closedItemKeys": csvTableDef{
 			"closedItemKeys",

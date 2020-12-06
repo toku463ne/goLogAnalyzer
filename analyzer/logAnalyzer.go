@@ -186,7 +186,11 @@ func (a *logAnalyzer) init() error {
 					text2,
 					text3,
 				)
-				println(msg)
+				if verbose {
+					logDebug(msg)
+				} else {
+					logInfo(msg)
+				}
 			}
 		}
 
@@ -334,6 +338,8 @@ func (a *logAnalyzer) collectFrequency(blockID int, trans1 *trans, items1 *items
 	rows2 := make([][]string, len(supps))
 	table := a.dciDB.tables["closedItemSets"]
 	cols := table.colMap
+	table2 := a.dciDB.tables["closedItemKeys"]
+	cols2 := table2.colMap
 	for i, cs := range closedSets {
 		tek := a.getClosedItemKey(cs)
 		tev := a.getClosedItemString(cs)
@@ -346,7 +352,7 @@ func (a *logAnalyzer) collectFrequency(blockID int, trans1 *trans, items1 *items
 		row1[cols["itemSets"]] = tev
 		row1[cols["support"]] = fmt.Sprint(supps[i])
 		row1[cols["lastLine"]] = fis.lastLine
-		row2[cols["key"]] = tek
+		row2[cols2["key"]] = tek
 		a.closedItemSets[tek] = *fis
 		rows1[i] = row1
 		rows2[i] = row2
