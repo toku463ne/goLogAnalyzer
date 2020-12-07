@@ -5,9 +5,15 @@ import (
 )
 
 func TestCsvTable_exec(t *testing.T) {
+	name := "TestCsvTable_exec"
+	rootDir, err := ensureTestDir(name)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
 	tb := newCsvTable("test",
 		[]string{"id", "name"},
-		"tmpdb", 10)
+		rootDir, 10)
 
 	if err := tb.dropAll(); err != nil {
 		t.Errorf("%v", err)
@@ -74,7 +80,7 @@ func TestCsvTable_exec(t *testing.T) {
 	}
 
 	cur.close()
-	err := tb.update(map[string]string{"id": "3"},
+	err = tb.update(map[string]string{"id": "3"},
 		map[string]string{"name": "test3_updated"}, "*", false)
 	if err != nil {
 		t.Errorf("Error updating : %v", err)

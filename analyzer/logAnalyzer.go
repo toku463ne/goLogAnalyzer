@@ -242,14 +242,16 @@ func (a *logAnalyzer) loadDB() error {
 	if err := a.rarAnal.loadDB(); err != nil {
 		return err
 	}
-	if err := a.frqAnal.loadDB(); err != nil {
-		return err
-	}
-	if err := a.absAnal.loadDB(); err != nil {
-		return err
-	}
-	if err := a.loadDBclosedItemSets(); err != nil {
-		return err
+	if a.absenceCheck {
+		if err := a.frqAnal.loadDB(); err != nil {
+			return err
+		}
+		if err := a.absAnal.loadDB(); err != nil {
+			return err
+		}
+		if err := a.loadDBclosedItemSets(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -280,14 +282,16 @@ func (a *logAnalyzer) destroy() error {
 	if err := a.rarAnal.destroy(); err != nil {
 		return err
 	}
-	if err := a.dciDB.dropAllTables(); err != nil {
-		return err
-	}
-	if err := a.frqAnal.destroy(); err != nil {
-		return err
-	}
-	if err := a.absAnal.destroy(); err != nil {
-		return err
+	if a.absenceCheck {
+		if err := a.dciDB.dropAllTables(); err != nil {
+			return err
+		}
+		if err := a.frqAnal.destroy(); err != nil {
+			return err
+		}
+		if err := a.absAnal.destroy(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -391,6 +395,7 @@ func (a *logAnalyzer) collectAbsence(blockID int) error {
 func (a *logAnalyzer) run(targetLinesCnt int) error {
 	linesProcessed := 0
 	linesToProcess := 0
+	logDebug(fmt.Sprintf("run(%d)", targetLinesCnt))
 	for {
 		if targetLinesCnt > 0 {
 			linesToProcess = targetLinesCnt - linesProcessed

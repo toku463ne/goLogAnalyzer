@@ -604,3 +604,95 @@ func TestLogAnalyzer_run4_nodb(t *testing.T) {
 	}
 
 }
+
+func TestLogAnalyzer_run5_noabsence(t *testing.T) {
+	iniV := new(logAnalyzerVars)
+	iniV.name = "TestLogAnalyzer_run5_noabsence"
+	testDir, err := ensureTestDir(iniV.name)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
+	iniV.logPathRegex = fmt.Sprintf("%s/sample4.log*", testDir)
+	iniV.linesInBlock = 5
+	iniV.maxBlocks = 3
+	iniV.useDB = true
+	iniV.minSupportPerBlock = 0.1
+	iniV.absenceCheck = false
+	iniV.rarityThreshold = 0.5
+	iniV.absenceThreshold = 0.5
+
+	verbose = false
+
+	if _, err := copyFile("inputs/sample4.log",
+		fmt.Sprintf("%s/sample4.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a, err := newLogAnalyzerByVars(iniV)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+
+	if err := a.destroy(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.run(5); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	if a.rarAnal.rowID != 5 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+
+	db := a.rarAnal.db
+
+	table := db.tables["lastStatus"]
+	v, err := table.select1rec(nil, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if v[0] != "5" {
+		t.Errorf("lastRowID is incorrect")
+		return
+	}
+
+	a.close()
+
+	a, err = newLogAnalyzerByVars(iniV)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+	err = a.loadDB()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if a.rarAnal.rowID != 5 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+
+	if err := a.run(5); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+	if a.rarAnal.rowID != 10 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+}
