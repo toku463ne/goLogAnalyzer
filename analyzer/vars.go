@@ -6,22 +6,9 @@ import (
 )
 
 var (
-	//cfg *ini.File
-	//rootDir = "."
-	//logName string
-	//logHost               string
-	//logPathRegex          string
-	//filterRe              string
-	//xFilterRe             string
-	//rarityThreshold float64
-	//linesInBlock          int
-	//maxBlocks             int
-	maxBlockDitigs = 10
-	maxRowID       = int64(9999999999999)
-	//minSupportPerBlock = 0.1
-	verbose = false
-	//isIniLoaded = false
-	//frequencyCheck        = true
+	maxBlockDitigs        = 10
+	maxRowID              = int64(9999999999999)
+	verbose               = false
 	remTags               = regexp.MustCompile(`<[^>]*>`)
 	oneSpace              = regexp.MustCompile(`\s{2,}`)
 	numberRe              = regexp.MustCompile(`^[0-9]+$`)

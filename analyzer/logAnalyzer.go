@@ -230,6 +230,10 @@ func (a *logAnalyzer) loadIni(iniFile string) error {
 			a.absenceCheck = k.MustBool(a.absenceCheck)
 		case "minSupportPerBlock":
 			a.minSupportPerBlock = k.MustFloat64(a.minSupportPerBlock)
+		case "filterRe":
+			a.filterRe = k.MustString(a.filterRe)
+		case "xFilterRe":
+			a.xFilterRe = k.MustString(a.xFilterRe)
 		case "logLevel":
 			logLevel := k.MustString("")
 			setLogLevelByStr(logLevel)

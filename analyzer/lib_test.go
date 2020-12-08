@@ -35,3 +35,26 @@ func Test_quickSort(t *testing.T) {
 		})
 	}
 }
+
+func Test_searchReg(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		re   string
+		want bool
+	}{
+		// TODO: Add test cases.
+		{"test4", "abcdevg", "(cdg|cdf)", false},
+		{"test1", "abcdevg", "cde", true},
+		{"test2", "abcdevg", "cdf", false},
+		{"test3", "abcdevg", "(cde|cdf)", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := searchReg(tt.s, tt.re)
+			if tt.want != got {
+				t.Errorf("not match. s=%s re=%s", tt.s, tt.re)
+			}
+		})
+	}
+}
