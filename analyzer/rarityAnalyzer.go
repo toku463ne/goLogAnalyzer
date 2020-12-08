@@ -502,7 +502,13 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 
 		a.linesProcessedInBlock++
 		a.rowNum++
+		if a.rowNum > int(maxRowID) {
+			a.rowNum = 0
+		}
 		a.rowID++
+		if a.rowID > maxRowID {
+			a.rowID = 0
+		}
 
 		//if a.name == "test.rare" && a.rowNum >= 1000 {
 		//	fmt.Printf("%d | %s\n", a.rowNum, te)

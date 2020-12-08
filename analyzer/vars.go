@@ -17,6 +17,7 @@ var (
 	//linesInBlock          int
 	//maxBlocks             int
 	maxBlockDitigs = 10
+	maxRowID       = int64(9999999999999)
 	//minSupportPerBlock = 0.1
 	verbose = false
 	//isIniLoaded = false
