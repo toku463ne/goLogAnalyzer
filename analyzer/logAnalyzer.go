@@ -17,12 +17,14 @@ type logAnalyzerVars struct {
 	rootDir            string
 	logPathRegex       string
 	rarityThreshold    float64
+	rarity2Threshold   float64
 	absenceThreshold   float64
 	linesInBlock       int
 	maxBlocks          int
 	absenceCheck       bool
 	minSupportPerBlock float64
 	logLevel           string
+	isDeep             bool
 }
 
 type closedItemSet struct {
@@ -43,12 +45,14 @@ type logAnalyzer struct {
 	rootDir          string
 	logPathRegex     string
 	rarityThreshold  float64
+	rarity2Threshold float64
 	absenceThreshold float64
 	linesInBlock     int
 	maxBlocks        int
 	closedItemSets   map[string]closedItemSet
 
 	absenceCheck       bool
+	isDeep             bool
 	minSupportPerBlock float64
 
 	dciDB *csvDB
@@ -63,12 +67,14 @@ func newLogAnalyzer() *logAnalyzer {
 	a.useDB = true
 	a.rootDir = fmt.Sprintf("./%s", a.name)
 	a.rarityThreshold = 0.8
+	a.rarity2Threshold = 0.0
 	a.absenceThreshold = 0.7
 	a.linesInBlock = 10000
 	a.maxBlocks = 1000
 	a.absenceCheck = true
 	a.minSupportPerBlock = 0.1
 	a.closedItemSets = make(map[string]closedItemSet, 1000)
+	a.isDeep = false
 	return a
 }
 
@@ -81,10 +87,13 @@ func newLogAnalyzerByVars(v *logAnalyzerVars) (*logAnalyzer, error) {
 	a.rootDir = v.rootDir
 	a.logPathRegex = v.logPathRegex
 	a.rarityThreshold = v.rarityThreshold
+	a.rarity2Threshold = v.rarity2Threshold
 	a.absenceThreshold = v.absenceThreshold
 	a.linesInBlock = v.linesInBlock
 	a.maxBlocks = v.maxBlocks
 	a.absenceCheck = v.absenceCheck
+	a.isDeep = v.isDeep
+
 	setLogLevelByStr(v.logLevel)
 
 	if err := a.init(); err != nil {
@@ -120,10 +129,12 @@ func newLogAnalyzerByDefaults(pathRegex string) (*logAnalyzer, error) {
 	a.rootDir = "."
 	a.logPathRegex = pathRegex
 	a.rarityThreshold = 0.8
+	a.rarity2Threshold = 0.0
 	a.absenceThreshold = 0.0
 	a.linesInBlock = 0
 	a.maxBlocks = 100
 	a.absenceCheck = false
+	a.isDeep = false
 
 	if err := a.init(); err != nil {
 		return nil, err
@@ -148,21 +159,28 @@ func (a *logAnalyzer) setNewRarAnal() error {
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
 		text []string) {
-		if verbose || scoreGap > scoreThreshold {
-			if scoreGap > scoreThreshold && a.textW != nil && text != nil {
+		msg := fmt.Sprintf("%s %d g=%5.2f a=%5.2f | %s",
+			name,
+			rowID,
+			scoreGap,
+			scoreAvg,
+			text,
+		)
+		if a.rarAnal.rowID == 3893 {
+			print("hrer\n")
+		}
+		if scoreGap > scoreThreshold {
+			if a.textW != nil && text != nil {
 				text = append(text, fmt.Sprint(rowID))
-				a.textW.insert2Buffer(text)
+				if a.isDeep {
+					a.textW.insert2Buffer(text)
+				} else {
+					logInfo(msg)
+				}
 			}
-			if verbose {
-				msg := fmt.Sprintf("%s %d g=%5.2f a=%5.2f | %s",
-					name,
-					rowID,
-					scoreGap,
-					scoreAvg,
-					text,
-				)
-				logInfo(msg)
-			}
+		}
+		if verbose {
+			logInfo(msg)
 		}
 	}
 
@@ -190,7 +208,7 @@ func (a *logAnalyzer) setNewRa2Anal() error {
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
 		text []string) {
-		if verbose || scoreGap > scoreThreshold {
+		if verbose || scoreGap >= a.rarity2Threshold {
 			te := text[0]
 			id := text[1]
 			msg := fmt.Sprintf("%s %s g=%5.2f a=%5.2f | %s",
@@ -313,6 +331,8 @@ func (a *logAnalyzer) loadIni(iniFile string) error {
 			a.maxBlocks = k.MustInt(a.maxBlocks)
 		case "rarityThreshold":
 			a.rarityThreshold = k.MustFloat64(a.rarityThreshold)
+		case "rarity2Threshold":
+			a.rarity2Threshold = k.MustFloat64(a.rarity2Threshold)
 		case "absenceThreshold":
 			a.absenceThreshold = k.MustFloat64(a.absenceThreshold)
 		case "absenceCheck":
@@ -326,6 +346,8 @@ func (a *logAnalyzer) loadIni(iniFile string) error {
 		case "logLevel":
 			logLevel := k.MustString("")
 			setLogLevelByStr(logLevel)
+		case "isDeep":
+			a.isDeep = k.MustBool(a.isDeep)
 		}
 	}
 	return nil
@@ -510,9 +532,9 @@ func (a *logAnalyzer) runRa2Anal() error {
 		if err != nil {
 			return err
 		}
-		if len(buf) <= 0 {
-			return nil
-		}
+		//if len(buf) <= 0 {
+		//	return nil
+		//}
 		blockID := a.rarAnal.currBlockID
 		a.ra2Anal.setLines(buf)
 		if _, err := a.ra2Anal.run(0, blockID); err != nil {
@@ -553,8 +575,10 @@ func (a *logAnalyzer) run(targetLinesCnt int) error {
 		logDebug(fmt.Sprintf("linesProcessed = %d", linesProcessed))
 
 		if a.rarAnal.currBlock != nil && a.rarAnal.currBlock.completed {
-			if err := a.runRa2Anal(); err != nil && err != io.EOF {
-				return err
+			if a.isDeep {
+				if err := a.runRa2Anal(); err != nil && err != io.EOF {
+					return err
+				}
 			}
 			if a.absenceCheck {
 				ra := a.rarAnal
@@ -575,7 +599,7 @@ func (a *logAnalyzer) run(targetLinesCnt int) error {
 			break
 		}
 	}
-	if a.textW != nil && a.textW.id >= 0 {
+	if a.isDeep && a.textW != nil && a.textW.id >= 0 {
 		if err := a.runRa2Anal(); err != nil && err != io.EOF {
 			return err
 		}

@@ -15,17 +15,22 @@ var (
 	frqFlag  = flag.NewFlagSet("frq", flag.ContinueOnError)
 	testFlag = flag.NewFlagSet("test", flag.ContinueOnError)
 	usageTxt = `Usage:
-loganal run [-c CONFIGFILE] [-v]
-loganal run [-f LOGPATH] [-v]
+loganal run [-c CONFIGFILE] [-d]
+loganal run [-f LOGPATH] [-d]
   Starts log analyzation.
   Cannot use -c and -f together.
-    -c CONFIGFILE: The path of config file in ini format. 
-    -v verbose
-    -f LOGPATH: Path of the logfile.
+    -c CONFIGFILE: The path of config file in ini format  
+    -d debug mode  
+    -f LOGPATH: Path of the logfile (can use regex)  
 loganal clanup [-c CONFIGFILE]
   Cleans up the analyzation data in previous analysis
 	-c CONFIGFILE: The path of config file in ini format. 
 loganal frq -f LOGPATH -m MIN_SUPPORT [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
+  Shows closed frequent item sets order by the support
+	-f LOGPATH: Path of the logfile
+	-m MIN_SUPPORT: minimum support of closed frequent item sets
+	-s SEARCH_KEYS: key word to search (can use regex)
+	-x EXCLUDE_KEYS: key word to exclude (can use regex)
   `
 )
 

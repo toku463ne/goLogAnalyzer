@@ -25,6 +25,7 @@ func TestLogAnalyzer_run1(t *testing.T) {
 	iniV.rarityThreshold = 0.5
 	iniV.absenceThreshold = 0.5
 	iniV.logLevel = "debug"
+	iniV.isDeep = false
 
 	verbose = false
 
@@ -307,6 +308,7 @@ func TestLogAnalyzer_run2_blocks(t *testing.T) {
 	iniV.absenceCheck = true
 	iniV.rarityThreshold = 0.5
 	iniV.absenceThreshold = 0.5
+	iniV.isDeep = false
 
 	verbose = false
 
@@ -480,6 +482,7 @@ func TestLogAnalyzer_run3_middle(t *testing.T) {
 	iniV.absenceCheck = true
 	iniV.rarityThreshold = 0.5
 	iniV.absenceThreshold = 0.0
+	iniV.isDeep = false
 
 	verbose = false
 
@@ -562,6 +565,7 @@ func TestLogAnalyzer_run4_nodb(t *testing.T) {
 	iniV.absenceCheck = false
 	iniV.rarityThreshold = 0.5
 	iniV.absenceThreshold = 0.0
+	iniV.isDeep = false
 
 	verbose = false
 
@@ -627,6 +631,7 @@ func TestLogAnalyzer_run5_noabsence(t *testing.T) {
 	iniV.absenceCheck = false
 	iniV.rarityThreshold = 0.5
 	iniV.absenceThreshold = 0.5
+	iniV.isDeep = false
 
 	verbose = false
 
@@ -718,7 +723,9 @@ func TestLogAnalyzer_run6_rar2(t *testing.T) {
 	iniV.minSupportPerBlock = 0.1
 	iniV.absenceCheck = false
 	iniV.rarityThreshold = 0.0
+	iniV.rarity2Threshold = 0.0
 	iniV.absenceThreshold = 0.5
+	iniV.isDeep = true
 
 	verbose = false
 
