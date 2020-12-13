@@ -24,3 +24,10 @@ func Test_main3(t *testing.T) {
 	os.Args = []string{"test", "run", "-c", "test2.ini"}
 	main()
 }
+
+func Test_main4(t *testing.T) {
+	os.Args = []string{"test", "frq",
+		"-f", "c:\\Users\\kot\\loganal\\realtest\\test.log",
+		"-m", "100", "-x", "error"}
+	main()
+}

@@ -387,12 +387,6 @@ func (t *csvTable) delete(
 	return t.update(conds, nil, partitionID, false)
 }
 
-func (t *csvTable) deletePartition(partitionID string) error {
-	path := t.getPath(partitionID)
-	err := os.Remove(path)
-	return err
-}
-
 func (t *csvTable) dropAll() error {
 	parts := []string{"*", ""}
 	for _, p := range parts {

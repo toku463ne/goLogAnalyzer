@@ -41,12 +41,12 @@ loganal run -c config.ini
 ```
 or to just run with default parameters without saving anything, run below
 ```
-loganal run -p '/var/log/syslog*'
+loganal run -f '/var/log/syslog*'
 ```
   
-you can output all lines by passing "-v" option  
+you can run with debug mode by "-d" option  
 ```
-loganal run -c config.ini -v
+loganal run -c config.ini -d
 ```
   
 To cleanup the saved files, run below

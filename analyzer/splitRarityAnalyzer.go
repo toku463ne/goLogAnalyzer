@@ -3,7 +3,6 @@ package analyzer
 import (
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,7 +30,7 @@ func newSplitRarityAnalyzer() *splitRarityAnalyzer {
 		scoreThreshold float64,
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
-		text string) {
+		text []string) {
 		return
 	}
 
@@ -57,8 +56,8 @@ func newSplitRarityAnalyzer() *splitRarityAnalyzer {
 		a.pos++
 		return true
 	}
-	a.pointerText = func() string {
-		return strings.Join(a.lines[a.pos], " ")
+	a.pointerText = func() []string {
+		return a.lines[a.pos]
 	}
 	a.pointerOpen = func() error {
 		return nil

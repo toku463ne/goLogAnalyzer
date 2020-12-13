@@ -30,7 +30,7 @@ func newItemAbsenceAnalyzer() *itemAbsenceAnalyzer {
 		scoreThreshold float64,
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
-		text string) {
+		text []string) {
 		return
 	}
 
@@ -62,8 +62,8 @@ func newItemAbsenceAnalyzer() *itemAbsenceAnalyzer {
 		a.err = io.EOF
 		return false
 	}
-	a.pointerText = func() string {
-		return a.absItems.getWord(a.pos)
+	a.pointerText = func() []string {
+		return []string{a.absItems.getWord(a.pos)}
 	}
 	a.pointerOpen = func() error {
 		return nil

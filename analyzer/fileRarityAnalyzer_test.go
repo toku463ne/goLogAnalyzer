@@ -410,3 +410,68 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 	a.close()
 
 }
+
+func TestFileRarityAnalyzer_run3_xfilter(t *testing.T) {
+	testDir, err := ensureTestDir("TestFileRarityAnalyzer_run3_xfilter")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	iniV := new(fileRarityAnalyzerVars)
+	iniV.name = "TestFileRarityAnalyzer_run3_xfilter"
+	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
+	iniV.logPathRegex = fmt.Sprintf("%s/sample.txt", testDir)
+	iniV.linesInBlock = 5
+	iniV.maxBlocks = 3
+	iniV.xFilterRe = "melon"
+	iniV.rarityThreshold = 0.5
+	iniV.useDB = true
+	verbose = false
+
+	if _, err := copyFile("inputs/sample.txt",
+		fmt.Sprintf("%s/sample.txt", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a, err := newFileRarityAnalyzerByVars(iniV)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+
+	if err := a.destroy(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	cnt, err := a.countTargetLines()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 6 {
+		t.Errorf("countTargetLines does not match!")
+		return
+	}
+
+	if _, err := a.run(0, -1); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	if a.rowNum != 6 {
+		t.Errorf("rowNum is wrong")
+		return
+	}
+
+	if a.blocks[0].blockCnt != 1 {
+		t.Errorf("rowNum is wrong")
+		return
+	}
+
+	a.close()
+}

@@ -37,21 +37,14 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 		scoreThreshold float64,
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
-		text string) {
+		text []string) {
 		if verbose || scoreGap > scoreThreshold {
-			//msg := fmt.Sprintf("%s s=%5.2f g=%5.2f a=%5.2f | %s",
-			//	name,
-			//	score,
-			//	scoreGap,
-			//	scoreAvg,
-			//	text,
-			//)
 			msg := fmt.Sprintf("%s %d g=%5.2f a=%5.2f | %s",
 				name,
 				rowID,
 				scoreGap,
 				scoreAvg,
-				text,
+				text[0],
 			)
 			logInfo(msg)
 		}
@@ -95,8 +88,8 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 	a.pointerNext = func() bool {
 		return a.fp.next()
 	}
-	a.pointerText = func() string {
-		return a.fp.text()
+	a.pointerText = func() []string {
+		return []string{a.fp.text()}
 	}
 	a.pointerOpen = func() error {
 		if a.fp == nil || !a.fp.isOpen() {

@@ -8,6 +8,8 @@ import (
 var (
 	maxBlockDitigs        = 10
 	maxRowID              = int64(9999999999999)
+	maxStageCounts        = 100
+	rowsToInsertAtOnce    = 10000
 	verbose               = false
 	remTags               = regexp.MustCompile(`<[^>]*>`)
 	oneSpace              = regexp.MustCompile(`\s{2,}`)

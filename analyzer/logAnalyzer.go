@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"strings"
 
@@ -31,6 +32,7 @@ type closedItemSet struct {
 
 type logAnalyzer struct {
 	rarAnal *fileRarityAnalyzer
+	ra2Anal *splitRarityAnalyzer
 	frqAnal *splitRarityAnalyzer
 	absAnal *itemAbsenceAnalyzer
 
@@ -50,6 +52,8 @@ type logAnalyzer struct {
 	minSupportPerBlock float64
 
 	dciDB *csvDB
+
+	textW *textWriter
 }
 
 func newLogAnalyzer() *logAnalyzer {
@@ -65,7 +69,6 @@ func newLogAnalyzer() *logAnalyzer {
 	a.absenceCheck = true
 	a.minSupportPerBlock = 0.1
 	a.closedItemSets = make(map[string]closedItemSet, 1000)
-
 	return a
 }
 
@@ -90,10 +93,13 @@ func newLogAnalyzerByVars(v *logAnalyzerVars) (*logAnalyzer, error) {
 	return a, nil
 }
 
-func newLogAnalyzerByIni(iniFile string) (*logAnalyzer, error) {
+func newLogAnalyzerByIni(iniFile string, debug bool) (*logAnalyzer, error) {
 	a := newLogAnalyzer()
 	if err := a.loadIni(iniFile); err != nil {
 		return nil, err
+	}
+	if debug {
+		setLogLevelByStr("debug")
 	}
 	err := a.init()
 	return a, err
@@ -125,25 +131,108 @@ func newLogAnalyzerByDefaults(pathRegex string) (*logAnalyzer, error) {
 	return a, nil
 }
 
-func (a *logAnalyzer) init() error {
+func (a *logAnalyzer) setNewRarAnal() error {
 	ra := newFileRarityAnalyzer()
-	ra.name = fmt.Sprintf("%s.rare", a.name)
-	ra.useDB = a.useDB
+	ra.name = fmt.Sprintf("%s.rar1", a.name)
+	ra.useDB = true
 	ra.filterRe = a.filterRe
 	ra.xFilterRe = a.xFilterRe
-	ra.rootDir = fmt.Sprintf("%s/rarityDB", a.rootDir)
+	ra.rootDir = fmt.Sprintf("%s/rarityDB1", a.rootDir)
 	ra.logPathRegex = a.logPathRegex
 	ra.rarityThreshold = a.rarityThreshold
 	ra.linesInBlock = a.linesInBlock
 	ra.maxBlocks = a.maxBlocks
+
+	ra.outputFunc = func(name string, rowID int64,
+		scoreThreshold float64,
+		score, scoreGap, scoreAvg, scoreStd float64,
+		cnt int,
+		text []string) {
+		if verbose || scoreGap > scoreThreshold {
+			if scoreGap > scoreThreshold && a.textW != nil && text != nil {
+				text = append(text, fmt.Sprint(rowID))
+				a.textW.insert2Buffer(text)
+			}
+			if verbose {
+				msg := fmt.Sprintf("%s %d g=%5.2f a=%5.2f | %s",
+					name,
+					rowID,
+					scoreGap,
+					scoreAvg,
+					text,
+				)
+				logInfo(msg)
+			}
+		}
+	}
+
 	if err := ra.init(); err != nil {
 		return err
 	}
+
 	a.rarAnal = ra
+	return nil
+}
+
+func (a *logAnalyzer) setNewRa2Anal() error {
+	ra := newSplitRarityAnalyzer()
+	ra.name = fmt.Sprintf("%s.rare", a.name)
+	ra.useDB = true
+	ra.filterRe = ""
+	ra.xFilterRe = ""
+	ra.rootDir = fmt.Sprintf("%s/rarityDB2", a.rootDir)
+	ra.rarityThreshold = a.rarityThreshold
+	ra.linesInBlock = 0
+	ra.maxBlocks = a.maxBlocks
+
+	ra.outputFunc = func(name string, rowID int64,
+		scoreThreshold float64,
+		score, scoreGap, scoreAvg, scoreStd float64,
+		cnt int,
+		text []string) {
+		if verbose || scoreGap > scoreThreshold {
+			te := text[0]
+			id := text[1]
+			msg := fmt.Sprintf("%s %s g=%5.2f a=%5.2f | %s",
+				name,
+				id,
+				scoreGap,
+				scoreAvg,
+				te,
+			)
+			logInfo(msg)
+		}
+	}
+
+	ra.postDeleteOldFunc = func(blockID int) error {
+		return a.textW.db.tables["doc"].dropPartition(fmt.Sprint(blockID))
+	}
+
+	if err := ra.init(); err != nil {
+		return err
+	}
+	a.ra2Anal = ra
+	return nil
+}
+
+func (a *logAnalyzer) init() error {
+	if err := a.setNewRarAnal(); err != nil {
+		return err
+	}
+
+	textWdir := fmt.Sprintf("%s", a.rootDir)
+	t, err := newTextWriter(textWdir, a.maxBlocks, a.linesInBlock)
+	if err != nil {
+		return err
+	}
+	a.textW = t
+
+	if err := a.setNewRa2Anal(); err != nil {
+		return err
+	}
 
 	if a.absenceCheck {
 		a.useDB = true
-		ra.useDB = true
 		db, err := getClosedItemsDB(fmt.Sprintf("%s/closedItemsDB", a.rootDir), a.maxBlocks)
 		if err != nil {
 			return err
@@ -175,8 +264,8 @@ func (a *logAnalyzer) init() error {
 			scoreThreshold float64,
 			score, scoreGap, scoreAvg, scoreStd float64,
 			cnt int,
-			text string) {
-			text = strings.Replace(text, ",", "", -1)
+			text1 []string) {
+			text := strings.Replace(text1[0], ",", "", -1)
 			text2 := a.closedItemSets[text].text
 			text3 := a.closedItemSets[text].lastLine
 			if verbose || scoreGap >= scoreThreshold {
@@ -246,6 +335,11 @@ func (a *logAnalyzer) loadDB() error {
 	if err := a.rarAnal.loadDB(); err != nil {
 		return err
 	}
+
+	if err := a.ra2Anal.loadDB(); err != nil {
+		return err
+	}
+
 	if a.absenceCheck {
 		if err := a.frqAnal.loadDB(); err != nil {
 			return err
@@ -280,6 +374,9 @@ func (a *logAnalyzer) close() {
 		a.frqAnal.close()
 		a.absAnal.close()
 	}
+	if a.ra2Anal != nil {
+		a.ra2Anal.close()
+	}
 }
 
 func (a *logAnalyzer) destroy() error {
@@ -296,6 +393,17 @@ func (a *logAnalyzer) destroy() error {
 		if err := a.absAnal.destroy(); err != nil {
 			return err
 		}
+	}
+	textw, err := newTextWriter(a.rootDir, a.maxBlocks, a.linesInBlock)
+	if err != nil {
+		return err
+	}
+	if err := textw.destroy(); err != nil {
+		return err
+	}
+
+	if err := a.ra2Anal.destroy(); err != nil {
+		return err
 	}
 
 	return nil
@@ -396,6 +504,24 @@ func (a *logAnalyzer) collectAbsence(blockID int) error {
 	return nil
 }
 
+func (a *logAnalyzer) runRa2Anal() error {
+	if a.textW != nil {
+		buf, err := a.textW.flush()
+		if err != nil {
+			return err
+		}
+		if len(buf) <= 0 {
+			return nil
+		}
+		blockID := a.rarAnal.currBlockID
+		a.ra2Anal.setLines(buf)
+		if _, err := a.ra2Anal.run(0, blockID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *logAnalyzer) run(targetLinesCnt int) error {
 	linesProcessed := 0
 	linesToProcess := 0
@@ -408,6 +534,14 @@ func (a *logAnalyzer) run(targetLinesCnt int) error {
 			}
 		}
 		logDebug(fmt.Sprintf("a.rarAnal.runBeforeNextBlock(%d)", linesToProcess))
+		if a.textW != nil {
+			blockID := a.rarAnal.currBlockID
+			if blockID == -1 {
+				blockID = 0
+			}
+			a.textW.setID(blockID)
+		}
+
 		cnt, err := a.rarAnal.runBeforeNextBlock(linesToProcess)
 		if err != nil {
 			return err
@@ -418,15 +552,20 @@ func (a *logAnalyzer) run(targetLinesCnt int) error {
 		}
 		logDebug(fmt.Sprintf("linesProcessed = %d", linesProcessed))
 
-		if a.absenceCheck && a.rarAnal.currBlock != nil && a.rarAnal.currBlock.completed {
-			ra := a.rarAnal
-			logDebug(fmt.Sprintf("collectFrequency block=%d", ra.currBlockID))
-			if err := a.collectFrequency(ra.currBlockID, ra.trans, ra.items); err != nil {
+		if a.rarAnal.currBlock != nil && a.rarAnal.currBlock.completed {
+			if err := a.runRa2Anal(); err != nil && err != io.EOF {
 				return err
 			}
-			logDebug(fmt.Sprintf("collectAbsence block=%d", ra.currBlockID))
-			if err := a.collectAbsence(ra.currBlockID); err != nil {
-				return err
+			if a.absenceCheck {
+				ra := a.rarAnal
+				logDebug(fmt.Sprintf("collectFrequency block=%d", ra.currBlockID))
+				if err := a.collectFrequency(ra.currBlockID, ra.trans, ra.items); err != nil {
+					return err
+				}
+				logDebug(fmt.Sprintf("collectAbsence block=%d", ra.currBlockID))
+				if err := a.collectAbsence(ra.currBlockID); err != nil {
+					return err
+				}
 			}
 		}
 		if cnt < a.linesInBlock {
@@ -436,5 +575,11 @@ func (a *logAnalyzer) run(targetLinesCnt int) error {
 			break
 		}
 	}
+	if a.textW != nil && a.textW.id >= 0 {
+		if err := a.runRa2Anal(); err != nil && err != io.EOF {
+			return err
+		}
+	}
+
 	return nil
 }

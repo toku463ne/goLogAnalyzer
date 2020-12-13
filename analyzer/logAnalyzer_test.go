@@ -328,6 +328,11 @@ func TestLogAnalyzer_run2_blocks(t *testing.T) {
 		return
 	}
 
+	if err := a.loadDB(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 	if err := a.run(15); err != nil {
 		println(err)
 		t.Errorf("%v", err)
@@ -692,6 +697,73 @@ func TestLogAnalyzer_run5_noabsence(t *testing.T) {
 		return
 	}
 	if a.rarAnal.rowID != 10 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+}
+
+func TestLogAnalyzer_run6_rar2(t *testing.T) {
+	iniV := new(logAnalyzerVars)
+	iniV.name = "TestLogAnalyzer_run6_rar2"
+	testDir, err := ensureTestDir(iniV.name)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
+	iniV.logPathRegex = fmt.Sprintf("%s/sample6.log*", testDir)
+	iniV.linesInBlock = 10
+	iniV.maxBlocks = 10
+	iniV.useDB = true
+	iniV.minSupportPerBlock = 0.1
+	iniV.absenceCheck = false
+	iniV.rarityThreshold = 0.0
+	iniV.absenceThreshold = 0.5
+
+	verbose = false
+
+	if _, err := copyFile("inputs/sample6.log",
+		fmt.Sprintf("%s/sample6.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a, err := newLogAnalyzerByVars(iniV)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+
+	if err := a.destroy(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	err = a.loadDB()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.run(50); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	if a.rarAnal.rowID != 50 {
+		t.Errorf("currCount is wrong")
+		return
+	}
+
+	if err := a.run(50); err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	if a.rarAnal.rowID != 100 {
 		t.Errorf("currCount is wrong")
 		return
 	}

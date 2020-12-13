@@ -33,3 +33,13 @@ func getClosedItemsDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	}
 	return newCsvDB(baseDir, d)
 }
+
+func getTextWriterDB(baseDir string, maxPartitions int) (*csvDB, error) {
+	d := map[string]csvTableDef{
+		"doc": csvTableDef{
+			"text",
+			[]string{"key"},
+			maxPartitions},
+	}
+	return newCsvDB(baseDir, d)
+}

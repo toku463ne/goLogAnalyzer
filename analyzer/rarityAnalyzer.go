@@ -37,6 +37,7 @@ type rarityAnalyzer struct {
 	scoreSqrSum           float64
 	currBlock             *block
 	currBlockID           int
+	oldBlockID            int
 	rowNum                int
 	linesInBlock          int
 	maxBlocks             int
@@ -54,12 +55,14 @@ type rarityAnalyzer struct {
 		scoreThreshold float64,
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
-		text string)
+		text []string)
 	setTargetLinesCnt func(int) error
 	countTargetLines  func() (int, error)
 
+	postDeleteOldFunc func(blockID int) error
+
 	pointerNext      func() bool
-	pointerText      func() string
+	pointerText      func() []string
 	pointerOpen      func() error
 	pointerClose     func()
 	pointerCurrEpoch func() int64
@@ -83,6 +86,7 @@ func (a *rarityAnalyzer) init() error {
 	}
 
 	a.currBlockID = -1
+	a.oldBlockID = -1
 
 	a.blocks = make([]*block, a.maxBlocks)
 	if a.useDB {
@@ -94,6 +98,10 @@ func (a *rarityAnalyzer) init() error {
 			return err
 		}
 		a.db = db
+	}
+
+	a.postDeleteOldFunc = func(blockID int) error {
+		return nil
 	}
 	return nil
 }
@@ -256,6 +264,7 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 	return nil
 }
 
+/*
 func (a *rarityAnalyzer) tokenizeLine(line string) bool {
 	isAdded := false
 
@@ -282,6 +291,7 @@ func (a *rarityAnalyzer) tokenizeLine(line string) bool {
 	}
 	return isAdded
 }
+*/
 
 func (a *rarityAnalyzer) deleteOld(blockID int) error {
 	if blockID < 0 {
@@ -319,9 +329,14 @@ func (a *rarityAnalyzer) deleteOld(blockID int) error {
 
 		}
 
-		a.db.tables["logBlocks"].deletePartition(blockIDstr)
-		a.db.tables["items"].deletePartition(blockIDstr)
+		a.db.tables["logBlocks"].dropPartition(blockIDstr)
+		a.db.tables["items"].dropPartition(blockIDstr)
 	}
+
+	if err := a.postDeleteOldFunc(blockID); err != nil {
+		return err
+	}
+
 	a.blocks[blockID] = nil
 
 	return nil
@@ -412,6 +427,7 @@ func (a *rarityAnalyzer) nextBlock() {
 		logDebug(msg)
 	}
 
+	a.oldBlockID = a.currBlockID
 	a.currBlockID++
 	if a.currBlockID-a.maxBlocks >= 0 {
 		a.currBlockID = 0
@@ -470,8 +486,27 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 		if a.currBlock.completed && forcedBlockID < 0 {
 			a.nextBlock()
 		}
+
+		a.linesProcessedInBlock++
+		a.rowNum++
+		if a.rowNum > int(maxRowID) {
+			a.rowNum = 0
+		}
+		a.rowID++
+		if a.rowID > maxRowID {
+			a.rowID = 0
+		}
+
 		te := a.pointerText()
-		isAdded := a.tokenizeLine(te)
+		//isAdded := a.tokenizeLine(te[0])
+		isAdded := tokenizeLine(te[0], a.trans,
+			a.items, a.filterRe, a.xFilterRe, a.linesProcessedInBlock)
+		/*
+			line string,
+			trans1 *trans, items1 *items, filterRe string,
+			xFilterRe string,
+			rowNum int
+		*/
 
 		if isAdded && a.haveStatistics {
 			score := a.trans.getLastScore()
@@ -498,16 +533,6 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 			}
 			a.outputFunc(a.name, a.rowID, a.rarityThreshold,
 				score, scoreGap, scoreAvg, scoreStd, cnt, te)
-		}
-
-		a.linesProcessedInBlock++
-		a.rowNum++
-		if a.rowNum > int(maxRowID) {
-			a.rowNum = 0
-		}
-		a.rowID++
-		if a.rowID > maxRowID {
-			a.rowID = 0
 		}
 
 		//if a.name == "test.rare" && a.rowNum >= 1000 {

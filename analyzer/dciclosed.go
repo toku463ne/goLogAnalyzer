@@ -1,10 +1,8 @@
 package analyzer
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 
 	"github.com/damnever/bitarray"
@@ -351,37 +349,25 @@ func (dci *DCIClosed) getClosedWordsSortedSearched(items1 *items, regStr string,
 	return cw, newsup, newftid, newltid
 }
 
-func (dci *DCIClosed) outDCIClosed(filepath string, items1 *items,
-	rowNum int, regStr string, mask *intArray) error {
+func (dci *DCIClosed) output(items1 *items,
+	rowNum int, mask *intArray) error {
 	var tokens [][]string
 	var sup, ftid, ltid []int
-	if regStr == "" {
-		tokens, sup, ftid, ltid = dci.getClosedWordsSorted(items1)
-	} else {
-		tokens, sup, ftid, ltid = dci.getClosedWordsSortedSearched(items1, regStr, mask)
-	}
-	ou, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	w := bufio.NewWriter(ou)
-	defer ou.Close()
+	tokens, sup, ftid, ltid = dci.getClosedWordsSorted(items1)
+
 	total := fmt.Sprintf("Total lines: %d\n", rowNum)
 	fmt.Printf(total)
-	fmt.Fprint(w, total)
 	header := fmt.Sprintf("   support      start        end closedset\n")
 	fmt.Printf(header)
-	fmt.Fprint(w, header)
 	for i, t := range tokens {
 		line := fmt.Sprintf("%10d %10d %10d %v\n", sup[i], ftid[i]+1, ltid[i]+1, t)
 		if i <= printClosedSetNum {
 			fmt.Printf(line)
 		}
-		if _, err := fmt.Fprint(w, line); err != nil {
+		if _, err := fmt.Println(line); err != nil {
 			return err
 		}
 	}
-	w.Flush()
 	return nil
 }
 
