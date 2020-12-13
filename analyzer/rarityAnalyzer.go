@@ -498,15 +498,8 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 		}
 
 		te := a.pointerText()
-		//isAdded := a.tokenizeLine(te[0])
 		isAdded := tokenizeLine(te[0], a.trans,
 			a.items, a.filterRe, a.xFilterRe, a.linesProcessedInBlock)
-		/*
-			line string,
-			trans1 *trans, items1 *items, filterRe string,
-			xFilterRe string,
-			rowNum int
-		*/
 
 		if isAdded && a.haveStatistics {
 			score := a.trans.getLastScore()
@@ -535,9 +528,6 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 				score, scoreGap, scoreAvg, scoreStd, cnt, te)
 		}
 
-		//if a.name == "test.rare" && a.rowNum >= 1000 {
-		//	fmt.Printf("%d | %s\n", a.rowNum, te)
-		//}
 		linesProcessed++
 		if a.linesInBlock > 0 && a.linesProcessedInBlock >= a.linesInBlock {
 			a.currBlock.completed = true

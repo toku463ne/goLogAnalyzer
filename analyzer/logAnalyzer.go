@@ -166,9 +166,6 @@ func (a *logAnalyzer) setNewRarAnal() error {
 			scoreAvg,
 			text,
 		)
-		if a.rarAnal.rowID == 3893 {
-			print("hrer\n")
-		}
 		if scoreGap > scoreThreshold {
 			if a.textW != nil && text != nil {
 				text = append(text, fmt.Sprint(rowID))

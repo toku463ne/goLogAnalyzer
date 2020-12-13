@@ -31,3 +31,10 @@ func Test_main4(t *testing.T) {
 		"-m", "100", "-x", "error"}
 	main()
 }
+
+func Test_main5(t *testing.T) {
+	os.Args = []string{"test", "cleanup", "-c", "test3.ini"}
+	main()
+	os.Args = []string{"test", "run", "-c", "test3.ini"}
+	main()
+}
