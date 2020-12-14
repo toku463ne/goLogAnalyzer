@@ -46,6 +46,7 @@ type logAnalyzer struct {
 	logPathRegex     string
 	rarityThreshold  float64
 	rarity2Threshold float64
+	scoreCountBias   float64
 	absenceThreshold float64
 	linesInBlock     int
 	maxBlocks        int
@@ -67,14 +68,15 @@ func newLogAnalyzer() *logAnalyzer {
 	a.useDB = true
 	a.rootDir = fmt.Sprintf("./%s", a.name)
 	a.rarityThreshold = 0.8
-	a.rarity2Threshold = 0.0
+	a.rarity2Threshold = 0.2
 	a.absenceThreshold = 0.7
+	a.scoreCountBias = 1.01
 	a.linesInBlock = 10000
 	a.maxBlocks = 1000
 	a.absenceCheck = true
 	a.minSupportPerBlock = 0.1
 	a.closedItemSets = make(map[string]closedItemSet, 1000)
-	a.isDeep = false
+	a.isDeep = true
 	return a
 }
 
@@ -129,12 +131,13 @@ func newLogAnalyzerByDefaults(pathRegex string) (*logAnalyzer, error) {
 	a.rootDir = "."
 	a.logPathRegex = pathRegex
 	a.rarityThreshold = 0.8
-	a.rarity2Threshold = 0.0
+	a.rarity2Threshold = 0.2
 	a.absenceThreshold = 0.0
+	a.scoreCountBias = 1.01
 	a.linesInBlock = 0
 	a.maxBlocks = 100
 	a.absenceCheck = false
-	a.isDeep = false
+	a.isDeep = true
 
 	if err := a.init(); err != nil {
 		return nil, err
@@ -205,7 +208,7 @@ func (a *logAnalyzer) setNewRa2Anal() error {
 		score, scoreGap, scoreAvg, scoreStd float64,
 		cnt int,
 		text []string) {
-		if verbose || scoreGap >= a.rarity2Threshold {
+		if verbose || scoreGap >= a.rarity2Threshold || rowID == 1 {
 			te := text[0]
 			id := text[1]
 			msg := fmt.Sprintf("%s %s g=%5.2f a=%5.2f | %s",
@@ -330,6 +333,8 @@ func (a *logAnalyzer) loadIni(iniFile string) error {
 			a.rarityThreshold = k.MustFloat64(a.rarityThreshold)
 		case "rarity2Threshold":
 			a.rarity2Threshold = k.MustFloat64(a.rarity2Threshold)
+		case "scoreCountBias":
+			a.scoreCountBias = k.MustFloat64(a.scoreCountBias)
 		case "absenceThreshold":
 			a.absenceThreshold = k.MustFloat64(a.absenceThreshold)
 		case "absenceCheck":
@@ -345,6 +350,8 @@ func (a *logAnalyzer) loadIni(iniFile string) error {
 			setLogLevelByStr(logLevel)
 		case "isDeep":
 			a.isDeep = k.MustBool(a.isDeep)
+		case "verbose":
+			verbose = k.MustBool(false)
 		}
 	}
 	return nil
