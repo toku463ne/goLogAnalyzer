@@ -435,7 +435,7 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 	var scoreStd float64
 	var scoreGap float64
 	linesProcessed := 0
-	logInfo(fmt.Sprintf("logan datadir=%s filter=%s xfilter=%s gap=%f blockSize=%d maxBlocks=%d",
+	logInfo(fmt.Sprintf("data=%s search=%s exclude=%s gap=%f bsize=%d nblocks=%d",
 		a.rootDir,
 		a.filterRe, a.xFilterRe,
 		a.rarityThreshold,

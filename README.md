@@ -4,9 +4,9 @@ It supports plain text and gzip formatted log files.
   
 ## Overview
 Find log records which are rare.
+  
 
-
-Once you run this tool, the result will be saved and next time the tool will start analyzation from where it finished the last time.  
+If you specify a datadir, the result will be saved, and next time the tool will start analyzation from where you finished.  
   
 ## Installation
 ```
@@ -15,7 +15,7 @@ Once you run this tool, the result will be saved and next time the tool will sta
 ```
   
 ## How to use
-- **loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**
+- **loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
   Starts log analyzation.  
   ```
 	-f LOGPATH:   
@@ -47,7 +47,7 @@ Once you run this tool, the result will be saved and next time the tool will sta
     ```  
 
 - **loganal frq -f LOGPATH [-m MIN_SUPPORT] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
-  Shows Closed Frequent Itemset order by the support  
+  Shows Closed Frequent Itemsets order by the support  
     ```
 	-f LOGPATH: Path of the logfile  
 	-m MIN_SUPPORT: minimum support of closed frequent item sets  
