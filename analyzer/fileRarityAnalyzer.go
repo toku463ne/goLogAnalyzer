@@ -223,12 +223,12 @@ func (a *fileRarityAnalyzer) SaveIni() error {
 	if err != nil {
 		return err
 	}
-	cfg.Section("logFile").Key("logPathRegex").SetValue(a.logPathRegex)
-	cfg.Section("logFile").Key("linesInBlock").SetValue(fmt.Sprint(a.linesInBlock))
-	cfg.Section("logFile").Key("maxBlocks").SetValue(fmt.Sprint(a.maxBlocks))
-	cfg.Section("logFile").Key("rarityThreshold").SetValue(fmt.Sprint(a.rarityThreshold))
-	cfg.Section("logFile").Key("filterRe").SetValue(a.filterRe)
-	cfg.Section("logFile").Key("xFilterRe").SetValue(a.xFilterRe)
+	cfg.Section("LogFile").Key("logPathRegex").SetValue(a.logPathRegex)
+	cfg.Section("LogFile").Key("linesInBlock").SetValue(fmt.Sprint(a.linesInBlock))
+	cfg.Section("LogFile").Key("maxBlocks").SetValue(fmt.Sprint(a.maxBlocks))
+	cfg.Section("LogFile").Key("rarityThreshold").SetValue(fmt.Sprint(a.rarityThreshold))
+	cfg.Section("LogFile").Key("filterRe").SetValue(a.filterRe)
+	cfg.Section("LogFile").Key("xFilterRe").SetValue(a.xFilterRe)
 
 	return cfg.SaveTo(iniFile)
 }
