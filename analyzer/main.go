@@ -37,13 +37,6 @@ func Rar(logPathRegex,
 		return err
 	}
 
-	logInfo(fmt.Sprintf("logan log=%s datadir=%s filter=%s xfilter=%s gap=%f blockSize=%d maxBlocks=%d",
-		logPathRegex,
-		rootDir,
-		filterRe, xFilterRe,
-		rarityThreshold,
-		linesInBlock, maxBlocks))
-
 	if a.useDB {
 		if err := a.loadDB(); err != nil {
 			return err

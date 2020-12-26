@@ -19,7 +19,6 @@ type fileRarityAnalyzer struct {
 	currMaxBlocks       int
 	currRarityThreshold float64
 	fp                  *filePointer
-	cfg                 *ini.File
 }
 
 func newFileRarityAnalyzer() *fileRarityAnalyzer {
@@ -231,7 +230,7 @@ func (a *fileRarityAnalyzer) SaveIni() error {
 	cfg.Section("logFile").Key("filterRe").SetValue(a.filterRe)
 	cfg.Section("logFile").Key("xFilterRe").SetValue(a.xFilterRe)
 
-	return a.cfg.SaveTo(iniFile)
+	return cfg.SaveTo(iniFile)
 }
 
 func (a *fileRarityAnalyzer) clean() error {
