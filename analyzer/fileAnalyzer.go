@@ -30,7 +30,13 @@ func newFileAnalyzer(filepath, regStr, excludeRegStr string) *FileAnalyzer {
 }
 
 func (a *FileAnalyzer) tokenizeFile() error {
-	file, err := os.Open(a.filepath)
+	var err error
+	var file *os.File
+	if a.filepath == "" {
+		file = os.Stdin
+	} else {
+		file, err = os.Open(a.filepath)
+	}
 	defer file.Close()
 
 	if err != nil {

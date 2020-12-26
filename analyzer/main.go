@@ -2,34 +2,47 @@ package analyzer
 
 import "fmt"
 
-// Destroy ... Drop all tables
-func Destroy(iniFile1 string) error {
-	a, err := newLogAnalyzerByIni(iniFile1, false)
+// CleanupDb ... Drop all tables
+func CleanupDb(rootDir string) error {
+	a, err := newFileRarityAnalyzerByVars("",
+		rootDir,
+		"", "",
+		0,
+		0, 0)
 	if err != nil {
 		return err
 	}
-	if err := a.destroy(); err != nil {
+	if err := a.clean(); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Run ...
-func Run(iniFile1 string, debug bool, pathRegex string) error {
-	var a *logAnalyzer
-	var err error
+// Rar ...
+func Rar(logPathRegex,
+	rootDir string,
+	filterRe, xFilterRe string,
+	rarityThreshold float64,
+	linesInBlock, maxBlocks int,
+	verbose1 bool) error {
 
-	if iniFile1 != "" {
-		a, err = newLogAnalyzerByIni(iniFile1, debug)
-		logInfo(fmt.Sprintf("Starting goLogAnalyzer with ini=%s", iniFile1))
-	}
-	if pathRegex != "" {
-		a, err = newLogAnalyzerByDefaults(pathRegex)
-		logInfo(fmt.Sprintf("Starting goLogAnalyzer for target=%s", pathRegex))
-	}
+	verbose = verbose1
+
+	a, err := newFileRarityAnalyzerByVars(logPathRegex,
+		rootDir,
+		filterRe, xFilterRe,
+		rarityThreshold,
+		linesInBlock, maxBlocks)
 	if err != nil {
 		return err
 	}
+
+	logInfo(fmt.Sprintf("logan log=%s datadir=%s filter=%s xfilter=%s gap=%f blockSize=%d maxBlocks=%d",
+		logPathRegex,
+		rootDir,
+		filterRe, xFilterRe,
+		rarityThreshold,
+		linesInBlock, maxBlocks))
 
 	if a.useDB {
 		if err := a.loadDB(); err != nil {
@@ -38,10 +51,15 @@ func Run(iniFile1 string, debug bool, pathRegex string) error {
 	}
 
 	defer a.close()
-	if err := a.run(0); err != nil {
+	var rowN int
+	if rowN, err = a.run(0, -1); err != nil {
 		return err
 	}
-	logInfo("Finished goLogAnalyzer")
+	logInfo(fmt.Sprintf("Processed %d rows", rowN))
+
+	if err := a.SaveIni(); err != nil {
+		logError(fmt.Sprintf("Failed to save config"))
+	}
 
 	return nil
 }
@@ -50,6 +68,7 @@ func Run(iniFile1 string, debug bool, pathRegex string) error {
 func Frq(path string,
 	minSupport int,
 	filterRe, xFilterRe string) error {
+
 	a := newFileAnalyzer(path, filterRe, xFilterRe)
 	if err := a.tokenizeFile(); err != nil {
 		return err

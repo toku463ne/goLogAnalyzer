@@ -21,9 +21,15 @@ type reader struct {
 }
 
 func newReader(filename string) (*reader, error) {
-	fd, err := os.Open(filename)
-	if err != nil {
-		return nil, errors.WithStack(err)
+	var fd *os.File
+	var err error
+	if filename == "" {
+		fd = os.Stdin
+	} else {
+		fd, err = os.Open(filename)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 	}
 
 	lr := new(reader)

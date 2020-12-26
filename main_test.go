@@ -6,6 +6,7 @@ import (
 )
 
 func Test_main(t *testing.T) {
+	//loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
 	os.Args = []string{"test", "cleanup", "-c", "test.ini"}
 	main()
 	//os.Args = []string{"test", "run", "-c", "test.ini", "-v"}
@@ -36,5 +37,12 @@ func Test_main5(t *testing.T) {
 	os.Args = []string{"test", "cleanup", "-c", "test3.ini"}
 	main()
 	os.Args = []string{"test", "run", "-c", "test3.ini"}
+	main()
+}
+
+func Test_main6(t *testing.T) {
+	os.Args = []string{"test", "cleanup", "-c", "test4.ini"}
+	main()
+	os.Args = []string{"test", "run", "-c", "test4.ini"}
 	main()
 }

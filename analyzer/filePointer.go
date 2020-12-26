@@ -21,12 +21,17 @@ func newFilePointer(pathRegex string,
 	fp := new(filePointer)
 	var targetFiles []string
 	var targetEpochs []int64
-	epochs, files := getSortedGlob(pathRegex)
-	for i, f := range files {
-		epoch := epochs[i]
-		if (epoch == lastEpoch && lastRow != cEOF) || epoch > lastEpoch {
-			targetFiles = append(targetFiles, f)
-			targetEpochs = append(targetEpochs, epoch)
+	if pathRegex == "" {
+		targetFiles = []string{""}
+		targetEpochs = []int64{0}
+	} else {
+		epochs, files := getSortedGlob(pathRegex)
+		for i, f := range files {
+			epoch := epochs[i]
+			if (epoch == lastEpoch && lastRow != cEOF) || epoch > lastEpoch {
+				targetFiles = append(targetFiles, f)
+				targetEpochs = append(targetEpochs, epoch)
+			}
 		}
 	}
 
@@ -48,7 +53,7 @@ func (fp *filePointer) open() error {
 	if fp.r != nil {
 		fp.close()
 	}
-	if fp.files == nil || len(fp.files) == 0 {
+	if fp.files == nil {
 		return errors.New("no files to open")
 	}
 	fp.pos = 0

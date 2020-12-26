@@ -275,6 +275,13 @@ func intSliceToString(insl []int) []string {
 	return ousl
 }
 
+func pathExist(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+	return true
+}
+
 func ensureDir(dirPath string) error {
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		os.MkdirAll(dirPath, 0755)

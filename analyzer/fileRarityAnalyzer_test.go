@@ -8,21 +8,39 @@ import (
 	"time"
 )
 
+func getDefaultFileRarityAnalyzer(
+	testDir, logPathRegex string,
+	rarityThreshold float64) (*fileRarityAnalyzer, error) {
+	rootDir := fmt.Sprintf("%s/db", testDir)
+	linesInBlock := 5
+	maxBlocks := 3
+
+	a, err := newFileRarityAnalyzerByVars(logPathRegex,
+		rootDir,
+		"", "",
+		rarityThreshold,
+		linesInBlock, maxBlocks)
+
+	return a, err
+}
+
 func TestFileRarityAnalyzer_run1(t *testing.T) {
-	testDir, err := ensureTestDir("TestFileRarityAnalyzer_run1")
+	testName := "TestFileRarityAnalyzer_run1"
+	testDir, err := ensureTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	iniV := new(fileRarityAnalyzerVars)
-	iniV.name = "TestFileRarityAnalyzer_run1"
-	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
-	iniV.logPathRegex = fmt.Sprintf("%s/sample3.log*", testDir)
-	iniV.linesInBlock = 5
-	iniV.maxBlocks = 3
-	iniV.rarityThreshold = 0.5
-	iniV.useDB = true
+	logPathRegex := fmt.Sprintf("%s/sample3.log*", testDir)
+	rarityThreshold := 0.5
+
+	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
 	verbose = false
 
 	if _, err := copyFile("inputs/sample3.log.1",
@@ -37,14 +55,7 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	a, err := newFileRarityAnalyzerByVars(iniV)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	defer a.close()
-
-	if err := a.destroy(); err != nil {
+	if err := a.clean(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -125,7 +136,7 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	a, err = newFileRarityAnalyzerByVars(iniV)
+	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -242,20 +253,22 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		return true
 	}
 
-	testDir, err := ensureTestDir("TestFileRarityAnalyzer_run2_blocks")
+	testName := "TestFileRarityAnalyzer_run2_blocks"
+	testDir, err := ensureTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	iniV := new(fileRarityAnalyzerVars)
-	iniV.name = "TestFileRarityAnalyzer_run2_blocks"
-	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
-	iniV.logPathRegex = fmt.Sprintf("%s/sample4.log", testDir)
-	iniV.linesInBlock = 5
-	iniV.maxBlocks = 3
-	iniV.rarityThreshold = 0.5
-	iniV.useDB = true
+	logPathRegex := fmt.Sprintf("%s/sample4.log*", testDir)
+	rarityThreshold := 0.5
+
+	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
 	verbose = false
 
 	if _, err := copyFile("inputs/sample4.log",
@@ -264,14 +277,7 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		return
 	}
 
-	a, err := newFileRarityAnalyzerByVars(iniV)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	defer a.close()
-
-	if err := a.destroy(); err != nil {
+	if err := a.clean(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -368,14 +374,14 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 	befScoreSqrSum := a.scoreSqrSum
 
 	// restart
-	a, err = newFileRarityAnalyzerByVars(iniV)
+	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	defer a.close()
 
-	if err = a.destroy(); err != nil {
+	if err = a.clean(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -412,22 +418,26 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 }
 
 func TestFileRarityAnalyzer_run3_xfilter(t *testing.T) {
-	testDir, err := ensureTestDir("TestFileRarityAnalyzer_run3_xfilter")
+	testName := "TestFileRarityAnalyzer_run3_xfilter"
+	testDir, err := ensureTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	iniV := new(fileRarityAnalyzerVars)
-	iniV.name = "TestFileRarityAnalyzer_run3_xfilter"
-	iniV.rootDir = fmt.Sprintf("%s/db", testDir)
-	iniV.logPathRegex = fmt.Sprintf("%s/sample.txt", testDir)
-	iniV.linesInBlock = 5
-	iniV.maxBlocks = 3
-	iniV.xFilterRe = "melon"
-	iniV.rarityThreshold = 0.5
-	iniV.useDB = true
+	logPathRegex := fmt.Sprintf("%s/sample.txt", testDir)
+	rarityThreshold := 0.5
+
+	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
 	verbose = false
+
+	a.xFilterRe = "melon"
+	a.rarityThreshold = 0.5
 
 	if _, err := copyFile("inputs/sample.txt",
 		fmt.Sprintf("%s/sample.txt", testDir)); err != nil {
@@ -435,14 +445,7 @@ func TestFileRarityAnalyzer_run3_xfilter(t *testing.T) {
 		return
 	}
 
-	a, err := newFileRarityAnalyzerByVars(iniV)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	defer a.close()
-
-	if err := a.destroy(); err != nil {
+	if err := a.clean(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

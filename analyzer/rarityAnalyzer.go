@@ -23,8 +23,6 @@ type block struct {
 type rarityAnalyzer struct {
 	// fields
 	name                  string
-	filterRe              string
-	xFilterRe             string
 	rowID                 int64
 	rootDir               string
 	useDB                 bool
@@ -39,15 +37,18 @@ type rarityAnalyzer struct {
 	currBlockID           int
 	oldBlockID            int
 	rowNum                int
-	linesInBlock          int
-	maxBlocks             int
 	targetLinesCnt        int
 	maxTargetLinesCnt     int
-	rarityThreshold       float64
 	haveStatistics        bool
 	linesProcessedInBlock int
 	lastFileEpoch         int64
 	lastFileRow           int
+
+	filterRe        string
+	xFilterRe       string
+	linesInBlock    int
+	maxBlocks       int
+	rarityThreshold float64
 
 	// functions
 	outputFunc func(
@@ -264,35 +265,6 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 	return nil
 }
 
-/*
-func (a *rarityAnalyzer) tokenizeLine(line string) bool {
-	isAdded := false
-
-	if a.filterRe != "" && searchReg(line, a.filterRe) == false {
-		return isAdded
-	}
-	if a.xFilterRe != "" && searchReg(line, a.xFilterRe) {
-		return isAdded
-	}
-
-	a.trans.mask.append(a.linesProcessedInBlock)
-	bline := []byte(line)
-
-	tran := getEnItems(bline, a.items, a.filterRe)
-
-	if len(tran) > 0 {
-		a.trans.add(tran, line, a.items)
-		if verbose {
-			tranID := a.trans.maxTranID
-			a.trans.lastMsg = fmt.Sprintf("%s",
-				a.trans.getSentenceAt(tranID, a.items))
-		}
-		isAdded = true
-	}
-	return isAdded
-}
-*/
-
 func (a *rarityAnalyzer) deleteOld(blockID int) error {
 	if blockID < 0 {
 		return nil
@@ -405,7 +377,7 @@ func (a *rarityAnalyzer) saveItems(blockID int) error {
 	return nil
 }
 
-func (a *rarityAnalyzer) destroy() error {
+func (a *rarityAnalyzer) clean() error {
 	return a.db.dropAllTables()
 }
 

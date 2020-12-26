@@ -3,35 +3,31 @@ package analyzer
 import (
 	"fmt"
 	"io"
-)
+	"os"
+	"path/filepath"
 
-type fileRarityAnalyzerVars struct {
-	name            string
-	useDB           bool
-	filterRe        string
-	xFilterRe       string
-	rootDir         string
-	logPathRegex    string
-	rarityThreshold float64
-	linesInBlock    int
-	maxBlocks       int
-}
+	"github.com/go-ini/ini"
+)
 
 type fileRarityAnalyzer struct {
 	rarityAnalyzer
-	logPathRegex string
-	fp           *filePointer
+	logPathRegex        string
+	currLogPathRegex    string
+	currFilterRe        string
+	currXFilterRe       string
+	currLinesInBlock    int
+	currMaxBlocks       int
+	currRarityThreshold float64
+	fp                  *filePointer
+	cfg                 *ini.File
 }
 
 func newFileRarityAnalyzer() *fileRarityAnalyzer {
 	a := new(fileRarityAnalyzer)
-	a.name = "fileRarityAnal"
-	a.rootDir = fmt.Sprintf("./%s", a.name)
-	a.rarityThreshold = 0.8
+
 	a.linesInBlock = 10000
 	a.maxBlocks = 1000
-	a.useDB = false
-	a.haveStatistics = true
+	a.rarityThreshold = 0.8
 
 	a.outputFunc = func(name string, rowID int64,
 		scoreThreshold float64,
@@ -66,7 +62,7 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 	}
 
 	a.setTargetLinesCnt = func(targetLinesCnt int) error {
-		if a.maxTargetLinesCnt == 0 {
+		if a.maxTargetLinesCnt == 0 && a.logPathRegex != "" {
 			maxTargetLinesCnt, err := a.countTargetLines()
 			if err != nil {
 				return err
@@ -121,20 +117,129 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 	return a
 }
 
-func newFileRarityAnalyzerByVars(v *fileRarityAnalyzerVars) (*fileRarityAnalyzer, error) {
+func newFileRarityAnalyzerByVars(logPathRegex,
+	rootDir string,
+	filterRe, xFilterRe string,
+	rarityThreshold float64,
+	linesInBlock, maxBlocks int) (*fileRarityAnalyzer, error) {
+
 	a := newFileRarityAnalyzer()
-	a.name = v.name
-	a.useDB = v.useDB
-	a.filterRe = v.filterRe
-	a.xFilterRe = v.xFilterRe
-	a.rootDir = v.rootDir
-	a.logPathRegex = v.logPathRegex
-	a.rarityThreshold = v.rarityThreshold
-	a.linesInBlock = v.linesInBlock
-	a.maxBlocks = v.maxBlocks
+	a.useDB = false
+	if rootDir != "" {
+		a.rootDir = rootDir
+		a.name = filepath.Base(rootDir)
+		a.useDB = true
+	}
+	a.currLogPathRegex = logPathRegex
+	a.currFilterRe = filterRe
+	a.currXFilterRe = xFilterRe
+	a.currRarityThreshold = rarityThreshold
+	a.currLinesInBlock = linesInBlock
+	a.currMaxBlocks = maxBlocks
+	a.haveStatistics = true
+
+	if a.useDB {
+		if err := a.loadIni(); err != nil {
+			return nil, err
+		}
+	}
+	a.setNewParams()
 
 	if err := a.init(); err != nil {
 		return nil, err
 	}
 	return a, nil
+}
+
+func (a *fileRarityAnalyzer) getIniPath() string {
+	return fmt.Sprintf("%s/cfg.ini", a.rootDir)
+}
+
+func (a *fileRarityAnalyzer) setNewParams() {
+	if a.currLogPathRegex != "" {
+		a.logPathRegex = a.currLogPathRegex
+	}
+	if a.currFilterRe != "" {
+		a.filterRe = a.currFilterRe
+	}
+	if a.currXFilterRe != "" {
+		a.xFilterRe = a.currXFilterRe
+	}
+	if a.currRarityThreshold >= 0.0 {
+		a.rarityThreshold = a.currRarityThreshold
+	}
+	if a.currLinesInBlock >= 0 {
+		a.linesInBlock = a.currLinesInBlock
+	}
+	if a.currMaxBlocks >= 0 {
+		a.maxBlocks = a.currMaxBlocks
+	}
+}
+
+func (a *fileRarityAnalyzer) loadIni() error {
+	iniFile := a.getIniPath()
+	if !pathExist(iniFile) {
+		return nil
+	}
+
+	cfg, err := ini.Load(iniFile)
+	if err != nil {
+		return err
+	}
+	for _, k := range cfg.Section("LogFile").Keys() {
+		switch k.Name() {
+		case "logPathRegex":
+			a.logPathRegex = k.MustString(a.logPathRegex)
+
+		case "linesInBlock":
+			a.linesInBlock = k.MustInt(a.linesInBlock)
+
+		case "maxBlocks":
+			a.maxBlocks = k.MustInt(a.maxBlocks)
+
+		case "rarityThreshold":
+			a.rarityThreshold = k.MustFloat64(a.rarityThreshold)
+
+		case "filterRe":
+			a.filterRe = k.MustString(a.filterRe)
+
+		case "xFilterRe":
+			a.xFilterRe = k.MustString(a.xFilterRe)
+		}
+	}
+	return nil
+}
+
+func (a *fileRarityAnalyzer) SaveIni() error {
+	iniFile := a.getIniPath()
+	if !pathExist(iniFile) {
+		file, err := os.OpenFile(iniFile, os.O_CREATE, 0666)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		return nil
+	}
+	cfg, err := ini.Load(iniFile)
+	if err != nil {
+		return err
+	}
+	cfg.Section("logFile").Key("logPathRegex").SetValue(a.logPathRegex)
+	cfg.Section("logFile").Key("linesInBlock").SetValue(fmt.Sprint(a.linesInBlock))
+	cfg.Section("logFile").Key("maxBlocks").SetValue(fmt.Sprint(a.maxBlocks))
+	cfg.Section("logFile").Key("rarityThreshold").SetValue(fmt.Sprint(a.rarityThreshold))
+	cfg.Section("logFile").Key("filterRe").SetValue(a.filterRe)
+	cfg.Section("logFile").Key("xFilterRe").SetValue(a.xFilterRe)
+
+	return a.cfg.SaveTo(iniFile)
+}
+
+func (a *fileRarityAnalyzer) clean() error {
+	iniFile := a.getIniPath()
+	if pathExist(iniFile) {
+		if err := os.Remove(iniFile); err != nil {
+			return err
+		}
+	}
+	return a.db.dropAllTables()
 }
