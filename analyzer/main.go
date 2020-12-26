@@ -68,6 +68,12 @@ func Frq(path string,
 	if err := a.tokenizeFile(); err != nil {
 		return err
 	}
+	if minSupport <= 0 {
+		minSupport = a.rowNum / 10
+		if minSupport <= 0 {
+			minSupport = 10
+		}
+	}
 	matrix := tran2BitMatrix(a.trans, a.items)
 	dci, err := newDCIClosed(matrix, minSupport, true)
 	if err != nil {

@@ -359,13 +359,31 @@ func (dci *DCIClosed) output(items1 *items,
 	fmt.Printf(total)
 	header := fmt.Sprintf("   support      start        end closedset\n")
 	fmt.Printf(header)
+
+	nonouts := []string{}
 	for i, t := range tokens {
-		line := fmt.Sprintf("%10d %10d %10d %v\n", sup[i], ftid[i]+1, ltid[i]+1, t)
-		if i <= printClosedSetNum {
-			fmt.Printf(line)
+		if rowNum <= sup[i] {
+			nonouts = append(nonouts, t...)
+			continue
 		}
-		if _, err := fmt.Println(line); err != nil {
-			return err
+		if i <= printClosedSetNum {
+			t2 := make([]string, len(t))
+			for j, w := range t {
+				isNonOut := false
+				for _, nt := range nonouts {
+					if nt == w {
+						isNonOut = true
+						break
+					}
+				}
+				if !isNonOut {
+					t2[j] = t[j]
+				}
+			}
+			line := fmt.Sprintf("%10d %10d %10d %v\n", sup[i], ftid[i]+1, ltid[i]+1, t2)
+			fmt.Printf(line)
+		} else {
+			break
 		}
 	}
 	return nil

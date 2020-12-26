@@ -18,3 +18,11 @@ func Test_main(t *testing.T) {
 		"-d", rootDir, "-linesInBlock", linesInBlock, "-maxBlock", maxBlocks}
 	main()
 }
+
+func Test_main2(t *testing.T) {
+	logPathRegex := "c:\\Users\\kot\\loganal\\realtest\\test.log"
+
+	//loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
+	os.Args = []string{"test", "frq", "-f", logPathRegex, "-m", "100"}
+	main()
+}

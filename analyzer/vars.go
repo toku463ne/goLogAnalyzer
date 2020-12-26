@@ -23,7 +23,7 @@ var (
 	autoIncreaseSize      = 1000
 	autoIncreaseSizeSmall = 1000
 	bolShowProgress       = true
-	printClosedSetNum     = 20
+	printClosedSetNum     = 100
 	maxBitMatrixXLen      = 10000
 	itemsInsertCntInOneQ  = 100
 	sqliteDBLockWaitCnt   = 60
