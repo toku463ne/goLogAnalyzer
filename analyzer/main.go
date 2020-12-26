@@ -57,8 +57,10 @@ func Rar(logPathRegex,
 	}
 	logInfo(fmt.Sprintf("Processed %d rows", rowN))
 
-	if err := a.SaveIni(); err != nil {
-		logError(fmt.Sprintf("Failed to save config"))
+	if a.useDB {
+		if err := a.SaveIni(); err != nil {
+			logError(fmt.Sprintf("Failed to save config"))
+		}
 	}
 
 	return nil

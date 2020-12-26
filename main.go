@@ -49,9 +49,9 @@ loganal frq -f LOGPATH [-m MIN_SUPPORT] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
 )
 
 func clean() error {
-	iniFile := iniFlag.String("c", "", "Ini file")
+	rootDir := iniFlag.String("d", "", "data directory")
 	iniFlag.Parse(os.Args[2:])
-	err := analyzer.CleanupDb(*iniFile)
+	err := analyzer.CleanupDb(*rootDir)
 	return err
 }
 
@@ -60,14 +60,17 @@ func rar() error {
 	pathRegex := rarFlag.String("f", "", "Log file(regex) to analyze")
 	filterRe := rarFlag.String("s", "", "key word to search")
 	xFilterRe := rarFlag.String("x", "", "key word to exclude")
-	gap := rarFlag.Float64("g", 0.0, "Gap rate from average")
+	gap := rarFlag.Float64("g", 0.8, "Gap rate from average")
 	debug := rarFlag.Bool("v", false, "verbose")
+	linesInBlock := rarFlag.Int("linesInBlock", -1, "lines in block")
+	maxBlock := rarFlag.Int("maxBlock", -1, "max blocks")
 	rarFlag.Parse(os.Args[2:])
 
 	if err := analyzer.Rar(*pathRegex, *rootDir,
 		*filterRe, *xFilterRe,
 		*gap,
-		-1, -1, *debug); err != nil {
+		*linesInBlock, *maxBlock,
+		*debug); err != nil {
 		return err
 	}
 

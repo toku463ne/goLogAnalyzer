@@ -3,53 +3,52 @@ A simple tool to analize log files.
 It supports plain text and gzip formatted log files.
   
 ## Overview
-Find log records which are
-- **rare**  
-    "Rarity" of a log record is defined by sum of IDF scores of the terms in the log record.   
-- **absent after appeared frequently**  
-    "frequency" is applied to "closed frequent item sets".  
-    This tool devide the log files in some blocks and calculate "closed frequent item sets" per blocks.  
-    If a "closed frequent item set" does not appear in the new block, the "closed frequent item set" is considered "absent".  
-    If the "absence" of the "closed frequent item set" is "rare", it is considered "absent after appeared frequently".  
-  
+Find log records which are rare.
+
+
 Once you run this tool, the result will be saved and next time the tool will start analyzation from where it finished the last time.  
   
 ## Installation
 ```
-./install.sh
+./install.sh  # linux  
+./install.bat  # windows  
 ```
   
 ## How to use
-Copy config.ini.sample and edit.
-```
-[LogFile]
-linesInBlock = 1000
-maxBlocks = 10
-rootDir = ~/loganal 
-logName = syslog 
-logPathRegex = /var/log/syslog* 
-rarityThreshold = 0.5  
-frequencyCheck = true
-frequencyThreshold = 0.5
-minSupportPerBlock = 0.02
-absenceThreshold = 0.0
-```
+- **loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**
+  Starts log analyzation.  
+  ```
+	-f LOGPATH:   
+		Path of the logfile (can use regex)  
+	-v verbose  
+	-g GAPVALUE:  
+		Gap from average score. Default is 0.8  
+		0 is the average.  
+		1 is 1 deviation width from the average.  
+		The score is calculated as below and indicates how rare the log record is.  
+		term score: log10((count of all terms)/(count of the term)) + 1  
+		log record score: average of term scores in the log record  
+		* Count is calculated at the point the log record appeared.  
+	-d DATADIR:  
+		Directory to save the analyzation data.  
+		This data will be also used in the next time execution  
+		Only onmemory if not specified.  
+	-s SEARCH_KEYS:  
+		key word to search (can use regex)  
+	-x EXCLUDE_KEYS:  
+		key word to exclude (can use regex)  
+    ```  
 
-and run the command below
-```
-loganal run -c config.ini
-```
-or to just run with default parameters without saving anything, run below
-```
-loganal run -f '/var/log/syslog*'
-```
-  
-you can run with debug mode by "-d" option  
-```
-loganal run -c config.ini -d
-```
-  
-To cleanup the saved files, run below
-```
-loganal cleanup -c config.ini
-```
+- **loganal clean -d DATADIR**
+    ```
+  Cleans up the analyzation data in previous analysis  
+    ```  
+
+- **loganal frq -f LOGPATH [-m MIN_SUPPORT] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
+  Shows Closed Frequent Itemset order by the support  
+    ```
+	-f LOGPATH: Path of the logfile  
+	-m MIN_SUPPORT: minimum support of closed frequent item sets  
+	-s SEARCH_KEYS: key word to search (can use regex)  
+	-x EXCLUDE_KEYS: key word to exclude (can use regex)  
+    ```
