@@ -6,7 +6,7 @@ import (
 )
 
 func Test_main(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\realtest"
+	rootDir := "c:\\Users\\kot\\loganal\\realtest\\db"
 	linesInBlock := "1000"
 	maxBlocks := "10"
 	logPathRegex := "c:\\Users\\kot\\loganal\\realtest\\test.log*"

@@ -212,12 +212,11 @@ func (a *fileRarityAnalyzer) loadIni() error {
 func (a *fileRarityAnalyzer) SaveIni() error {
 	iniFile := a.getIniPath()
 	if !pathExist(iniFile) {
-		file, err := os.OpenFile(iniFile, os.O_CREATE, 0666)
+		file, err := os.OpenFile(iniFile, os.O_CREATE, 0640)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
-		return nil
 	}
 	cfg, err := ini.Load(iniFile)
 	if err != nil {
@@ -233,6 +232,7 @@ func (a *fileRarityAnalyzer) SaveIni() error {
 	return cfg.SaveTo(iniFile)
 }
 
+/*
 func (a *fileRarityAnalyzer) clean() error {
 	iniFile := a.getIniPath()
 	if pathExist(iniFile) {
@@ -242,3 +242,4 @@ func (a *fileRarityAnalyzer) clean() error {
 	}
 	return a.db.dropAllTables()
 }
+*/

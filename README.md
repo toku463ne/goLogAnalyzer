@@ -22,7 +22,8 @@ Once you run this tool, the result will be saved and next time the tool will sta
 		Path of the logfile (can use regex)  
 	-v verbose  
 	-g GAPVALUE:  
-		Gap from average score. Default is 0.8  
+		Only shows logs which have gap from average score.  
+		Default is 0.8  
 		0 is the average.  
 		1 is 1 deviation width from the average.  
 		The score is calculated as below and indicates how rare the log record is.  
@@ -31,8 +32,9 @@ Once you run this tool, the result will be saved and next time the tool will sta
 		* Count is calculated at the point the log record appeared.  
 	-d DATADIR:  
 		Directory to save the analyzation data.  
+		For large log files, using this option is recomended.
+		Otherwise goLogAnalyzer may use much memory.
 		This data will be also used in the next time execution  
-		Only onmemory if not specified.  
 	-s SEARCH_KEYS:  
 		key word to search (can use regex)  
 	-x EXCLUDE_KEYS:  
