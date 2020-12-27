@@ -3,7 +3,11 @@ package analyzer
 import "fmt"
 
 // CleanupDb ... Drop all tables
-func CleanupDb(rootDir string) error {
+func CleanupDb(rootDir string, debug bool) error {
+	if debug {
+		curLogLevel = cLogLevelDebug
+	}
+
 	a, err := newFileRarityAnalyzerByVars("",
 		rootDir,
 		"", "",
@@ -24,9 +28,13 @@ func Rar(logPathRegex,
 	filterRe, xFilterRe string,
 	rarityThreshold float64,
 	linesInBlock, maxBlocks int,
-	verbose1 bool) error {
+	debug bool, verbose1 bool) error {
 
 	verbose = verbose1
+
+	if debug {
+		curLogLevel = cLogLevelDebug
+	}
 
 	a, err := newFileRarityAnalyzerByVars(logPathRegex,
 		rootDir,
@@ -62,7 +70,12 @@ func Rar(logPathRegex,
 // Frq ... Get Closed Frequent Item Sets by DCI Closed Algorithm
 func Frq(path string,
 	minSupport int,
-	filterRe, xFilterRe string) error {
+	filterRe, xFilterRe string,
+	debug bool) error {
+
+	if debug {
+		curLogLevel = cLogLevelDebug
+	}
 
 	a := newFileAnalyzer(path, filterRe, xFilterRe)
 	if err := a.tokenizeFile(); err != nil {

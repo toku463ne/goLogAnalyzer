@@ -1,4 +1,0 @@
-- Add option to run the 2nd round to detect "rare" and "absent" log records in older log files.
-- Add option to process log files in a given order
-  (default: by timestamp)
- 

@@ -10,9 +10,8 @@ import (
 
 var (
 	iniFlag  = flag.NewFlagSet("clean", flag.ExitOnError)
-	rarFlag  = flag.NewFlagSet("rar", flag.ExitOnError)
 	frqFlag  = flag.NewFlagSet("frq", flag.ExitOnError)
-	testFlag = flag.NewFlagSet("test", flag.ExitOnError)
+	rarFlag  = flag.NewFlagSet("rar", flag.ExitOnError)
 	usageTxt = `Usage:
 loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
   Starts log analyzation.
@@ -50,27 +49,30 @@ loganal frq -f LOGPATH [-m MIN_SUPPORT] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
 
 func clean() error {
 	rootDir := iniFlag.String("d", "", "data directory")
+	debug := iniFlag.Bool("v", false, "verbose")
+
 	iniFlag.Parse(os.Args[2:])
-	err := analyzer.CleanupDb(*rootDir)
+	err := analyzer.CleanupDb(*rootDir, *debug)
 	return err
 }
 
-func rar() error {
+func rar(verbose bool) error {
 	rootDir := rarFlag.String("d", "", "Directory to save the analyzation data")
 	pathRegex := rarFlag.String("f", "", "Log file(regex) to analyze")
 	filterRe := rarFlag.String("s", "", "key word to search")
 	xFilterRe := rarFlag.String("x", "", "key word to exclude")
 	gap := rarFlag.Float64("g", 0.8, "Gap rate from average")
-	debug := rarFlag.Bool("v", false, "verbose")
+	debug := rarFlag.Bool("v", false, "show debug logs")
 	linesInBlock := rarFlag.Int("linesInBlock", -1, "lines in block")
 	maxBlock := rarFlag.Int("maxBlock", -1, "max blocks")
+
 	rarFlag.Parse(os.Args[2:])
 
 	if err := analyzer.Rar(*pathRegex, *rootDir,
 		*filterRe, *xFilterRe,
 		*gap,
 		*linesInBlock, *maxBlock,
-		*debug); err != nil {
+		*debug, verbose); err != nil {
 		return err
 	}
 
@@ -82,9 +84,11 @@ func frq() error {
 	filterRe := frqFlag.String("s", "", "search key")
 	xFilterRe := frqFlag.String("x", "", "exclude search key")
 	minSupport := frqFlag.Int("m", 0, "min support")
+	debug := frqFlag.Bool("v", false, "debug logs")
+
 	frqFlag.Parse(os.Args[2:])
 
-	if err := analyzer.Frq(*path, *minSupport, *filterRe, *xFilterRe); err != nil {
+	if err := analyzer.Frq(*path, *minSupport, *filterRe, *xFilterRe, *debug); err != nil {
 		return err
 	}
 	return nil
@@ -106,7 +110,9 @@ func main() {
 	case "clean":
 		err = clean()
 	case "rar":
-		err = rar()
+		err = rar(false)
+	case "test":
+		err = rar(true)
 	case "frq":
 		err = frq()
 	default:
