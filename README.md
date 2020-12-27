@@ -23,13 +23,10 @@ If you specify a datadir, the result will be saved, and next time the tool will 
 	-v verbose: 
 		Show debug logs  
 	-g GAPVALUE:(default 0.8)  
-		Only shows logs which have gap from average score.  
+		Defines the threshold of "rarity".
+		Log records with "rarity" score higher than this value will be showed up.
 		0 is the average.  
 		1 is 1 deviation width from the average.  
-		The score is calculated as below and indicates how rare the log record is.  
-		term score: log10((count of all terms)/(count of the term)) + 1  
-		log record score: average of term scores in the log record  
-		* Count is calculated at the point the log record appeared.  
 	-d DATADIR:   
 		Directory to save the analyzation data.  
 		For large log files, using this option is recomended.
@@ -55,7 +52,7 @@ If you specify a datadir, the result will be saved, and next time the tool will 
 	-x EXCLUDE_KEYS: key word to exclude (can use regex)  
     ```
   
-- **logan test [-f LOGPATH] [-d DATADIR] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**
+- **logan test [-f LOGPATH] [-d DATADIR] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
   Same as "logan rar" but will shows all log records
   
   
@@ -69,7 +66,7 @@ tail -n 1000 /var/log/syslog | logan rar # supports pipe
 ```
   
 Run collecting data.  
-Recommended when analyzing huge size log files or when you want to restart from the point you finished.   
+Recommended when analyzing huge size log files, or if next time you want to restart from the point you finished.   
 ```
 logan rar -f '/var/log/syslog*' -d data  # supports regex
 ```
@@ -90,3 +87,4 @@ If you want to see all log records with score
 ```
 logan test -f /var/log/syslog 
 ```
+  
