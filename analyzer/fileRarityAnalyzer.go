@@ -34,7 +34,7 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 		cnt int,
 		text []string) {
 		if verbose || scoreGap > scoreThreshold {
-			msg := fmt.Sprintf("%s %d g=%5.2f a=%5.2f | %s",
+			msg := fmt.Sprintf("%s %d g=%5.2f a=%5.2f | %s\n",
 				name,
 				rowID,
 				scoreGap,

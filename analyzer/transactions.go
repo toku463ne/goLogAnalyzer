@@ -74,7 +74,8 @@ func calcScore(tran []int, items1 *items) float64 {
 	}
 	score := 0.0
 	for _, itemID := range tran {
-		score += items1.getScore(itemID)
+		s := items1.getScore(itemID)
+		score += s
 	}
 	score /= float64(l)
 	return score
