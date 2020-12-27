@@ -41,7 +41,7 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 				scoreAvg,
 				text[0],
 			)
-			logInfo(msg)
+			fmt.Printf(msg)
 		}
 	}
 

@@ -1,6 +1,7 @@
 # goLogAnalyzer
 A simple tool to analize log files.  
-It supports plain text and gzip formatted log files.
+It supports plain text and gzip formatted log files.  
+Tested on linux, but also works in Windows.
   
 ## Overview
 Find log records which are rare.
@@ -10,9 +11,9 @@ If you specify a datadir, the result will be saved, and next time the tool will 
   
 ## Installation
 ```
-./install.sh  # linux  
-./install.bat  # windows  
-```
+./install.sh  
+```  
+
   
 ## How to use
 - **logan rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
