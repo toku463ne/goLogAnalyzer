@@ -29,7 +29,7 @@ func newFileAnalyzer(filepath, regStr, excludeRegStr string) *FileAnalyzer {
 	return a
 }
 
-func (a *FileAnalyzer) tokenizeFile() error {
+func (a *FileAnalyzer) tokenizeFile(maxRecs int) error {
 	var err error
 	var file *os.File
 	if a.filepath == "" {
@@ -58,6 +58,9 @@ func (a *FileAnalyzer) tokenizeFile() error {
 			break
 		}
 		i++
+		if i >= maxRecs {
+			break
+		}
 	}
 	a.rowNum = i
 

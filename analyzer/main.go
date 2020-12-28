@@ -77,8 +77,9 @@ func Frq(path string,
 		curLogLevel = cLogLevelDebug
 	}
 
+	logInfo(fmt.Sprintf("Calculating closed frq itemsets. Max recs=%d", cMaxRecsToProcessFrq))
 	a := newFileAnalyzer(path, filterRe, xFilterRe)
-	if err := a.tokenizeFile(); err != nil {
+	if err := a.tokenizeFile(cMaxRecsToProcessFrq); err != nil {
 		return err
 	}
 	if minSupport <= 0 {

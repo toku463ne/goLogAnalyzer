@@ -24,9 +24,9 @@ type fileRarityAnalyzer struct {
 func newFileRarityAnalyzer() *fileRarityAnalyzer {
 	a := new(fileRarityAnalyzer)
 
-	a.linesInBlock = 10000
-	a.maxBlocks = 1000
-	a.rarityThreshold = 0.8
+	a.linesInBlock = cDefaultBlockSize
+	a.maxBlocks = cDefaultMaxBlocks
+	a.rarityThreshold = cDefaultRarityThreshold
 
 	a.outputFunc = func(name string, rowID int64,
 		scoreThreshold float64,
@@ -34,11 +34,10 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 		cnt int,
 		text []string) {
 		if verbose || scoreGap > scoreThreshold {
-			msg := fmt.Sprintf("%s %d g=%5.2f a=%5.2f | %s\n",
+			msg := fmt.Sprintf("%s %8d gap=%3.2f | %s\n",
 				name,
 				rowID,
 				scoreGap,
-				scoreAvg,
 				text[0],
 			)
 			fmt.Printf(msg)
@@ -128,6 +127,8 @@ func newFileRarityAnalyzerByVars(logPathRegex,
 		a.rootDir = rootDir
 		a.name = filepath.Base(rootDir)
 		a.useDB = true
+		a.linesInBlock = cDefaultBlockSizeNoDb
+		a.maxBlocks = cDefaultMaxBlocksNoDb
 	}
 	a.currLogPathRegex = logPathRegex
 	a.currFilterRe = filterRe
