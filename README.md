@@ -37,6 +37,8 @@ If you specify a datadir, the result will be saved, and next time the tool will 
 		key word to search (can use regex)  
 	-x EXCLUDE_KEYS:  
 		key word to exclude (can use regex)  
+	-save
+		Update the previous data without asking
     ```  
 
 - **logan clean -d DATADIR**
