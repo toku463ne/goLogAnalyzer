@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"./analyzer"
 )
@@ -63,16 +65,43 @@ func rar(verbose bool) error {
 	xFilterRe := rarFlag.String("x", "", "key word to exclude")
 	gap := rarFlag.Float64("g", 0.8, "Gap rate from average")
 	debug := rarFlag.Bool("v", false, "show debug logs")
+	forceSaveDb := rarFlag.Bool("save", false, "Update the data without asking")
 	linesInBlock := rarFlag.Int("linesInBlock", -1, "lines in block")
 	maxBlock := rarFlag.Int("maxBlock", -1, "max blocks")
 
 	rarFlag.Parse(os.Args[2:])
 
+	forceSaveDb1 := *forceSaveDb
+	saveDb := false
+	if forceSaveDb1 == false {
+		if *rootDir != "" {
+			if analyzer.PathExist(*rootDir) {
+				fmt.Printf("Update data on %s? (y/n) (default 'no')", *rootDir)
+				stdin := bufio.NewScanner(os.Stdin)
+				stdin.Scan()
+				k := stdin.Text()
+				if strings.ToLower(k) != "y" && strings.ToLower(k) != "yes" {
+					fmt.Printf("input='%s' will not update %s", k, *rootDir)
+					saveDb = false
+				} else {
+					fmt.Printf("input='%s' will update %s", k, *rootDir)
+					saveDb = true
+				}
+			} else {
+				saveDb = true
+			}
+		}
+	} else {
+		if *rootDir != "" {
+			saveDb = true
+		}
+	}
+
 	if err := analyzer.Rar(*pathRegex, *rootDir,
 		*filterRe, *xFilterRe,
 		*gap,
 		*linesInBlock, *maxBlock,
-		*debug, verbose); err != nil {
+		*debug, verbose, saveDb); err != nil {
 		return err
 	}
 
@@ -119,7 +148,7 @@ func main() {
 		flag.Usage()
 	}
 	if err != nil {
-		fmt.Printf("%+v", err)
+		fmt.Printf("%+v\n", err)
 	}
 
 }

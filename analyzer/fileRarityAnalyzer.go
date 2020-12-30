@@ -178,7 +178,7 @@ func (a *fileRarityAnalyzer) setNewParams() {
 
 func (a *fileRarityAnalyzer) loadIni() error {
 	iniFile := a.getIniPath()
-	if !pathExist(iniFile) {
+	if !PathExist(iniFile) {
 		return nil
 	}
 
@@ -212,7 +212,7 @@ func (a *fileRarityAnalyzer) loadIni() error {
 
 func (a *fileRarityAnalyzer) SaveIni() error {
 	iniFile := a.getIniPath()
-	if !pathExist(iniFile) {
+	if !PathExist(iniFile) {
 		file, err := os.OpenFile(iniFile, os.O_CREATE, 0640)
 		if err != nil {
 			return err

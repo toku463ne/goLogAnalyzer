@@ -26,7 +26,7 @@ func newReader(filename string) (*reader, error) {
 	if filename == "" {
 		fd = os.Stdin
 	} else {
-		fd, err = os.Open(filename)
+		fd, err = os.OpenFile(filename, os.O_RDONLY, 0644)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}

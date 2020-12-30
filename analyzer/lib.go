@@ -275,7 +275,8 @@ func intSliceToString(insl []int) []string {
 	return ousl
 }
 
-func pathExist(path string) bool {
+// PathExist ..
+func PathExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {
 		return false
 	}

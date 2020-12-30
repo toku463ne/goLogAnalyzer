@@ -3,8 +3,11 @@ package analyzer
 import (
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"time"
+
+	"github.com/juju/fslock"
 
 	"github.com/pkg/errors"
 )
@@ -27,6 +30,7 @@ type rarityAnalyzer struct {
 	rootDir               string
 	useDB                 bool
 	db                    *csvDB
+	lock                  *fslock.Lock
 	items                 *items
 	trans                 *trans
 	blocks                []*block
@@ -143,6 +147,7 @@ func (a *rarityAnalyzer) close() {
 		a.db = nil
 	}
 	a.pointerClose()
+	a.unLock()
 }
 
 func (a *rarityAnalyzer) loadDBItems() error {
@@ -265,6 +270,26 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 	return nil
 }
 
+func (a *rarityAnalyzer) getLockPath() string {
+	return fmt.Sprintf("%s/lock", a.rootDir)
+}
+
+func (a *rarityAnalyzer) gainLock() error {
+	lockFilepath := a.getLockPath()
+	lock := fslock.New(lockFilepath)
+	if err := lock.TryLock(); err != nil {
+		return err
+	}
+	a.lock = lock
+	return nil
+}
+
+func (a *rarityAnalyzer) unLock() {
+	if a.lock != nil {
+		a.lock.Unlock()
+	}
+}
+
 func (a *rarityAnalyzer) deleteOld(blockID int) error {
 	if blockID < 0 {
 		return nil
@@ -300,7 +325,6 @@ func (a *rarityAnalyzer) deleteOld(blockID int) error {
 			a.items.addCount(itemID, -cnt)
 
 		}
-
 		a.db.tables["logBlocks"].dropPartition(blockIDstr)
 		a.db.tables["items"].dropPartition(blockIDstr)
 	}
@@ -435,7 +459,8 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 	var scoreStd float64
 	var scoreGap float64
 	linesProcessed := 0
-	logInfo(fmt.Sprintf("data=%s search=%s exclude=%s gap=%f bsize=%d nblocks=%d",
+	logInfo(fmt.Sprintf("%d data=%s search=%s exclude=%s gap=%f bsize=%d nblocks=%d",
+		os.Getpid(),
 		a.rootDir,
 		a.filterRe, a.xFilterRe,
 		a.rarityThreshold,

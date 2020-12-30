@@ -1,6 +1,8 @@
 package analyzer
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // CleanupDb ... Drop all tables
 func CleanupDb(rootDir string, debug bool) error {
@@ -28,7 +30,7 @@ func Rar(logPathRegex,
 	filterRe, xFilterRe string,
 	rarityThreshold float64,
 	linesInBlock, maxBlocks int,
-	debug bool, verbose1 bool) error {
+	debug bool, verbose1 bool, saveDb bool) error {
 
 	verbose = verbose1
 
@@ -49,6 +51,11 @@ func Rar(logPathRegex,
 		if err := a.loadDB(); err != nil {
 			return err
 		}
+		a.useDB = saveDb
+		if err := a.gainLock(); err != nil {
+			fmt.Printf("%v : Probably another process is updating '%s'\n", err, rootDir)
+			return nil
+		}
 	}
 
 	defer a.close()
@@ -58,12 +65,12 @@ func Rar(logPathRegex,
 	}
 	logInfo(fmt.Sprintf("Processed %d rows", rowN))
 
-	if a.useDB {
+	if a.useDB && saveDb {
 		if err := a.SaveIni(); err != nil {
-			logError(fmt.Sprintf("Failed to save config"))
+			logError(fmt.Sprintf("Failed to save config\n"))
 		}
 	}
-
+	a.unLock()
 	return nil
 }
 

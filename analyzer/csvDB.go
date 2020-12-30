@@ -1,6 +1,8 @@
 package analyzer
 
-import "os"
+import (
+	"os"
+)
 
 type csvDB struct {
 	tables  map[string]*csvTable
