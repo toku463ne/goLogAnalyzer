@@ -130,6 +130,17 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 
 	a.close()
 
+	printCountPerGap(a.countPerGap, "Count per score")
+
+	if a.countPerGap[0] != 2 {
+		t.Errorf("countPerGap is incorrect")
+		return
+	}
+	if a.countPerGap[3] != 3 {
+		t.Errorf("countPerGap is incorrect")
+		return
+	}
+
 	if _, err := copyFile("inputs/sample3_plus.log",
 		fmt.Sprintf("%s/sample3.log", testDir)); err != nil {
 		t.Errorf("%v", err)
@@ -191,6 +202,8 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		t.Errorf("Item is wrong")
 		return
 	}
+
+	printCountPerGap(a.countPerGap, "Count per score")
 
 	scores := make([]float64, 11)
 	s := 0.0

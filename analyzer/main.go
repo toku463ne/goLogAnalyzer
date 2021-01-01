@@ -14,13 +14,20 @@ func CleanupDb(rootDir string, debug bool) error {
 		rootDir,
 		"", "",
 		0,
-		0, 0)
+		-1, -1)
 	if err != nil {
 		return err
 	}
+	if err := a.gainLock(); err != nil {
+		fmt.Printf("%v : Probably another process is updating '%s'\n", err, rootDir)
+		return nil
+	}
+	defer a.unLock()
+
 	if err := a.clean(); err != nil {
 		return err
 	}
+	a.unLock()
 	return nil
 }
 
@@ -71,6 +78,7 @@ func Rar(logPathRegex,
 		}
 	}
 	a.unLock()
+	printCountPerGap(a.countPerGap, "Count per score gap")
 	return nil
 }
 

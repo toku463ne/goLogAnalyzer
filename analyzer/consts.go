@@ -20,4 +20,5 @@ const (
 	cDefaultRarityThreshold = 0.8
 	cMaxRecsToProcessFrq    = 10000
 	cEOF                    = -1
+	cCountbyGapLen          = 100
 )

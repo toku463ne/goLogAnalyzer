@@ -7,7 +7,7 @@ import (
 
 func Test_main(t *testing.T) {
 	rootDir := "c:\\Users\\kot\\loganal\\realtest\\test"
-	linesInBlock := "1000"
+	linesInBlock := "10000"
 	maxBlocks := "10"
 	logPathRegex := "c:\\Users\\kot\\loganal\\realtest\\test.log*"
 	os.Args = []string{"test", "clean", "-d", rootDir}
@@ -15,7 +15,7 @@ func Test_main(t *testing.T) {
 
 	//loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
 	os.Args = []string{"test", "rar", "-f", logPathRegex,
-		"-d", rootDir, "-linesInBlock", linesInBlock, "-maxBlock", maxBlocks, "-g", "0.8"}
+		"-d", rootDir, "-linesInBlock", linesInBlock, "-maxBlock", maxBlocks, "-g", "0.7", "-save"}
 	main()
 }
 

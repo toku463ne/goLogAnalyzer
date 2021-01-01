@@ -18,8 +18,7 @@ type block struct {
 	lastEpoch   int64
 	scoreSum    float64
 	scoreSqrSum float64
-	scoreGapMax float64
-	scoreGapMin float64
+	countPerGap []int
 	completed   bool
 }
 
@@ -37,6 +36,7 @@ type rarityAnalyzer struct {
 	scoreCount            int
 	scoreSum              float64
 	scoreSqrSum           float64
+	countPerGap           []int
 	currBlock             *block
 	currBlockID           int
 	oldBlockID            int
@@ -80,6 +80,7 @@ func newBlock(blockID int) *block {
 	b := new(block)
 	b.blockID = blockID
 	b.completed = false
+	b.countPerGap = make([]int, cCountbyGapLen)
 	return b
 }
 
@@ -94,6 +95,7 @@ func (a *rarityAnalyzer) init() error {
 	a.oldBlockID = -1
 
 	a.blocks = make([]*block, a.maxBlocks)
+	a.countPerGap = make([]int, cCountbyGapLen)
 	if a.useDB {
 		if err := ensureDir(a.rootDir); err != nil {
 			return err
@@ -267,6 +269,33 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 
 	}
 
+	rows, err = a.db.tables["countPerGap"].query(nil, "*")
+	if err != nil {
+		return err
+	}
+	if rows == nil || len(rows) == 0 {
+		return nil
+	}
+
+	cols = a.db.tables["countPerGap"].colMap
+	idxBlockID = cols["blockID"]
+	for _, v := range rows {
+		countPerGap := make([]int, cCountbyGapLen)
+		blockID, err := strconv.Atoi(v[idxBlockID])
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		for i := 1; i <= cCountbyGapLen; i++ {
+			cnt, err := strconv.Atoi(v[i])
+			if err != nil {
+				return err
+			}
+			countPerGap[i-1] = cnt
+			a.countPerGap[i-1] += cnt
+		}
+		a.blocks[blockID].countPerGap = countPerGap
+	}
+
 	return nil
 }
 
@@ -284,10 +313,14 @@ func (a *rarityAnalyzer) gainLock() error {
 	return nil
 }
 
-func (a *rarityAnalyzer) unLock() {
+func (a *rarityAnalyzer) unLock() error {
 	if a.lock != nil {
-		a.lock.Unlock()
+		if err := a.lock.Unlock(); err != nil {
+			//fmt.Printf("%+v\n", err)
+			return err
+		}
 	}
+	return nil
 }
 
 func (a *rarityAnalyzer) deleteOld(blockID int) error {
@@ -304,6 +337,10 @@ func (a *rarityAnalyzer) deleteOld(blockID int) error {
 	a.scoreCount -= b.blockCnt
 	a.scoreSum -= b.scoreSum
 	a.scoreSqrSum -= b.scoreSqrSum
+	for i := 0; i < cCountbyGapLen; i++ {
+		a.countPerGap[i] -= b.countPerGap[i]
+	}
+
 	if a.useDB {
 		rows, err := a.db.tables["items"].query(nil, fmt.Sprint(blockID))
 		if err != nil {
@@ -378,6 +415,15 @@ func (a *rarityAnalyzer) saveBlock() error {
 		cond, row, fmt.Sprint(blockID), true); err != nil {
 		return err
 	}
+	row = make(map[string]string, cCountbyGapLen)
+	for i := 0; i < cCountbyGapLen; i++ {
+		row[fmt.Sprint(i)] = fmt.Sprint(b.countPerGap[i])
+	}
+	if err := a.db.tables["countPerGap"].update(
+		cond, row, fmt.Sprint(blockID), true); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -416,11 +462,10 @@ func (a *rarityAnalyzer) initCurrBlock(blockID int) {
 
 func (a *rarityAnalyzer) nextBlock() {
 	if a.currBlock != nil {
-		msg := fmt.Sprintf("block=%d finished: gapMax=%f gapMin=%f",
-			a.currBlock.blockID,
-			a.currBlock.scoreGapMax,
-			a.currBlock.scoreGapMin)
-		logDebug(msg)
+		logDebug(fmt.Sprintf("block=%d finished", a.currBlock.blockID))
+		if curLogLevel == cLogLevelDebug {
+			printCountPerGap(a.currBlock.countPerGap, fmt.Sprintf("blockID=%d counts per gap", a.currBlockID))
+		}
 	}
 
 	a.oldBlockID = a.currBlockID
@@ -520,12 +565,21 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 			} else {
 				scoreGap = (score - scoreAvg) / scoreStd
 			}
-			if a.currBlock.scoreGapMax == 0 || a.currBlock.scoreGapMax < scoreGap {
-				a.currBlock.scoreGapMax = scoreGap
+
+			gapStage := int(math.Floor(scoreGap * 10))
+			//if scoreGap >= 0.7 {
+			//	fmt.Printf("gap=%f stg=%d\n", scoreGap, gapStage)
+			//	fmt.Printf("gap7=%d\n", a.countPerGap[7])
+			// }
+			if gapStage < 0 {
+				gapStage = 0
 			}
-			if a.currBlock.scoreGapMin == 0 || a.currBlock.scoreGapMin > scoreGap {
-				a.currBlock.scoreGapMin = scoreGap
+			if gapStage >= cCountbyGapLen {
+				gapStage = cCountbyGapLen - 1
 			}
+			a.countPerGap[gapStage]++
+			a.currBlock.countPerGap[gapStage]++
+
 			a.outputFunc(a.name, a.rowID, a.rarityThreshold,
 				score, scoreGap, scoreAvg, scoreStd, cnt, te)
 		}
@@ -562,4 +616,16 @@ func (a *rarityAnalyzer) runBeforeNextBlock(targetLinesCnt int) (int, error) {
 		}
 	}
 	return a.run(linesToProcess, -1)
+}
+
+func printCountPerGap(g []int, msg string) {
+	fmt.Printf("\n")
+	fmt.Printf("%s\n", msg)
+	fmt.Printf(" gap | count\n")
+	fmt.Printf(" ----+--------------\n")
+	for i := 0; i < cCountbyGapLen; i++ {
+		if g[i] > 0 {
+			fmt.Printf(" %02.1f | %d\n", float64(i)/10, g[i])
+		}
+	}
 }

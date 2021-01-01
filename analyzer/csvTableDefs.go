@@ -1,6 +1,14 @@
 package analyzer
 
+import "fmt"
+
 func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
+	countPerGapH := make([]string, cCountbyGapLen+1)
+	countPerGapH[0] = "blockID"
+	for i := 0; i < cCountbyGapLen; i++ {
+		countPerGapH[i] = fmt.Sprint(i - 1)
+	}
+
 	d := map[string]csvTableDef{
 		"lastStatus": csvTableDef{
 			"lastStatus",
@@ -11,6 +19,9 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 			"logBlocks",
 			[]string{"blockID", "lastRowID", "blockCnt", "scoreSum",
 				"scoreSqrSum", "createdAt"},
+			maxPartitions},
+		"countPerGap": csvTableDef{
+			"countPerGap", countPerGapH,
 			maxPartitions},
 		"items": csvTableDef{
 			"items",
