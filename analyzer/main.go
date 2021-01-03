@@ -13,7 +13,7 @@ func CleanupDb(rootDir string, debug bool) error {
 	a, err := newFileRarityAnalyzerByVars("",
 		rootDir,
 		"", "",
-		0,
+		0, 0,
 		-1, -1)
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func CleanupDb(rootDir string, debug bool) error {
 func Rar(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
-	rarityThreshold float64,
+	rarityThreshold, rarityCountRate float64,
 	linesInBlock, maxBlocks int,
 	debug bool, verbose1 bool, saveDb bool) error {
 
@@ -48,7 +48,7 @@ func Rar(logPathRegex,
 	a, err := newFileRarityAnalyzerByVars(logPathRegex,
 		rootDir,
 		filterRe, xFilterRe,
-		rarityThreshold,
+		rarityThreshold, rarityCountRate,
 		linesInBlock, maxBlocks)
 	if err != nil {
 		return err
@@ -78,7 +78,25 @@ func Rar(logPathRegex,
 		}
 	}
 	a.unLock()
-	printCountPerGap(a.countPerGap, "Count per score gap")
+	a.printCountPerGap(a.countPerGap, "Count per score gap")
+	return nil
+}
+
+// Stats ... shows count per gap
+func Stats(rootDir string) error {
+	a, err := newFileRarityAnalyzerByVars("",
+		rootDir,
+		"", "",
+		0, 0,
+		-1, -1)
+	if err != nil {
+		return err
+	}
+	if err := a.loadDB(); err != nil {
+		return err
+	}
+	a.printCountPerGap(a.countPerGap,
+		fmt.Sprintf("Total count %d\ncounts per gap", a.countTotal))
 	return nil
 }
 

@@ -37,6 +37,7 @@ type rarityAnalyzer struct {
 	scoreSum              float64
 	scoreSqrSum           float64
 	countPerGap           []int
+	countTotal            int
 	currBlock             *block
 	currBlockID           int
 	oldBlockID            int
@@ -52,7 +53,8 @@ type rarityAnalyzer struct {
 	xFilterRe       string
 	linesInBlock    int
 	maxBlocks       int
-	rarityThreshold float64
+	gapThreshold    float64
+	rarityCountRate float64
 
 	// functions
 	outputFunc func(
@@ -257,6 +259,7 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 
 		b := newBlock(blockID)
 		b.blockCnt = blockCnt
+		a.countTotal += blockCnt
 		b.lastEpoch = tmpEpoch2
 		b.scoreSum = scoreSum
 		b.scoreSqrSum = scoreSqrSum
@@ -340,6 +343,7 @@ func (a *rarityAnalyzer) deleteOld(blockID int) error {
 	for i := 0; i < cCountbyGapLen; i++ {
 		a.countPerGap[i] -= b.countPerGap[i]
 	}
+	a.countTotal -= b.blockCnt
 
 	if a.useDB {
 		rows, err := a.db.tables["items"].query(nil, fmt.Sprint(blockID))
@@ -415,7 +419,8 @@ func (a *rarityAnalyzer) saveBlock() error {
 		cond, row, fmt.Sprint(blockID), true); err != nil {
 		return err
 	}
-	row = make(map[string]string, cCountbyGapLen)
+	row = make(map[string]string, cCountbyGapLen+1)
+	row["blockID"] = fmt.Sprint(blockID)
 	for i := 0; i < cCountbyGapLen; i++ {
 		row[fmt.Sprint(i)] = fmt.Sprint(b.countPerGap[i])
 	}
@@ -462,9 +467,21 @@ func (a *rarityAnalyzer) initCurrBlock(blockID int) {
 
 func (a *rarityAnalyzer) nextBlock() {
 	if a.currBlock != nil {
-		logDebug(fmt.Sprintf("block=%d finished", a.currBlock.blockID))
 		if curLogLevel == cLogLevelDebug {
-			printCountPerGap(a.currBlock.countPerGap, fmt.Sprintf("blockID=%d counts per gap", a.currBlockID))
+			a.printCountPerGap(a.currBlock.countPerGap,
+				fmt.Sprintf("Finished blockID=%d\ncounts per gap",
+					a.currBlockID))
+		}
+		total := float64(a.countTotal)
+		s := 0
+		if total > 0 && a.rarityCountRate > 0 {
+			for i, cnt := range a.countPerGap {
+				s += cnt
+				if float64(s)/total >= a.rarityCountRate {
+					a.gapThreshold = float64(i) / 10
+					break
+				}
+			}
 		}
 	}
 
@@ -474,6 +491,9 @@ func (a *rarityAnalyzer) nextBlock() {
 		a.currBlockID = 0
 	}
 	a.initCurrBlock(a.currBlockID)
+	if curLogLevel == cLogLevelDebug {
+		fmt.Printf("\nStarting blockID=%d gap threshold=%.2f\n", a.currBlockID, a.gapThreshold)
+	}
 }
 
 func (a *rarityAnalyzer) postBlock() error {
@@ -504,11 +524,11 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 	var scoreStd float64
 	var scoreGap float64
 	linesProcessed := 0
-	logInfo(fmt.Sprintf("%d data=%s search=%s exclude=%s gap=%f bsize=%d nblocks=%d",
+	logInfo(fmt.Sprintf("%d data=%s search=%s exclude=%s gap=%.2f bsize=%d nblocks=%d",
 		os.Getpid(),
 		a.rootDir,
 		a.filterRe, a.xFilterRe,
-		a.rarityThreshold,
+		a.gapThreshold,
 		a.linesInBlock, a.maxBlocks))
 
 	a.setTargetLinesCnt(targetLinesCnt)
@@ -579,8 +599,9 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 			}
 			a.countPerGap[gapStage]++
 			a.currBlock.countPerGap[gapStage]++
+			a.countTotal++
 
-			a.outputFunc(a.name, a.rowID, a.rarityThreshold,
+			a.outputFunc(a.name, a.rowID, a.gapThreshold,
 				score, scoreGap, scoreAvg, scoreStd, cnt, te)
 		}
 
@@ -618,7 +639,7 @@ func (a *rarityAnalyzer) runBeforeNextBlock(targetLinesCnt int) (int, error) {
 	return a.run(linesToProcess, -1)
 }
 
-func printCountPerGap(g []int, msg string) {
+func (a *rarityAnalyzer) printCountPerGap(g []int, msg string) {
 	fmt.Printf("\n")
 	fmt.Printf("%s\n", msg)
 	fmt.Printf(" gap | count\n")

@@ -10,7 +10,7 @@ import (
 
 func getDefaultFileRarityAnalyzer(
 	testDir, logPathRegex string,
-	rarityThreshold float64) (*fileRarityAnalyzer, error) {
+	gapThreshold float64) (*fileRarityAnalyzer, error) {
 	rootDir := fmt.Sprintf("%s/db", testDir)
 	linesInBlock := 5
 	maxBlocks := 3
@@ -18,7 +18,7 @@ func getDefaultFileRarityAnalyzer(
 	a, err := newFileRarityAnalyzerByVars(logPathRegex,
 		rootDir,
 		"", "",
-		rarityThreshold,
+		gapThreshold,
 		linesInBlock, maxBlocks)
 
 	return a, err
@@ -33,9 +33,9 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample3.log*", testDir)
-	rarityThreshold := 0.5
+	gapThreshold := 0.5
 
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -130,7 +130,7 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 
 	a.close()
 
-	printCountPerGap(a.countPerGap, "Count per score")
+	a.printCountPerGap(a.countPerGap, "Count per score")
 
 	if a.countPerGap[0] != 2 {
 		t.Errorf("countPerGap is incorrect")
@@ -147,7 +147,7 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -203,7 +203,7 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	printCountPerGap(a.countPerGap, "Count per score")
+	a.printCountPerGap(a.countPerGap, "Count per score")
 
 	scores := make([]float64, 11)
 	s := 0.0
@@ -274,9 +274,9 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample4.log*", testDir)
-	rarityThreshold := 0.5
+	gapThreshold := 0.5
 
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -387,7 +387,7 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 	befScoreSqrSum := a.scoreSqrSum
 
 	// restart
-	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -439,9 +439,9 @@ func TestFileRarityAnalyzer_run4_dontsave(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample.txt", testDir)
-	rarityThreshold := 0.5
+	gapThreshold := 0.5
 
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -450,7 +450,7 @@ func TestFileRarityAnalyzer_run4_dontsave(t *testing.T) {
 	verbose = false
 
 	a.xFilterRe = "melon"
-	a.rarityThreshold = 0.5
+	a.gapThreshold = 0.5
 
 	if _, err := copyFile("inputs/sample.txt",
 		fmt.Sprintf("%s/sample.txt", testDir)); err != nil {
@@ -501,9 +501,9 @@ func TestFileRarityAnalyzer_run4_nosave(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample3.log*", testDir)
-	rarityThreshold := 0.5
+	gapThreshold := 0.5
 
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -590,7 +590,7 @@ func TestFileRarityAnalyzer_run4_nosave(t *testing.T) {
 		return
 	}
 
-	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, rarityThreshold)
+	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

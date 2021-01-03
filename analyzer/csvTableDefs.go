@@ -5,7 +5,7 @@ import "fmt"
 func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	countPerGapH := make([]string, cCountbyGapLen+1)
 	countPerGapH[0] = "blockID"
-	for i := 0; i < cCountbyGapLen; i++ {
+	for i := 1; i <= cCountbyGapLen; i++ {
 		countPerGapH[i] = fmt.Sprint(i - 1)
 	}
 

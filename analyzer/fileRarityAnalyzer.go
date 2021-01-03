@@ -3,6 +3,7 @@ package analyzer
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -17,7 +18,8 @@ type fileRarityAnalyzer struct {
 	currXFilterRe       string
 	currLinesInBlock    int
 	currMaxBlocks       int
-	currRarityThreshold float64
+	currGapThreshold    float64
+	currRarityCountRate float64
 	fp                  *filePointer
 }
 
@@ -26,8 +28,13 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 
 	a.linesInBlock = cDefaultBlockSize
 	a.maxBlocks = cDefaultMaxBlocks
-	a.rarityThreshold = cDefaultRarityThreshold
-
+	a.gapThreshold = cDefaultGapThreshold
+	if a.linesInBlock >= 100 {
+		digits := int(math.Log10(float64(a.linesInBlock))) - 1
+		a.rarityCountRate = 1.0 - 1.0/math.Pow10(digits)
+	} else {
+		a.rarityCountRate = 0.9
+	}
 	a.outputFunc = func(name string, rowID int64,
 		scoreThreshold float64,
 		score, scoreGap, scoreAvg, scoreStd float64,
@@ -118,7 +125,7 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 func newFileRarityAnalyzerByVars(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
-	rarityThreshold float64,
+	gapThreshold, rarityCountRate float64,
 	linesInBlock, maxBlocks int) (*fileRarityAnalyzer, error) {
 
 	a := newFileRarityAnalyzer()
@@ -133,9 +140,10 @@ func newFileRarityAnalyzerByVars(logPathRegex,
 	a.currLogPathRegex = logPathRegex
 	a.currFilterRe = filterRe
 	a.currXFilterRe = xFilterRe
-	a.currRarityThreshold = rarityThreshold
+	a.currGapThreshold = gapThreshold
 	a.currLinesInBlock = linesInBlock
 	a.currMaxBlocks = maxBlocks
+	a.currRarityCountRate = rarityCountRate
 	a.haveStatistics = true
 
 	if a.useDB {
@@ -165,8 +173,8 @@ func (a *fileRarityAnalyzer) setNewParams() {
 	if a.currXFilterRe != "" {
 		a.xFilterRe = a.currXFilterRe
 	}
-	if a.currRarityThreshold >= 0.0 {
-		a.rarityThreshold = a.currRarityThreshold
+	if a.currGapThreshold >= 0.0 {
+		a.gapThreshold = a.currGapThreshold
 	}
 	if a.currLinesInBlock >= 0 {
 		a.linesInBlock = a.currLinesInBlock
@@ -174,6 +182,10 @@ func (a *fileRarityAnalyzer) setNewParams() {
 	if a.currMaxBlocks >= 0 {
 		a.maxBlocks = a.currMaxBlocks
 	}
+	if a.currGapThreshold == 0.0 && a.currRarityCountRate > 0 {
+		a.rarityCountRate = a.currRarityCountRate
+	}
+
 }
 
 func (a *fileRarityAnalyzer) loadIni() error {
@@ -197,14 +209,18 @@ func (a *fileRarityAnalyzer) loadIni() error {
 		case "maxBlocks":
 			a.maxBlocks = k.MustInt(a.maxBlocks)
 
-		case "rarityThreshold":
-			a.rarityThreshold = k.MustFloat64(a.rarityThreshold)
+		case "gapThreshold":
+			a.gapThreshold = k.MustFloat64(a.gapThreshold)
+
+		case "rarityCountRate":
+			a.rarityCountRate = k.MustFloat64(a.rarityCountRate)
 
 		case "filterRe":
 			a.filterRe = k.MustString(a.filterRe)
 
 		case "xFilterRe":
 			a.xFilterRe = k.MustString(a.xFilterRe)
+
 		}
 	}
 	return nil
@@ -226,7 +242,8 @@ func (a *fileRarityAnalyzer) SaveIni() error {
 	cfg.Section("LogFile").Key("logPathRegex").SetValue(a.logPathRegex)
 	cfg.Section("LogFile").Key("linesInBlock").SetValue(fmt.Sprint(a.linesInBlock))
 	cfg.Section("LogFile").Key("maxBlocks").SetValue(fmt.Sprint(a.maxBlocks))
-	cfg.Section("LogFile").Key("rarityThreshold").SetValue(fmt.Sprint(a.rarityThreshold))
+	cfg.Section("LogFile").Key("gapThreshold").SetValue(fmt.Sprint(a.gapThreshold))
+	cfg.Section("LogFile").Key("rarityCountRate").SetValue(fmt.Sprint(a.rarityCountRate))
 	cfg.Section("LogFile").Key("filterRe").SetValue(a.filterRe)
 	cfg.Section("LogFile").Key("xFilterRe").SetValue(a.xFilterRe)
 

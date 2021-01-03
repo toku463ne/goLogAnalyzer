@@ -6,5 +6,5 @@ go get "golang.org/x/text/unicode/norm"
 go get "github.com/juju/fslock"
 echo go build -o logan main.go
 go build -o logan main.go
-echo "installing loganal"
+echo "sudo cp logan /usr/local/bin/logan"
 sudo cp logan /usr/local/bin/logan
