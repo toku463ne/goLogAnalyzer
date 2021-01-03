@@ -77,12 +77,13 @@ func rar(verbose bool) error {
 	pathRegex := rarFlag.String("f", "", "Log file(regex) to analyze")
 	filterRe := rarFlag.String("s", "", "key word to search")
 	xFilterRe := rarFlag.String("x", "", "key word to exclude")
-	gap := rarFlag.Float64("g", 0.8, "Gap rate from average")
+	gap := rarFlag.Float64("g", 0.0, "Gap rate from average")
 	rarityCountRate := rarFlag.Float64("rarityCountRate", 0.0, "Automatically select gap score so that rare records of more than rarityCountRate*10% will be showed.")
 	debug := rarFlag.Bool("v", false, "show debug logs")
 	forceSaveDb := rarFlag.Bool("save", false, "Update the data without asking")
 	linesInBlock := rarFlag.Int("linesInBlock", -1, "lines in block")
 	maxBlock := rarFlag.Int("maxBlock", -1, "max blocks")
+	maxLines := rarFlag.Int("n", 0, "max lines to process")
 
 	rarFlag.Parse(os.Args[2:])
 
@@ -115,7 +116,7 @@ func rar(verbose bool) error {
 	if err := analyzer.Rar(*pathRegex, *rootDir,
 		*filterRe, *xFilterRe,
 		*gap, *rarityCountRate,
-		*linesInBlock, *maxBlock,
+		*maxLines, *linesInBlock, *maxBlock,
 		*debug, verbose, saveDb); err != nil {
 		return err
 	}

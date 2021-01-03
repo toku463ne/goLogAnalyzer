@@ -173,7 +173,7 @@ func (a *fileRarityAnalyzer) setNewParams() {
 	if a.currXFilterRe != "" {
 		a.xFilterRe = a.currXFilterRe
 	}
-	if a.currGapThreshold >= 0.0 {
+	if a.currGapThreshold > 0.0 {
 		a.gapThreshold = a.currGapThreshold
 	}
 	if a.currLinesInBlock >= 0 {

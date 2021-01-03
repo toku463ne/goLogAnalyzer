@@ -1,4 +1,4 @@
-echo "Installling goLogAnalyzer"
+echo "Installing goLogAnalyzer"
 go get "github.com/damnever/bitarray"
 go get "github.com/pkg/errors"
 go get "github.com/go-ini/ini"

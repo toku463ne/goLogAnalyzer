@@ -482,6 +482,10 @@ func (a *rarityAnalyzer) nextBlock() {
 					break
 				}
 			}
+			//fmt.Printf("gap=%.2f", a.gapThreshold)
+			if a.gapThreshold < 0.3 && a.gapThreshold > 0.0 {
+				a.gapThreshold = 0.3
+			}
 		}
 	}
 

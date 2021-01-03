@@ -16,9 +16,8 @@ func Test_main(t *testing.T) {
 
 	//loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
 	os.Args = []string{"test", "rar", "-f", logPathRegex,
-		"-d", rootDir, "-linesInBlock",
-		linesInBlock, "-maxBlock",
-		maxBlocks, "-g", "0.0", "-save", "-v"}
+		"-d", rootDir, "-linesInBlock", linesInBlock,
+		"-maxBlock", maxBlocks, "-g", "0.0", "-save", "-v"}
 	//"-rarityCountRate", rarityCountRate,
 	//}
 	main()

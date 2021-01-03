@@ -36,7 +36,7 @@ func Rar(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
 	rarityThreshold, rarityCountRate float64,
-	linesInBlock, maxBlocks int,
+	maxLines, linesInBlock, maxBlocks int,
 	debug bool, verbose1 bool, saveDb bool) error {
 
 	verbose = verbose1
@@ -67,7 +67,7 @@ func Rar(logPathRegex,
 
 	defer a.close()
 	var rowN int
-	if rowN, err = a.run(0, -1); err != nil {
+	if rowN, err = a.run(maxLines, -1); err != nil {
 		return err
 	}
 	logInfo(fmt.Sprintf("Processed %d rows", rowN))
