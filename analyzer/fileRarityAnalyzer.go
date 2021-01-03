@@ -134,8 +134,6 @@ func newFileRarityAnalyzerByVars(logPathRegex,
 		a.rootDir = rootDir
 		a.name = filepath.Base(rootDir)
 		a.useDB = true
-		a.linesInBlock = cDefaultBlockSizeNoDb
-		a.maxBlocks = cDefaultMaxBlocksNoDb
 	}
 	a.currLogPathRegex = logPathRegex
 	a.currFilterRe = filterRe

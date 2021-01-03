@@ -10,15 +10,13 @@ const (
 	cWordReStr = `[0-9\pL\p{Mc}\p{Mn}.%]{2,}`
 	//wordSegmenter = regexp.MustCompile(`[0-9\pL\p{Mc}\p{Mn}-_'.]+`)
 	//wordSegmenter         = regexp.MustCompile(`[\pL\p{Mc}\p{Mn}.%]+`)
-	cLogLevelError        = 1
-	cLogLevelInfo         = 2
-	cLogLevelDebug        = 3
-	cDefaultBlockSize     = 10000
-	cDefaultMaxBlocks     = 1000
-	cDefaultBlockSizeNoDb = 1000
-	cDefaultMaxBlocksNoDb = 100
-	cDefaultGapThreshold  = 0.8
-	cMaxRecsToProcessFrq  = 10000
-	cEOF                  = -1
-	cCountbyGapLen        = 100
+	cLogLevelError       = 1
+	cLogLevelInfo        = 2
+	cLogLevelDebug       = 3
+	cDefaultBlockSize    = 10000
+	cDefaultMaxBlocks    = 1000
+	cDefaultGapThreshold = 0.8
+	cMaxRecsToProcessFrq = 10000
+	cEOF                 = -1
+	cCountbyGapLen       = 100
 )
