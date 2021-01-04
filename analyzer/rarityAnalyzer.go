@@ -465,27 +465,30 @@ func (a *rarityAnalyzer) initCurrBlock(blockID int) {
 	a.currBlock = newBlock(blockID)
 }
 
+func (a *rarityAnalyzer) updateGapThreshold() {
+	total := float64(a.countTotal)
+	s := 0
+	if total > 0 && a.rarityCountRate > 0 {
+		for i, cnt := range a.countPerGap {
+			s += cnt
+			if float64(s)/total >= a.rarityCountRate {
+				a.gapThreshold = float64(i) / 10
+				break
+			}
+		}
+		//fmt.Printf("gap=%.2f", a.gapThreshold)
+		if a.gapThreshold < 0.3 && a.gapThreshold > 0.0 {
+			a.gapThreshold = 0.3
+		}
+	}
+}
+
 func (a *rarityAnalyzer) nextBlock() {
 	if a.currBlock != nil {
 		if curLogLevel == cLogLevelDebug {
 			a.printCountPerGap(a.currBlock.countPerGap,
 				fmt.Sprintf("Finished blockID=%d\ncounts per gap",
 					a.currBlockID))
-		}
-		total := float64(a.countTotal)
-		s := 0
-		if total > 0 && a.rarityCountRate > 0 {
-			for i, cnt := range a.countPerGap {
-				s += cnt
-				if float64(s)/total >= a.rarityCountRate {
-					a.gapThreshold = float64(i) / 10
-					break
-				}
-			}
-			//fmt.Printf("gap=%.2f", a.gapThreshold)
-			if a.gapThreshold < 0.3 && a.gapThreshold > 0.0 {
-				a.gapThreshold = 0.3
-			}
 		}
 	}
 
@@ -566,6 +569,10 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 		a.rowID++
 		if a.rowID > maxRowID {
 			a.rowID = 0
+		}
+
+		if a.rowID > 1 && a.rowID%cCountToUpdateGapThreshold == 0 {
+			a.updateGapThreshold()
 		}
 
 		te := a.pointerText()
