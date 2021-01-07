@@ -18,7 +18,7 @@ func getDefaultFileRarityAnalyzer(
 	a, err := newFileRarityAnalyzerByVars(logPathRegex,
 		rootDir,
 		"", "",
-		gapThreshold,
+		gapThreshold, 0,
 		linesInBlock, maxBlocks)
 
 	return a, err
@@ -132,11 +132,11 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 
 	a.printCountPerGap(a.countPerGap, "Count per score")
 
-	if a.countPerGap[0] != 2 {
+	if a.countPerGap[0] != 1 {
 		t.Errorf("countPerGap is incorrect")
 		return
 	}
-	if a.countPerGap[3] != 3 {
+	if a.countPerGap[1] != 5 {
 		t.Errorf("countPerGap is incorrect")
 		return
 	}

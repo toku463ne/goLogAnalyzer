@@ -30,14 +30,14 @@ func getEnItems(content []byte, items1 *items, filterRe string) []int {
 func tokenizeLine(line string,
 	trans1 *trans, items1 *items, filterRe string,
 	xFilterRe string,
-	rowNum int) bool {
+	rowNum int) (bool, int) {
 	isAdded := false
 
 	if filterRe != "" && searchReg(line, filterRe) == false {
-		return isAdded
+		return isAdded, 0
 	}
 	if xFilterRe != "" && searchReg(line, xFilterRe) {
-		return isAdded
+		return isAdded, 0
 	}
 
 	trans1.mask.append(rowNum)
@@ -45,7 +45,8 @@ func tokenizeLine(line string,
 
 	tran := getEnItems(bline, items1, filterRe)
 
-	if len(tran) > 0 {
+	l := len(tran)
+	if l > 0 {
 		trans1.add(tran, line, items1)
 		if verbose {
 			tranID := trans1.maxTranID
@@ -54,5 +55,5 @@ func tokenizeLine(line string,
 		}
 		isAdded = true
 	}
-	return isAdded
+	return isAdded, l
 }

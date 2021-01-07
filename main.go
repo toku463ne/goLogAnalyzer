@@ -20,6 +20,9 @@ loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EX
 	-f LOGPATH: 
 		Path of the logfile (can use regex)  
 	-v verbose  
+	-r RARITY_RATE:
+		Top RARITY_RATE log records will be showed.
+		Default is 0.0001 (1 rare record out of 10000 records will be showed) 
 	-g GAPVALUE: 
 		Gap from average score. Default is 0.8
 		0 is the average. 
@@ -36,9 +39,7 @@ loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EX
 		key word to search (can use regex)
 	-x EXCLUDE_KEYS: 
 		key word to exclude (can use regex)
-	-rarityCountRate RARITY_COUNT_RATE:
-		Automatically select gap score so that only rare records of 
-		more than rarityCountRate*10% will be showed.
+	
 
 loganal clean -d DATADIR
   Cleans up the analyzation data in previous analysis
@@ -78,7 +79,7 @@ func rar(verbose bool) error {
 	filterRe := rarFlag.String("s", "", "key word to search")
 	xFilterRe := rarFlag.String("x", "", "key word to exclude")
 	gap := rarFlag.Float64("g", 0.0, "Gap rate from average")
-	rarityCountRate := rarFlag.Float64("rarityCountRate", 0.0, "Automatically select gap score so that rare records of more than rarityCountRate*10% will be showed.")
+	rarityRate := rarFlag.Float64("r", 0.0, "Top RARITY_RATE log records will be showed.")
 	debug := rarFlag.Bool("v", false, "show debug logs")
 	forceSaveDb := rarFlag.Bool("save", false, "Update the data without asking")
 	linesInBlock := rarFlag.Int("linesInBlock", -1, "lines in block")
@@ -112,10 +113,11 @@ func rar(verbose bool) error {
 			saveDb = true
 		}
 	}
+	rarityCountRate := 1 - *rarityRate
 
 	if err := analyzer.Rar(*pathRegex, *rootDir,
 		*filterRe, *xFilterRe,
-		*gap, *rarityCountRate,
+		*gap, rarityCountRate,
 		*maxLines, *linesInBlock, *maxBlock,
 		*debug, verbose, saveDb); err != nil {
 		return err

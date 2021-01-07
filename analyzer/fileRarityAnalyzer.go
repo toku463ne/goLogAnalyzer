@@ -31,14 +31,13 @@ func newFileRarityAnalyzer() *fileRarityAnalyzer {
 	a.gapThreshold = cDefaultGapThreshold
 	if a.linesInBlock >= 100 {
 		digits := int(math.Log10(float64(a.linesInBlock))) - 1
-		a.rarityCountRate = 1.0 - 1.0/math.Pow10(digits)
+		a.rarityCountRate = 1.0 - 1.0/math.Pow10(digits+1)
+		//a.rarityCountRate = 0.99999
 	} else {
 		a.rarityCountRate = 0.9
 	}
 	a.outputFunc = func(name string, rowID int64,
-		scoreThreshold float64,
-		score, scoreGap, scoreAvg, scoreStd float64,
-		cnt int,
+		scoreThreshold, score, scoreGap float64,
 		text []string) {
 		if verbose || scoreGap > scoreThreshold {
 			msg := fmt.Sprintf("%s %8d gap=%3.2f | %s\n",

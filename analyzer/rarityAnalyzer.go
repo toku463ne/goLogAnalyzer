@@ -59,9 +59,7 @@ type rarityAnalyzer struct {
 	// functions
 	outputFunc func(
 		name string, rowID int64,
-		scoreThreshold float64,
-		score, scoreGap, scoreAvg, scoreStd float64,
-		cnt int,
+		scoreThreshold, score, scoreGap float64,
 		text []string)
 	setTargetLinesCnt func(int) error
 	countTargetLines  func() (int, error)
@@ -259,7 +257,6 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 
 		b := newBlock(blockID)
 		b.blockCnt = blockCnt
-		a.countTotal += blockCnt
 		b.lastEpoch = tmpEpoch2
 		b.scoreSum = scoreSum
 		b.scoreSqrSum = scoreSqrSum
@@ -269,6 +266,7 @@ func (a *rarityAnalyzer) loadDBBlocks() error {
 		a.scoreCount += blockCnt
 		a.scoreSum += scoreSum
 		a.scoreSqrSum += scoreSqrSum
+		a.countTotal += blockCnt
 
 	}
 
@@ -527,15 +525,12 @@ func (a *rarityAnalyzer) postBlock() error {
 }
 
 func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error) {
-	var scoreAvg float64
-	var scoreStd float64
-	var scoreGap float64
 	linesProcessed := 0
-	logInfo(fmt.Sprintf("%d data=%s search=%s exclude=%s gap=%.2f bsize=%d nblocks=%d",
+	logInfo(fmt.Sprintf("%d data=%s search=%s exclude=%s rareRate=%.4f bsize=%d nblocks=%d",
 		os.Getpid(),
 		a.rootDir,
 		a.filterRe, a.xFilterRe,
-		a.gapThreshold,
+		a.rarityCountRate,
 		a.linesInBlock, a.maxBlocks))
 
 	a.setTargetLinesCnt(targetLinesCnt)
@@ -576,7 +571,7 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 		}
 
 		te := a.pointerText()
-		isAdded := tokenizeLine(te[0], a.trans,
+		isAdded, _ := tokenizeLine(te[0], a.trans,
 			a.items, a.filterRe, a.xFilterRe, a.linesProcessedInBlock)
 
 		if isAdded && a.haveStatistics {
@@ -588,20 +583,18 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 			a.scoreSum += score
 			a.scoreSqrSum += scoreSqr
 			a.scoreCount++
-			cnt := a.scoreCount
-			scoreAvg = a.scoreSum / float64(cnt)
-			scoreStd = math.Sqrt(a.scoreSqrSum / float64(cnt))
-			if scoreStd == 0 {
-				scoreGap = 0
-			} else {
-				scoreGap = (score - scoreAvg) / scoreStd
+			cnt := float64(a.scoreCount)
+			//score avg
+			sa := a.scoreSum / cnt
+			//score std
+			ss := math.Sqrt((a.scoreSqrSum - 2*a.scoreSum*sa + cnt*sa*sa) / cnt)
+
+			var scoreGap float64
+			if ss > 0 {
+				scoreGap = (score - sa) / (ss) * 0.1
 			}
 
 			gapStage := int(math.Floor(scoreGap * 10))
-			//if scoreGap >= 0.7 {
-			//	fmt.Printf("gap=%f stg=%d\n", scoreGap, gapStage)
-			//	fmt.Printf("gap7=%d\n", a.countPerGap[7])
-			// }
 			if gapStage < 0 {
 				gapStage = 0
 			}
@@ -613,7 +606,7 @@ func (a *rarityAnalyzer) run(targetLinesCnt int, forcedBlockID int) (int, error)
 			a.countTotal++
 
 			a.outputFunc(a.name, a.rowID, a.gapThreshold,
-				score, scoreGap, scoreAvg, scoreStd, cnt, te)
+				score, scoreGap, te)
 		}
 
 		linesProcessed++

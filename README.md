@@ -23,6 +23,9 @@ If you specify a datadir, the result will be saved, and next time the tool will 
 		Path of the logfile (can use regex)  
 	-v verbose: 
 		Show debug logs  
+	-r RARITY_RATE:
+		Top RARITY_RATE log records will be showed.
+		Default is 0.0001 (1 rare record out of 10000 records will be showed) 
 	-g GAPVALUE:(default 0.8)  
 		Defines the threshold of "rarity".
 		Log records with "rarity" score higher than this value will be showed up.
@@ -79,11 +82,11 @@ logan rar -d data
 ```
   
   
-If you think there is too much output or too less output, then change the GAPVALUE.  
-Reducing the GAPVALUE means that log records with less "rarity" will show up.  
-So you can get more outputs by reducing the GAPVALUE. (default 0.8)
+If you think there is too much output or too less output, then change the RARITY_RATE.  
+Reducing the RARITY_RATE means that log records with more "rarity" will show up.  
+So you can get more outputs by increasing the RARITY_RATE. (default 0.0001)
 ```
-logan rar -f /var/log/syslog -g 0.5
+logan rar -f /var/log/syslog -r 0.0002
 ```  
   
 If you want to see all log records with score  
