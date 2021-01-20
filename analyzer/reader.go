@@ -58,31 +58,25 @@ func newReader(filename string) (*reader, error) {
 }
 
 func (lr *reader) next() bool {
-	ok := lr.scanner.Scan()
-	if ok {
+	if lr.scanner.Scan() {
 		lr.rowNum++
-	} else {
-		err := lr.scanner.Err()
-		if err == nil {
-			lr.e = io.EOF
-		} else if err != nil {
-			lr.e = err
-		}
+		return true
 	}
-	return ok
+	err := lr.scanner.Err()
+	if err == nil {
+		lr.e = io.EOF
+	} else if err != nil {
+		lr.e = err
+	}
+	return false
 }
 
 func (lr *reader) err() error {
-	//return lr.scanner.Err()
-	return lr.e
+	return lr.scanner.Err()
 }
 
 func (lr *reader) text() string {
 	return lr.scanner.Text()
-}
-
-func (lr *reader) row() int {
-	return lr.rowNum
 }
 
 func (lr *reader) close() {

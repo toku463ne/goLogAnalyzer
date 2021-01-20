@@ -231,6 +231,58 @@ func quickSort(a []int64, s []string, i, j int) {
 	}
 }
 
+func _pivotFloatInt(a []float64, i, j int) int {
+	k := i + 1
+	for k <= j && a[i] == a[k] {
+		k++
+	}
+	if k > j {
+		return -1
+	}
+	if a[i] >= a[k] {
+		return i
+	}
+	return k
+}
+
+func _partitionFloatInt(a []float64, s []int, i, j int, x float64) int {
+	l := i
+	r := j
+
+	for l <= r {
+		for l <= j && a[l] < x {
+			l++
+		}
+		for r >= i && a[r] >= x {
+			r--
+		}
+		if l > r {
+			break
+		}
+		t := a[l]
+		s1 := s[l]
+		a[l] = a[r]
+		s[l] = s[r]
+		a[r] = t
+		s[r] = s1
+		l++
+		r--
+	}
+	return l
+}
+
+func quickSortFloatInt(a []float64, s []int, i, j int) {
+	if i == j {
+		return
+	}
+	p := _pivotFloatInt(a, i, j)
+	if p != -1 {
+		k := _partitionFloatInt(a, s, i, j, a[p])
+		quickSortFloatInt(a, s, i, k-1)
+		quickSortFloatInt(a, s, k, j)
+	}
+}
+
 func timespecToTime(ts syscall.Timespec) time.Time {
 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
 }
@@ -290,4 +342,51 @@ func ensureDir(dirPath string) error {
 		return err
 	}
 	return nil
+}
+
+func tob(a string) byte {
+	return []byte(a)[0]
+}
+
+func registerNTopRareRec(
+	nTopRareLogs []*logRec,
+	minTopRareScore float64,
+	rowID int64,
+	score float64, text string) ([]*logRec, float64) {
+	if minTopRareScore > 0 && score <= minTopRareScore {
+		return nTopRareLogs, minTopRareScore
+	}
+	newTopN := make([]*logRec, len(nTopRareLogs))
+	logr2 := new(logRec)
+	logr2.rowID = rowID
+	logr2.score = score
+	logr2.text = text
+	for i, logr := range nTopRareLogs {
+		if logr == nil {
+			newTopN[i] = logr2
+			break
+		} else if score > logr.score {
+			newTopN[i] = logr2
+			oldScore2 := 0.0
+			for j := i + 1; j < len(nTopRareLogs); j++ {
+				if nTopRareLogs[j-1] == nil {
+					break
+				}
+				score2 := nTopRareLogs[j-1].score
+				if nTopRareLogs[j-1].text == "" {
+					minTopRareScore = oldScore2
+					break
+				}
+				if j >= cNTopRareRecords-1 {
+					minTopRareScore = score2
+				}
+				newTopN[j] = nTopRareLogs[j-1]
+				oldScore2 = score2
+			}
+			break
+		} else {
+			newTopN[i] = logr
+		}
+	}
+	return newTopN, minTopRareScore
 }

@@ -1,7 +1,7 @@
 # goLogAnalyzer
 A simple tool to analize log files.  
 It supports plain text and gzip formatted log files.  
-Tested on linux, but also works in Windows.
+Tested on linux and Windows.
   
 ## Overview
 Find log records which are rare.
@@ -16,52 +16,86 @@ If you specify a datadir, the result will be saved, and next time the tool will 
 
   
 ## How to use
-- **logan rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
-  Starts log analyzation.  
   ```
-	-f LOGPATH:   
-		Path of the logfile (can use regex)  
-	-v verbose: 
-		Show debug logs  
-	-r RARITY_RATE:
-		Top RARITY_RATE log records will be showed.
-		Default is 0.0001 (1 rare record out of 10000 records will be showed) 
-	-g GAPVALUE:(default 0.8)  
-		Defines the threshold of "rarity".
-		Log records with "rarity" score higher than this value will be showed up.
-		0 is the average.  
-		1 is 1 deviation width from the average.  
-	-d DATADIR:   
-		Directory to save the analyzation data.  
-		For large log files, using this option is recomended.
-		Otherwise gologanyzer may use much memory.
-		This data will be also used in the next time execution  
-	-s SEARCH_KEYS:  
-		key word to search (can use regex)  
-	-x EXCLUDE_KEYS:  
-		key word to exclude (can use regex)  
-	-save
-		Update the previous data without asking
-    ```  
+logan [rar|clean|stats|test|frq] OPTIONS
 
-- **logan clean -d DATADIR**
-    ```
-  Cleans up the analyzation data in previous analysis  
-    ```  
+logan -help:
+        Shows this help
 
-- **logan frq -f LOGPATH [-m MIN_SUPPORT] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
-  Shows Closed Frequent Itemsets order by the support  
-    ```
-	-f LOGPATH: Path of the logfile  
-	-m MIN_SUPPORT: minimum support of closed frequent item sets  
-	-s SEARCH_KEYS: key word to search (can use regex)  
-	-x EXCLUDE_KEYS: key word to exclude (can use regex)  
-    ```
+logan rar:
+        Calculate rarity score of each log records and show the "rare" records.
+        Run "logan rar -help" for details.
+
+logan clean:
+        Cleanups all statistics data.
+        Run "logan clean -help" for details.
+
+logan stats:
+        Shows the statistics according the data in the last execution.
+        Run "logan stats -help" for details.
+
+logan test:
+        Shows all log records with the score gap.
+        Run "logan test -help" for details.
+
+logan frq:
+        Shows the closed frequent itemsets order by the supports.
+        Only calculate at most 10000 records.
+  ```
   
-- **logan test [-f LOGPATH] [-d DATADIR] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]**  
-  Same as "logan rar" but will shows all log records
+Usage of rar:
+  ```
+  -a    show old results too
+  -d string
+        Directory to save the analyzation data
+  -f string
+        Log file(regex) to analyze. Supports data from pipe
+  -g float
+        Gap rate from average
+                        Log records with rarity score whose gap if higher that this value will be showed.
+  -linesInBlock int
+        lines in block (default -1)
+  -maxBlock int
+        max blocks (default -1)
+  -n int
+        max lines to process
+  -r float
+        Log records with top "rarity score" will be showed.
+                        Default is 0.00005 (5 rare record out of 100000 records will be showed)
+  -s string
+        key word to search
+  -save
+        Update the data without asking
+  -v    show debug logs
+  -x string
+        key word to exclude
+  ```
   
+Usage of clean:
+  ```
+  -d string
+        Directory to save the analyzation data
+  -v    show debug logs
+  ```
   
+Usage of stats:
+  ```
+  -d string
+        Directory to save the analyzation data
+  ```
+  
+Usage of frq:
+  ```
+  -f string
+        Text file to analyze
+  -m int
+        min support
+  -s string
+        key word to search
+  -v    show debug logs
+  -x string
+        key word to exclude
+  ```
 
 ## Examples
 Run in most simple way.  

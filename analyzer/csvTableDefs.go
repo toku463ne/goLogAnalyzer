@@ -3,9 +3,9 @@ package analyzer
 import "fmt"
 
 func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
-	countPerGapH := make([]string, cCountbyGapLen+1)
-	countPerGapH[0] = "blockID"
-	for i := 1; i <= cCountbyGapLen; i++ {
+	countPerGapH := make([]string, cCountbyScoreLen+1)
+	//countPerGapH[0] = "blockID"
+	for i := 0; i < cCountbyScoreLen; i++ {
 		countPerGapH[i] = fmt.Sprint(i - 1)
 	}
 
@@ -26,6 +26,14 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 		"items": csvTableDef{
 			"items",
 			[]string{"word", "cnt"},
+			maxPartitions},
+		"logRecords": csvTableDef{
+			"logRecords",
+			[]string{"rowID", "score", "text"},
+			maxPartitions},
+		"nTopRareLogs": csvTableDef{
+			"nTopRareLogs",
+			[]string{"rowID", "score", "text"},
 			maxPartitions},
 	}
 	return newCsvDB(baseDir, d)
@@ -48,8 +56,8 @@ func getClosedItemsDB(baseDir string, maxPartitions int) (*csvDB, error) {
 func getTextWriterDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	d := map[string]csvTableDef{
 		"doc": csvTableDef{
-			"text",
-			[]string{"key"},
+			"doc",
+			[]string{"text"},
 			maxPartitions},
 	}
 	return newCsvDB(baseDir, d)

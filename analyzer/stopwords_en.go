@@ -1,6 +1,6 @@
 package analyzer
 
-var english = map[string]string{
+var enStopWords = map[string]string{
 	"-":            "",
 	";":            "",
 	",":            "",

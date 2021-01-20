@@ -8,3 +8,21 @@ echo go build -o logan main.go
 go build -o logan main.go
 echo "sudo cp logan /usr/local/bin/logan"
 sudo cp logan /usr/local/bin/logan
+echo ""
+echo ""
+logan -help
+echo ""
+echo ""
+logan rar -help
+echo ""
+echo ""
+logan clean -help
+echo ""
+echo ""
+logan stats -help
+echo ""
+echo ""
+logan test -help
+echo ""
+echo ""
+logan frq -help

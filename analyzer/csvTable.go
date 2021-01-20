@@ -20,6 +20,7 @@ type csvTable struct {
 	colMap        map[string]int
 	baseDir       string
 	maxPartitions int
+	partitionIDs  map[string]bool
 }
 
 type csvCursor struct {
@@ -51,7 +52,7 @@ func (t *csvTable) getPath(partitionID string) string {
 	if partitionID == "*" {
 		filename = fmt.Sprintf("%s_*.csv", t.name)
 	} else if partitionID != "" {
-		filename = fmt.Sprintf("%s_%0"+fmt.Sprint(maxBlockDitigs)+"s.csv", t.name, partitionID)
+		filename = fmt.Sprintf("%s_%0"+fmt.Sprint(cMaxBlockDitigs)+"s.csv", t.name, partitionID)
 	} else {
 		filename = fmt.Sprintf("%s.csv", t.name)
 	}
@@ -67,11 +68,11 @@ func (t *csvTable) getPartitionID(path string) string {
 	return nstr
 }
 
-func (t *csvTable) getPartitionIDs() []string {
+func (t *csvTable) getPartitionIDs() map[string]bool {
 	cur := t.openCur("*")
-	partitionIDs := []string{}
+	partitionIDs := make(map[string]bool, t.maxPartitions)
 	for _, filename := range cur.filenames {
-		partitionIDs = append(partitionIDs, t.getPartitionID(filename))
+		partitionIDs[t.getPartitionID(filename)] = true
 	}
 	return partitionIDs
 }
@@ -136,13 +137,16 @@ func (cur *csvCursor) next() bool {
 	return ret
 }
 
-func (t *csvTable) insertRows(rows [][]string, partitionID string) error {
+func (t *csvTable) insertRows(rows [][]string, partitionID string, nRows int) error {
 	writer, err := t.openW(partitionID)
 	if err != nil {
 		return err
 	}
 	defer writer.close()
-	for _, row := range rows {
+	for i, row := range rows {
+		if nRows > 0 && i >= nRows {
+			break
+		}
 		if err := writer.write(row); err != nil {
 			return err
 		}
@@ -323,7 +327,7 @@ func (t *csvTable) update(
 		for col, val := range updates {
 			v[t.colMap[col]] = val
 		}
-		t.insertRows([][]string{v}, partitionID)
+		t.insertRows([][]string{v}, partitionID, 0)
 	}
 	return nil
 }

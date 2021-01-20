@@ -7,30 +7,38 @@ import (
 
 func Test_main(t *testing.T) {
 	rootDir := "c:\\Users\\kot\\loganal\\realtest\\test"
-	linesInBlock := "10000"
+	linesInBlock := "1000"
 	maxBlocks := "100"
 	logPathRegex := "c:\\Users\\kot\\loganal\\realtest\\test.log*"
 	//rarityCountRate := "0.0001"
 	os.Args = []string{"test", "clean", "-d", rootDir}
-	main()
+	debug()
 
 	os.Args = []string{"test", "rar", "-f", logPathRegex,
 		"-d", rootDir, "-linesInBlock", linesInBlock,
-		"-maxBlock", maxBlocks, "-g", "0.0", "-save"}
+		"-maxBlock", maxBlocks, "-save"}
 
-	main()
+	debug()
+
+	//os.Args = []string{"test", "rar", "-f", logPathRegex,
+	//	"-d", rootDir, "-linesInBlock", linesInBlock,
+	//	"-maxBlock", maxBlocks, "-n", "1000", "-a", "-g", "0.4"}
+
+	//debug()
 }
 
 func Test_main2(t *testing.T) {
-	logPathRegex := "c:\\Users\\kot\\loganal\\realtest\\test.log"
+	rootDir := "c:\\Users\\kot\\loganal\\realtest5\\data"
+	linesInBlock := "10000"
+	maxBlocks := "1000"
+	logPathRegex := "c:\\Users\\kot\\loganal\\realtest5\\test.log*"
+	//rarityCountRate := "0.0001"
+	os.Args = []string{"test", "clean", "-d", rootDir}
+	debug()
 
-	//loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
-	os.Args = []string{"test", "frq", "-f", logPathRegex, "-m", "100", "-v"}
-	main()
-}
+	os.Args = []string{"test", "rar", "-f", logPathRegex,
+		"-d", rootDir, "-linesInBlock", linesInBlock,
+		"-maxBlock", maxBlocks, "-save", "-n", "20000"}
 
-func Test_main3(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\realtest\\test"
-	os.Args = []string{"test", "stats", "-d", rootDir}
-	main()
+	debug()
 }

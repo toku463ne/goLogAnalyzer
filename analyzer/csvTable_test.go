@@ -22,7 +22,7 @@ func TestCsvTable_exec(t *testing.T) {
 	if err := tb.insertRows([][]string{
 		[]string{"1", "test1"},
 		[]string{"2", "test2"},
-	}, "001"); err != nil {
+	}, "001", 0); err != nil {
 		t.Errorf("Error inserting table test : %v", err)
 	}
 	cur := tb.openCur("001")
@@ -46,7 +46,7 @@ func TestCsvTable_exec(t *testing.T) {
 	if err := tb.insertRows([][]string{
 		[]string{"3", "test3"},
 		[]string{"4", "test4"},
-	}, "002"); err != nil {
+	}, "002", 0); err != nil {
 		t.Errorf("Error inserting table test : %v", err)
 	}
 	cur = tb.openCur("*")

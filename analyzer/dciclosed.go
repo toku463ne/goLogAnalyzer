@@ -314,43 +314,8 @@ func (dci *DCIClosed) getClosedWordsSorted(items1 *items) ([][]string,
 	return cw, sup, ftid, ltid
 }
 
-func (dci *DCIClosed) getClosedWordsSortedSearched(items1 *items, regStr string, mask *intArray) ([][]string,
-	[]int, []int, []int) {
-	s, sup, ftid, ltid := dci.getSortedClosedSets()
-	cw := make([][]string, 0)
-	newsup := make([]int, 0)
-	newftid := make([]int, 0)
-	newltid := make([]int, 0)
-	pos := 0
-	for i, t := range s {
-		hasReg := false
-		tw := make([]string, len(t))
-		for j, itemID := range t {
-			w := items1.getWord(itemID)
-			if searchReg(w, regStr) {
-				hasReg = true
-			}
-			tw[j] = w
-		}
-		for {
-			if pos >= mask.len() || mask.get(pos) == 1 {
-				break
-			}
-			pos++
-		}
-
-		if hasReg {
-			cw = append(cw, tw)
-			newsup = append(newsup, sup[i])
-			newftid = append(newftid, mask.get(ftid[i]))
-			newltid = append(newltid, mask.get(ltid[i]))
-		}
-	}
-	return cw, newsup, newftid, newltid
-}
-
 func (dci *DCIClosed) output(items1 *items,
-	rowNum int, mask *intArray) error {
+	rowNum int) error {
 	var tokens [][]string
 	var sup, ftid, ltid []int
 	tokens, sup, ftid, ltid = dci.getClosedWordsSorted(items1)
@@ -366,7 +331,7 @@ func (dci *DCIClosed) output(items1 *items,
 			nonouts = append(nonouts, t...)
 			continue
 		}
-		if i <= printClosedSetNum {
+		if i <= cPrintClosedSetNum {
 			t2 := make([]string, len(t))
 			for j, w := range t {
 				isNonOut := false
@@ -424,4 +389,31 @@ func (dci *DCIClosed) prevBit(b *bitarray.BitArray, lastIdx int, itemID int) (in
 		}
 	}
 	return -1, errors.New("Previous bit does not exist")
+}
+
+func runDCIClosed(path string,
+	minSupport int,
+	filterRe, xFilterRe string) (*DCIClosed, *trans, error) {
+	trans1, err := tokenizeFile(cMaxRecsToProcessFrq, path, filterRe, xFilterRe)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if minSupport <= 0 {
+		minSupport = trans1.maxTranID / 10
+		if minSupport <= 0 {
+			minSupport = 10
+		}
+	}
+
+	matrix := tran2BitMatrix(trans1, trans1.items)
+	dci, err := newDCIClosed(matrix, 2, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := dci.run(); err != nil {
+		return nil, nil, err
+	}
+
+	return dci, trans1, nil
 }

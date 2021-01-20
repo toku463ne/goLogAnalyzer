@@ -2,42 +2,72 @@ package analyzer
 
 import (
 	"fmt"
+	"os"
 )
 
-// CleanupDb ... Drop all tables
-func CleanupDb(rootDir string, debug bool) error {
+// CleanupDB .. cleanup data with lock
+func CleanupDB(rootDir string, debug bool) error {
+	lock, err := newLock(rootDir)
+	if err != nil {
+		fmt.Printf("%v : Probably another process is updating '%s'\n", err, rootDir)
+		return err
+	}
+	defer lock.unLock()
+	err = CleanupDBProc(rootDir, debug)
+	return err
+}
+
+// CleanupDBProc .. cleanup data : call this directly when debugging
+func CleanupDBProc(rootDir string, debug bool) error {
 	if debug {
 		curLogLevel = cLogLevelDebug
 	}
 
-	a, err := newFileRarityAnalyzerByVars("",
+	a, err := newRarityAnalyzer("",
 		rootDir,
 		"", "",
-		0, 0,
+		0,
 		-1, -1)
 	if err != nil {
 		return err
 	}
-	if err := a.gainLock(); err != nil {
-		fmt.Printf("%v : Probably another process is updating '%s'\n", err, rootDir)
-		return nil
-	}
-	defer a.unLock()
 
 	if err := a.clean(); err != nil {
 		return err
 	}
-	a.unLock()
 	return nil
 }
 
-// Rar ...
-func Rar(logPathRegex,
+// RunRar ... run rarity analyzer with lock
+func RunRar(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
-	rarityThreshold, rarityCountRate float64,
+	rarityThreshold float64,
 	maxLines, linesInBlock, maxBlocks int,
-	debug bool, verbose1 bool, saveDb bool) error {
+	debug, verbose1, saveDb bool) error {
+
+	lock, err := newLock(rootDir)
+	if err != nil {
+		fmt.Printf("%v : Probably another process is updating '%s'\n", err, rootDir)
+		return err
+	}
+	defer lock.unLock()
+	err = RunRarProc(logPathRegex,
+		rootDir,
+		filterRe, xFilterRe,
+		rarityThreshold,
+		maxLines, linesInBlock, maxBlocks,
+		debug, verbose1, saveDb)
+	return err
+}
+
+// RunRarProc ... run rarity analyzer
+func RunRarProc(logPathRegex,
+	rootDir string,
+	filterRe, xFilterRe string,
+	rarityThreshold float64,
+	maxLines, linesInBlock, maxBlocks int,
+	debug, verbose1, saveDb bool) error {
 
 	verbose = verbose1
 
@@ -45,10 +75,10 @@ func Rar(logPathRegex,
 		curLogLevel = cLogLevelDebug
 	}
 
-	a, err := newFileRarityAnalyzerByVars(logPathRegex,
+	a, err := newRarityAnalyzer(logPathRegex,
 		rootDir,
 		filterRe, xFilterRe,
-		rarityThreshold, rarityCountRate,
+		rarityThreshold,
 		linesInBlock, maxBlocks)
 	if err != nil {
 		return err
@@ -59,35 +89,43 @@ func Rar(logPathRegex,
 			return err
 		}
 		a.useDB = saveDb
-		if err := a.gainLock(); err != nil {
-			fmt.Printf("%v : Probably another process is updating '%s'\n", err, rootDir)
-			return nil
-		}
 	}
+	logInfo(fmt.Sprintf("[%d] data=%s search=%s exclude=%s bsize=%d nblocks=%d",
+		os.Getpid(),
+		a.rootDir,
+		a.filterRe, a.xFilterRe,
+		a.linesInBlock, a.maxBlocks))
 
 	defer a.close()
+
+	//if showOld {
+	//	if err := a.showOldResult(); err != nil {
+	//		return err
+	//	}
+	//}
+
 	var rowN int
-	if rowN, err = a.run(maxLines, -1); err != nil {
+	if rowN, err = a.run(maxLines); err != nil {
 		return err
 	}
-	logInfo(fmt.Sprintf("Processed %d rows", rowN))
+	logInfo(fmt.Sprintf("row=%d items=%d", rowN, len(a.trans.items.counts)))
 
 	if a.useDB && saveDb {
 		if err := a.SaveIni(); err != nil {
 			logError(fmt.Sprintf("Failed to save config\n"))
 		}
 	}
-	a.unLock()
+	a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords))
 	a.printCountPerGap(a.countPerGap, "Count per score gap")
 	return nil
 }
 
-// Stats ... shows count per gap
-func Stats(rootDir string) error {
-	a, err := newFileRarityAnalyzerByVars("",
+// RarStats ... shows count per gap
+func RarStats(rootDir string) error {
+	a, err := newRarityAnalyzer("",
 		rootDir,
 		"", "",
-		0, 0,
+		0,
 		-1, -1)
 	if err != nil {
 		return err
@@ -95,13 +133,14 @@ func Stats(rootDir string) error {
 	if err := a.loadDB(); err != nil {
 		return err
 	}
+	a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords))
 	a.printCountPerGap(a.countPerGap,
 		fmt.Sprintf("Total count %d\ncounts per gap", a.countTotal))
 	return nil
 }
 
-// Frq ... Get Closed Frequent Item Sets by DCI Closed Algorithm
-func Frq(path string,
+// RunFrq ... Get Closed Frequent Item Sets by DCI Closed Algorithm
+func RunFrq(path string,
 	minSupport int,
 	filterRe, xFilterRe string,
 	debug bool) error {
@@ -111,25 +150,32 @@ func Frq(path string,
 	}
 
 	logInfo(fmt.Sprintf("Calculating closed frq itemsets. Max recs=%d", cMaxRecsToProcessFrq))
-	a := newFileAnalyzer(path, filterRe, xFilterRe)
-	if err := a.tokenizeFile(cMaxRecsToProcessFrq); err != nil {
-		return err
-	}
-	if minSupport <= 0 {
-		minSupport = a.rowNum / 10
-		if minSupport <= 0 {
-			minSupport = 10
-		}
-	}
-	matrix := tran2BitMatrix(a.trans, a.items)
-	dci, err := newDCIClosed(matrix, minSupport, true)
+
+	dci, trans1, err := runDCIClosed(path,
+		minSupport,
+		filterRe, xFilterRe)
 	if err != nil {
 		return err
 	}
-	if err = dci.run(); err != nil {
+	dci.output(trans1.items, trans1.maxTranID)
+
+	return nil
+}
+
+// TestGap .. test if the scores are reasonable
+func TestGap(logPathRegex string) error {
+	at, err := newRarityAnalyzerTester(logPathRegex,
+		"",
+		"", "",
+		0.0, 0.0,
+		0, 0)
+	if err != nil {
 		return err
 	}
-	dci.output(a.items, len(a.trans.getSlice()), a.trans.mask)
+	if cnt, err := at.run(0); err != nil {
+		fmt.Printf("processed %d lines\n", cnt)
+		return err
+	}
 
 	return nil
 }

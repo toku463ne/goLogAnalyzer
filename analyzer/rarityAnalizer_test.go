@@ -8,24 +8,24 @@ import (
 	"time"
 )
 
-func getDefaultFileRarityAnalyzer(
+func getTestRarityAnalyzer(
 	testDir, logPathRegex string,
-	gapThreshold float64) (*fileRarityAnalyzer, error) {
-	rootDir := fmt.Sprintf("%s/db", testDir)
+	gapThreshold float64) (*rarityAnalyzer, error) {
+	rootDir := fmt.Sprintf("%s/data", testDir)
 	linesInBlock := 5
 	maxBlocks := 3
 
-	a, err := newFileRarityAnalyzerByVars(logPathRegex,
+	a, err := newRarityAnalyzer(logPathRegex,
 		rootDir,
 		"", "",
-		gapThreshold, 0,
+		gapThreshold,
 		linesInBlock, maxBlocks)
 
 	return a, err
 }
 
-func TestFileRarityAnalyzer_run1(t *testing.T) {
-	testName := "TestFileRarityAnalyzer_run1"
+func TestRarityAnalyzer_run1(t *testing.T) {
+	testName := "TestRarityAnalyzer_run1"
 	testDir, err := ensureTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -35,13 +35,13 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 	logPathRegex := fmt.Sprintf("%s/sample3.log*", testDir)
 	gapThreshold := 0.5
 
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	defer a.close()
-	verbose = false
+	verbose = true
 
 	if _, err := copyFile("inputs/sample3.log.1",
 		fmt.Sprintf("%s/sample3.log.1", testDir)); err != nil {
@@ -60,28 +60,9 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	cnt, err := a.countTargetLines()
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if cnt != 6 {
-		t.Errorf("countTargetLines does not match!")
-		return
-	}
-	if a.rowID != 0 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-
-	if _, err := a.run(0, -1); err != nil {
+	if _, err := a.run(0); err != nil {
 		println(err)
 		t.Errorf("%v", err)
-		return
-	}
-
-	if a.rowNum != 6 {
-		t.Errorf("rowNum is wrong")
 		return
 	}
 
@@ -128,6 +109,28 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
+	table = db.tables["logRecords"]
+	cnt, err := table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 5 {
+		t.Errorf("logRecords incorrect")
+		return
+	}
+
+	table = db.tables["nTopRareLogs"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 5 {
+		t.Errorf("nTopRareLogs incorrect")
+		return
+	}
+
 	a.close()
 
 	a.printCountPerGap(a.countPerGap, "Count per score")
@@ -147,31 +150,15 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err = getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-
 	defer a.close()
 
 	if err := a.loadDB(); err != nil {
 		t.Errorf("%v", err)
-		return
-	}
-
-	cnt, err = a.countTargetLines()
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if cnt != 6 {
-		t.Errorf("countTargetLines does not match!")
-		return
-	}
-
-	if a.rowNum != 0 {
-		t.Errorf("rowNum is wrong")
 		return
 	}
 
@@ -180,16 +167,12 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	if _, err := a.run(0, -1); err != nil {
+	if _, err := a.run(0); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
 
-	if a.rowNum != 6 {
-		t.Errorf("currCount is wrong")
-		return
-	}
 	if a.rowID != 11 {
 		t.Errorf("rowID does not match!")
 		return
@@ -200,6 +183,28 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		return
 	} else if ma != 10 {
 		t.Errorf("Item is wrong")
+		return
+	}
+
+	table = db.tables["logRecords"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 10 {
+		t.Errorf("logRecords incorrect")
+		return
+	}
+
+	table = db.tables["nTopRareLogs"]
+	cnt, err = table.count(nil, "*")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 10 {
+		t.Errorf("nTopRareLogs incorrect")
 		return
 	}
 
@@ -242,31 +247,56 @@ func TestFileRarityAnalyzer_run1(t *testing.T) {
 		a.close()
 	}
 
+	a, err = getTestRarityAnalyzer(testDir, "", 0.0)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+	a.run(0)
+
 }
 
-// block test
-func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
+func TestRarityAnalyzer_run2_blocks(t *testing.T) {
 	testItemsCount := func(testname string, items1 items,
+		word string, expectedCnt int) bool {
+		itemID := items1.getItemID(word)
+		if itemID < 0 {
+			if expectedCnt > 0 {
+				t.Errorf("%s testItemsCount reason: %s", testname, word)
+				return false
+			}
+			return true
+		}
+		cnt := items1.counts[itemID]
+		if cnt != expectedCnt {
+			t.Errorf("%s testItemsCount reason: %s", testname, word)
+			return false
+		}
+		return true
+	}
+
+	testItemsExistance := func(testname string, items1 items,
 		words []string, okIfExist bool) bool {
 		for _, word := range words {
-			itemID, ok := items1.getItemID(word)
-			if ok == false {
+			itemID := items1.getItemID(word)
+			if itemID < 0 {
 				if okIfExist {
-					t.Errorf("%s testItemsCount reason: %s", testname, word)
+					t.Errorf("%s testItemsExistance reason: %s", testname, word)
 				} else {
 					continue
 				}
 			}
 			cnt := items1.getCount(itemID)
 			if okIfExist && cnt == 0 || !okIfExist && cnt > 0 {
-				t.Errorf("%s testItemsCount reason: %s", testname, word)
+				t.Errorf("%s testItemsExistance reason: %s", testname, word)
 				return false
 			}
 		}
 		return true
 	}
 
-	testName := "TestFileRarityAnalyzer_run2_blocks"
+	testName := "TestRarityAnalyzer_run2_blocks"
 	testDir, err := ensureTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -274,15 +304,15 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample4.log*", testDir)
-	gapThreshold := 0.5
+	gapThreshold := 0.0
+	verbose = true
 
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	defer a.close()
-	verbose = false
 
 	if _, err := copyFile("inputs/sample4.log",
 		fmt.Sprintf("%s/sample4.log", testDir)); err != nil {
@@ -295,22 +325,12 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		return
 	}
 
-	cnt, err := a.countTargetLines()
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if cnt != 35 {
-		t.Errorf("countTargetLines does not match!")
-		return
-	}
-
-	if _, err := a.run(15, -1); err != nil {
+	if _, err := a.run(15); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
-	if a.rowNum != 15 {
+	if a.rowID != 15 {
 		t.Errorf("rowNum is wrong")
 		return
 	}
@@ -319,17 +339,28 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		return
 	}
 
-	if testItemsCount("test rowNum=15", *a.items,
-		[]string{"a001", "a015", "a016"}, true) == false {
+	if !testItemsCount("test rowNum=15", *a.trans.items, "a001", 1) {
+		return
+	}
+	if !testItemsCount("test rowNum=15", *a.trans.items, "a002", 2) {
+		return
+	}
+	if !testItemsCount("test rowNum=15", *a.trans.items, "a005", 2) {
+		return
+	}
+	if !testItemsCount("test rowNum=15", *a.trans.items, "a015", 2) {
+		return
+	}
+	if !testItemsCount("test rowNum=15", *a.trans.items, "a016", 1) {
 		return
 	}
 
-	if _, err := a.run(1, -1); err != nil {
+	if _, err := a.run(1); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
-	if a.rowNum != 16 {
+	if a.rowID != 16 {
 		t.Errorf("rowNum is wrong")
 		return
 	}
@@ -339,16 +370,17 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		return
 	}
 
-	if testItemsCount("test rowNum=16", *a.items,
+	if testItemsExistance("test rowNum=16", *a.trans.items,
 		[]string{"a001", "a006", "a016", "a017"}, true) == false {
 		return
 	}
-	if _, err := a.run(4, -1); err != nil {
+
+	if _, err := a.run(4); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
-	if a.rowNum != 20 {
+	if a.rowID != 20 {
 		t.Errorf("rowNum is wrong")
 		return
 	}
@@ -358,20 +390,20 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		return
 	}
 
-	if testItemsCount("false rowNum=20", *a.items,
+	if testItemsExistance("false rowNum=20", *a.trans.items,
 		[]string{"a001", "a005"}, false) == false {
 		return
 	}
-	if testItemsCount("true rowNum=20", *a.items,
+	if testItemsExistance("true rowNum=20", *a.trans.items,
 		[]string{"a006", "a021"}, true) == false {
 		return
 	}
-	if _, err := a.run(0, -1); err != nil {
+	if _, err := a.run(0); err != nil {
 		println(err)
 		t.Errorf("%v", err)
 		return
 	}
-	if a.rowNum != 35 {
+	if a.rowID != 35 {
 		t.Errorf("rowNum is wrong")
 		return
 	}
@@ -386,8 +418,7 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 	befScoreSum := a.scoreSum
 	befScoreSqrSum := a.scoreSqrSum
 
-	// restart
-	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err = getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -399,7 +430,7 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		return
 	}
 
-	procCnt, err := a.run(0, -1)
+	procCnt, err := a.run(0)
 	if err != nil {
 		println(err)
 		t.Errorf("%v", err)
@@ -409,7 +440,7 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 		t.Errorf("Count is wrong")
 		return
 	}
-	if a.rowNum != 35 {
+	if a.rowID != 35 {
 		t.Errorf("rowNum is wrong")
 		return
 	}
@@ -430,8 +461,9 @@ func TestFileRarityAnalyzer_run2_blocks(t *testing.T) {
 
 }
 
-func TestFileRarityAnalyzer_run4_dontsave(t *testing.T) {
-	testName := "TestFileRarityAnalyzer_run4_dontsave"
+func TestRarityAnalyzer_run3_dontsave(t *testing.T) {
+
+	testName := "TestRarityAnalyzer_run4_dontsave"
 	testDir, err := ensureTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -441,16 +473,16 @@ func TestFileRarityAnalyzer_run4_dontsave(t *testing.T) {
 	logPathRegex := fmt.Sprintf("%s/sample.txt", testDir)
 	gapThreshold := 0.5
 
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	defer a.close()
+
 	verbose = false
 
 	a.xFilterRe = "melon"
-	a.gapThreshold = 0.5
 
 	if _, err := copyFile("inputs/sample.txt",
 		fmt.Sprintf("%s/sample.txt", testDir)); err != nil {
@@ -463,201 +495,25 @@ func TestFileRarityAnalyzer_run4_dontsave(t *testing.T) {
 		return
 	}
 
-	cnt, err := a.countTargetLines()
+	cnt, err := a.run(0)
 	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if cnt != 6 {
-		t.Errorf("countTargetLines does not match!")
-		return
-	}
-
-	if _, err := a.run(0, -1); err != nil {
 		println(err)
 		t.Errorf("%v", err)
-		return
-	}
-
-	if a.rowNum != 6 {
-		t.Errorf("rowNum is wrong")
-		return
-	}
-
-	if a.blocks[0].blockCnt != 1 {
-		t.Errorf("rowNum is wrong")
-		return
-	}
-
-	a.close()
-}
-
-func TestFileRarityAnalyzer_run4_nosave(t *testing.T) {
-	testName := "TestFileRarityAnalyzer_run4_nosave"
-	testDir, err := ensureTestDir(testName)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	logPathRegex := fmt.Sprintf("%s/sample3.log*", testDir)
-	gapThreshold := 0.5
-
-	a, err := getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	defer a.close()
-	verbose = false
-
-	if _, err := copyFile("inputs/sample3.log.1",
-		fmt.Sprintf("%s/sample3.log.1", testDir)); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	time.Sleep(time.Second * 2)
-	if _, err := copyFile("inputs/sample3.log",
-		fmt.Sprintf("%s/sample3.log", testDir)); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	if err := a.clean(); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	if _, err := a.run(0, -1); err != nil {
-		println(err)
-		t.Errorf("%v", err)
-		return
-	}
-
-	if a.rowNum != 6 {
-		t.Errorf("rowNum is wrong")
 		return
 	}
 
 	if a.rowID != 6 {
-		t.Errorf("rowID does not match!")
+		t.Errorf("rowID is wrong")
 		return
 	}
 
-	db := a.db
-
-	table := db.tables["lastStatus"]
-	v, err := table.select1rec(nil, "")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if v[0] != "5" {
-		t.Errorf("lastRowID is incorrect")
-		return
-	}
-	if v[1] != "0" {
-		t.Errorf("lastBlockID is incorrect")
-		return
-	}
-	if v[3] != "2" {
-		t.Errorf("lastRow is incorrect")
+	if a.blocks[0] != nil {
+		t.Errorf("blockCnt is wrong")
 		return
 	}
 
-	table = db.tables["logBlocks"]
-	blockIDf, v, err := table.max("blockID", nil, "*")
-	if err != nil {
-		t.Errorf("%v", err)
+	if cnt != 1 {
+		t.Errorf("processed rows is wrong")
 		return
 	}
-
-	if blockIDf != 0.0 {
-		t.Errorf("blockID is incorrect")
-		return
-	}
-
-	if v[2] != "5" {
-		t.Errorf("blockCnt is incorrect")
-		return
-	}
-
-	a.close()
-
-	if _, err := copyFile("inputs/sample3_plus.log",
-		fmt.Sprintf("%s/sample3.log", testDir)); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	a, err = getDefaultFileRarityAnalyzer(testDir, logPathRegex, gapThreshold)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	defer a.close()
-
-	if err := a.loadDB(); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	a.useDB = false
-
-	if _, err := a.run(0, -1); err != nil {
-		println(err)
-		t.Errorf("%v", err)
-		return
-	}
-
-	if a.rowNum != 6 {
-		t.Errorf("currCount is wrong")
-		return
-	}
-	if a.rowID != 11 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-
-	db = a.db
-
-	table = db.tables["lastStatus"]
-	v, err = table.select1rec(nil, "")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if v[0] != "5" {
-		t.Errorf("lastRowID is incorrect")
-		return
-	}
-	if v[1] != "0" {
-		t.Errorf("lastBlockID is incorrect")
-		return
-	}
-	if v[3] != "2" {
-		t.Errorf("lastRow is incorrect")
-		return
-	}
-
-	table = db.tables["logBlocks"]
-	blockIDf, v, err = table.max("blockID", nil, "*")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	if blockIDf != 0.0 {
-		t.Errorf("blockID is incorrect")
-		return
-	}
-
-	if v[2] != "5" {
-		t.Errorf("blockCnt is incorrect")
-		return
-	}
-
-	a.close()
-
 }

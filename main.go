@@ -11,97 +11,115 @@ import (
 )
 
 var (
-	iniFlag  = flag.NewFlagSet("clean", flag.ExitOnError)
-	frqFlag  = flag.NewFlagSet("frq", flag.ExitOnError)
-	rarFlag  = flag.NewFlagSet("rar", flag.ExitOnError)
-	usageTxt = `Usage:
-loganal rar [-f LOGPATH] [-d DATADIR] [-g GAPVALUE] [-v] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
-  Starts log analyzation.
-	-f LOGPATH: 
-		Path of the logfile (can use regex)  
-	-v verbose  
-	-r RARITY_RATE:
-		Top RARITY_RATE log records will be showed.
-		Default is 0.0001 (1 rare record out of 10000 records will be showed) 
-	-g GAPVALUE: 
-		Gap from average score. Default is 0.8
-		0 is the average. 
-		1 is 1 deviation width from the average. 
-		The score is calculated as below and indicates how rare the log record is.
-		term score: log10((count of all terms)/(count of the term)) + 1
-		log record score: average of term scores in the log record
-		* Count is calculated at the point the log record appeared. 
-	-d DATADIR: 
-		Directory to save the analyzation data.
-		This data will be also used in the next time execution
-		Only onmemory if not specified.
-	-s SEARCH_KEYS: 
-		key word to search (can use regex)
-	-x EXCLUDE_KEYS: 
-		key word to exclude (can use regex)
-	
+	clnFlag = flag.NewFlagSet("clean", flag.ExitOnError)
+	frqFlag = flag.NewFlagSet("frq", flag.ExitOnError)
+	rarFlag = flag.NewFlagSet("rar", flag.ExitOnError)
+	stsFlag = flag.NewFlagSet("stats", flag.ExitOnError)
 
-loganal clean -d DATADIR
-  Cleans up the analyzation data in previous analysis
+	rootDirDesc   = "Directory to save the analyzation data"
+	rarRootDir    = rarFlag.String("d", "", rootDirDesc)
+	pathRegexDesc = "Log file(regex) to analyze. Supports data from pipe"
+	rarPathRegex  = rarFlag.String("f", "", pathRegexDesc)
+	filterReDesc  = "key word to search"
+	rarFilterRe   = rarFlag.String("s", "", filterReDesc)
+	xfilterReDesc = "key word to exclude"
+	rarXFilterRe  = rarFlag.String("x", "", xfilterReDesc)
+	gapDesc       = `Gap rate from average
+		Log records with rarity score whose gap if higher that this value will be showed.`
+	rarGap           = rarFlag.Float64("g", 0.0, gapDesc)
+	showDebugDesc    = "show debug logs"
+	rarShowDebug     = rarFlag.Bool("v", false, showDebugDesc)
+	forceSaveDb      = "Update the data without asking"
+	rarForceSaveDb   = rarFlag.Bool("save", false, forceSaveDb)
+	linesInBlockDesc = "lines in block"
+	rarLinesInBlock  = rarFlag.Int("linesInBlock", -1, linesInBlockDesc)
+	maxBlockDesc     = "max blocks"
+	rarMaxBlock      = rarFlag.Int("maxBlock", -1, maxBlockDesc)
+	maxLinesDesc     = "max lines to process"
+	rarMaxLines      = rarFlag.Int("n", 0, maxLinesDesc)
 
-loganal stats -d DATADIR
-  Shows the statistics from saved data
+	filePathDesc   = "Text file to analyze"
+	frqPath        = frqFlag.String("f", "", filePathDesc)
+	frqFilterRe    = frqFlag.String("s", "", filterReDesc)
+	frqXFilterRe   = frqFlag.String("x", "", xfilterReDesc)
+	minSupportDesc = "min support"
+	frqMinSupport  = frqFlag.Int("m", 0, minSupportDesc)
+	frqDebug       = frqFlag.Bool("v", false, showDebugDesc)
 
-loganal frq -f LOGPATH [-m MIN_SUPPORT] [-s SEARCH_KEYS] [-x EXCLUDE_KEYS]
-  Shows Closed Frequent Itemset order by the support
-	-f LOGPATH: Path of the logfile
-	-m MIN_SUPPORT: minimum support of closed frequent item sets
-	-s SEARCH_KEYS: key word to search (can use regex)
-	-x EXCLUDE_KEYS: key word to exclude (can use regex)
-  `
+	clnRootDir = clnFlag.String("d", "", rootDirDesc)
+	clnDebug   = clnFlag.Bool("v", false, showDebugDesc)
+
+	stsRootDir = stsFlag.String("d", "", rootDirDesc)
+
+	usageTxt = `Usage of logan:  
+logan [rar|clean|stats|test|frq] OPTIONS  
+
+logan -help:
+	Shows this help
+
+logan rar:
+	Calculate rarity score of each log records and show the "rare" records.
+	Run "logan rar -help" for details.
+
+logan clean:
+	Cleanups all statistics data.
+	Run "logan clean -help" for details.  
+
+logan stats:
+	Shows the statistics according the data in the last execution.
+	Run "logan stats -help" for details.
+
+logan test:
+	Shows all log records with the score gap.
+	Run "logan test -help" for details.
+
+logan frq:
+	Shows the closed frequent itemsets order by the supports.
+	Only calculate at most 10000 records.
+`
 )
 
-func clean() error {
-	rootDir := iniFlag.String("d", "", "data directory")
-	debug := iniFlag.Bool("v", false, "verbose")
-
-	iniFlag.Parse(os.Args[2:])
-	err := analyzer.CleanupDb(*rootDir, *debug)
+func clean(isDebug bool) error {
+	clnFlag.Parse(os.Args[2:])
+	var err error
+	if isDebug {
+		err = analyzer.CleanupDBProc(*clnRootDir, *clnDebug)
+	} else {
+		err = analyzer.CleanupDB(*clnRootDir, *clnDebug)
+	}
 	return err
 }
 
 func stats() error {
-	rootDir := iniFlag.String("d", "", "data directory")
+	stsFlag.Parse(os.Args[2:])
+	if *stsRootDir == "" {
+		return fmt.Errorf("rootDir is must")
+	}
+	if !analyzer.PathExist(*stsRootDir) {
+		return fmt.Errorf("%s does not exist", *stsRootDir)
+	}
 
-	iniFlag.Parse(os.Args[2:])
-	err := analyzer.Stats(*rootDir)
+	err := analyzer.RarStats(*stsRootDir)
 	return err
 }
 
-func rar(verbose bool) error {
-	rootDir := rarFlag.String("d", "", "Directory to save the analyzation data")
-	pathRegex := rarFlag.String("f", "", "Log file(regex) to analyze")
-	filterRe := rarFlag.String("s", "", "key word to search")
-	xFilterRe := rarFlag.String("x", "", "key word to exclude")
-	gap := rarFlag.Float64("g", 0.0, "Gap rate from average")
-	rarityRate := rarFlag.Float64("r", 0.0, "Top RARITY_RATE log records will be showed.")
-	debug := rarFlag.Bool("v", false, "show debug logs")
-	forceSaveDb := rarFlag.Bool("save", false, "Update the data without asking")
-	linesInBlock := rarFlag.Int("linesInBlock", -1, "lines in block")
-	maxBlock := rarFlag.Int("maxBlock", -1, "max blocks")
-	maxLines := rarFlag.Int("n", 0, "max lines to process")
-
+func rar(verbose, isDebug bool) error {
 	rarFlag.Parse(os.Args[2:])
 
-	forceSaveDb1 := *forceSaveDb
+	forceSaveDb1 := *rarForceSaveDb
 	saveDb := false
 	if forceSaveDb1 == false {
-		if *rootDir != "" {
-			if analyzer.PathExist(*rootDir) {
-				fmt.Printf("Update data on %s? (y/n) (default 'no')", *rootDir)
+		if *rarRootDir != "" {
+			if analyzer.PathExist(*rarRootDir) {
+				fmt.Printf("Update data on %s? (y/n) (default 'no') ", *rarRootDir)
 				stdin := bufio.NewScanner(os.Stdin)
 				stdin.Scan()
 				k := stdin.Text()
 				if strings.ToLower(k) != "y" && strings.ToLower(k) != "yes" {
-					fmt.Printf("input='%s' will not update %s", k, *rootDir)
+					fmt.Printf("input='%s' will not update %s\n", k, *rarRootDir)
 					saveDb = false
 				} else {
-					fmt.Printf("input='%s' will update %s", k, *rootDir)
+					fmt.Printf("input='%s' will update %s\n", k, *rarRootDir)
 					saveDb = true
 				}
 			} else {
@@ -109,33 +127,47 @@ func rar(verbose bool) error {
 			}
 		}
 	} else {
-		if *rootDir != "" {
+		if *rarRootDir != "" {
 			saveDb = true
 		}
 	}
-	rarityCountRate := 1 - *rarityRate
 
-	if err := analyzer.Rar(*pathRegex, *rootDir,
-		*filterRe, *xFilterRe,
-		*gap, rarityCountRate,
-		*maxLines, *linesInBlock, *maxBlock,
-		*debug, verbose, saveDb); err != nil {
-		return err
+	if isDebug {
+		if err := analyzer.RunRarProc(*rarPathRegex, *rarRootDir,
+			*rarFilterRe, *rarXFilterRe,
+			*rarGap,
+			*rarMaxLines, *rarLinesInBlock, *rarMaxBlock,
+			*rarShowDebug, verbose, saveDb); err != nil {
+			return err
+		}
+	} else {
+		if err := analyzer.RunRar(*rarPathRegex, *rarRootDir,
+			*rarFilterRe, *rarXFilterRe,
+			*rarGap,
+			*rarMaxLines, *rarLinesInBlock, *rarMaxBlock,
+			*rarShowDebug, verbose, saveDb); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func frq() error {
-	path := frqFlag.String("f", "", "Log file to analyze")
-	filterRe := frqFlag.String("s", "", "search key")
-	xFilterRe := frqFlag.String("x", "", "exclude search key")
-	minSupport := frqFlag.Int("m", 0, "min support")
-	debug := frqFlag.Bool("v", false, "debug logs")
-
 	frqFlag.Parse(os.Args[2:])
 
-	if err := analyzer.Frq(*path, *minSupport, *filterRe, *xFilterRe, *debug); err != nil {
+	if err := analyzer.RunFrq(*frqPath, *frqMinSupport,
+		*frqFilterRe, *frqXFilterRe, *frqDebug); err != nil {
+		return err
+	}
+	return nil
+}
+
+func testGap() error {
+	testGapFlg := flag.NewFlagSet("testGap", flag.ExitOnError)
+	pathRegex := testGapFlg.String("f", "", "log file path")
+	testGapFlg.Parse(os.Args[2:])
+	if err := analyzer.TestGap(*pathRegex); err != nil {
 		return err
 	}
 	return nil
@@ -143,9 +175,36 @@ func frq() error {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Printf("%s\n", usageTxt)
+		fmt.Fprintf(os.Stderr, "%s\n", usageTxt)
 	}
+	if len(os.Args) < 2 {
+		return
+	}
+	var err error
+	err = nil
+	opt := os.Args[1]
+	switch opt {
+	case "clean":
+		err = clean(false)
+	case "rar":
+		err = rar(false, true)
+	case "stats":
+		err = stats()
+	case "test":
+		err = rar(true, false)
+	case "frq":
+		err = frq()
+	//case "testGap":
+	//	err = testGap()
+	default:
+		flag.Usage()
+	}
+	if err != nil {
+		fmt.Printf("%+v\n", err)
+	}
+}
 
+func debug() {
 	if len(os.Args) < 2 {
 		flag.Usage()
 		return
@@ -155,20 +214,15 @@ func main() {
 	opt := os.Args[1]
 	switch opt {
 	case "clean":
-		err = clean()
+		err = clean(true)
 	case "rar":
-		err = rar(false)
-	case "stats":
-		err = stats()
+		err = rar(false, true)
 	case "test":
-		err = rar(true)
-	case "frq":
-		err = frq()
+		err = rar(true, true)
 	default:
 		flag.Usage()
 	}
 	if err != nil {
 		fmt.Printf("%+v\n", err)
 	}
-
 }

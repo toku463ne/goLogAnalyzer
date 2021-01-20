@@ -79,7 +79,43 @@ func (fp *filePointer) open() error {
 	return nil
 }
 
+// this function is critical for performance
+// need to keep as simple as possible
 func (fp *filePointer) next() bool {
+	// don't consider the case fp.r is nil
+	// case it is nil, it means open() has not been done which is considered as a bug
+	ok := fp.r.next()
+	if ok {
+		return true
+	}
+	err := fp.r.err()
+	if err != nil && err != io.EOF {
+		fp.e = err
+		return false
+	}
+	if fp.pos+1 >= len(fp.files) {
+		fp.e = io.EOF
+		return false
+	}
+	if fp.r != nil {
+		fp.r.close()
+		fp.r = nil
+	}
+
+	fp.pos++
+	r, err := newReader(fp.files[fp.pos])
+	if err != nil {
+		fp.e = errors.WithStack(err)
+		return false
+	}
+	logDebug(fmt.Sprintf("Opened %s", fp.files[fp.pos]))
+	fp.r = r
+	fp.e = nil
+
+	return fp.r.next()
+}
+
+func (fp *filePointer) OLDnext() bool {
 	if fp.r == nil {
 		fp.e = errors.New("open() first")
 		return false
@@ -128,7 +164,7 @@ func (fp *filePointer) text() string {
 }
 
 func (fp *filePointer) row() int {
-	return fp.r.row()
+	return fp.r.rowNum
 }
 
 func (fp *filePointer) close() {
