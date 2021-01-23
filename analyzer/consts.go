@@ -27,5 +27,7 @@ const (
 	cMaxStageCounts             = 100
 	cRowsToInsertAtOnce         = 10000
 	cPrintClosedSetNum          = 100
-	cNTopRareRecords            = 10
+	cNTopRareRecords            = 5
+	cLastTmpBlockID             = -9999
+	cLastTmpBlockStr            = "LASTTMPBLOCK"
 )

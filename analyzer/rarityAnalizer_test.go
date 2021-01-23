@@ -19,7 +19,7 @@ func getTestRarityAnalyzer(
 		rootDir,
 		"", "",
 		gapThreshold,
-		linesInBlock, maxBlocks)
+		linesInBlock, maxBlocks, 3)
 
 	return a, err
 }
@@ -79,15 +79,15 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if v[0] != "5" {
+	if v[0] != "6" {
 		t.Errorf("lastRowID is incorrect")
 		return
 	}
-	if v[1] != "0" {
+	if v[1] != "1" {
 		t.Errorf("lastBlockID is incorrect")
 		return
 	}
-	if v[3] != "2" {
+	if v[3] != "3" {
 		t.Errorf("lastRow is incorrect")
 		return
 	}
@@ -99,12 +99,12 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	if blockIDf != 0.0 {
+	if blockIDf != 1.0 {
 		t.Errorf("blockID is incorrect")
 		return
 	}
 
-	if v[2] != "5" {
+	if v[2] != "1" {
 		t.Errorf("blockCnt is incorrect")
 		return
 	}
@@ -115,7 +115,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if cnt != 5 {
+	if cnt != 6 {
 		t.Errorf("logRecords incorrect")
 		return
 	}
@@ -126,7 +126,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if cnt != 5 {
+	if cnt != 6 {
 		t.Errorf("nTopRareLogs incorrect")
 		return
 	}
@@ -162,7 +162,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	if a.rowID != 5 {
+	if a.rowID != 6 {
 		t.Errorf("rowID does not match!")
 		return
 	}
@@ -181,7 +181,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 	if ma, _, err := db.tables["items"].max("name", nil, "*"); err != nil {
 		t.Errorf("currCount is wrong")
 		return
-	} else if ma != 10 {
+	} else if ma != 11 {
 		t.Errorf("Item is wrong")
 		return
 	}
@@ -192,7 +192,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if cnt != 10 {
+	if cnt != 11 {
 		t.Errorf("logRecords incorrect")
 		return
 	}
@@ -203,7 +203,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if cnt != 10 {
+	if cnt != 9 {
 		t.Errorf("nTopRareLogs incorrect")
 		return
 	}
@@ -514,6 +514,90 @@ func TestRarityAnalyzer_run3_dontsave(t *testing.T) {
 
 	if cnt != 1 {
 		t.Errorf("processed rows is wrong")
+		return
+	}
+}
+
+func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
+	testName := "TestRarityAnalyzer_scanAndGetNTops"
+	testDir, err := ensureTestDir(testName)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	logPathRegex := fmt.Sprintf("%s/sample5.log", testDir)
+	gapThreshold := 0.5
+	verbose = true
+
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	defer a.close()
+
+	if _, err := copyFile("inputs/sample5.log",
+		fmt.Sprintf("%s/sample5.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.clean(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	_, err = a.run(0)
+	if err != nil {
+		println(err)
+		t.Errorf("%v", err)
+		return
+	}
+
+	nTop, err := a.scanAndGetNTops(2, "", "")
+	if len(nTop) != 2 {
+		t.Errorf("nTop is wrong")
+		return
+	}
+
+	nTop, err = a.scanAndGetNTops(5, "", "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if len(nTop) != 5 {
+		t.Errorf("nTop is wrong")
+		return
+	}
+
+	nTop, err = a.scanAndGetNTops(0, "", "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if len(nTop) != 3 {
+		t.Errorf("nTop is wrong")
+		return
+	}
+
+	nTop, err = a.scanAndGetNTops(5, "a006", "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if nTop[0] == nil || nTop[1] == nil || nTop[2] != nil {
+		t.Errorf("nTop is wrong")
+		return
+	}
+
+	nTop, err = a.scanAndGetNTops(5, "", "a006")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if nTop[0] == nil || nTop[4] == nil {
+		t.Errorf("nTop is wrong")
 		return
 	}
 }

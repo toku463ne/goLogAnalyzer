@@ -27,7 +27,7 @@ func CleanupDBProc(rootDir string, debug bool) error {
 		rootDir,
 		"", "",
 		0,
-		-1, -1)
+		-1, -1, 0)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func RunRarProc(logPathRegex,
 		rootDir,
 		filterRe, xFilterRe,
 		rarityThreshold,
-		linesInBlock, maxBlocks)
+		linesInBlock, maxBlocks, 0)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func RunRarProc(logPathRegex,
 		}
 		a.useDB = saveDb
 	}
-	logInfo(fmt.Sprintf("[%d] data=%s search=%s exclude=%s bsize=%d nblocks=%d",
+	logInfo(fmt.Sprintf("[%d] datadir=%s search=%s exclude=%s bsize=%d nblocks=%d",
 		os.Getpid(),
 		a.rootDir,
 		a.filterRe, a.xFilterRe,
@@ -98,42 +98,42 @@ func RunRarProc(logPathRegex,
 
 	defer a.close()
 
-	//if showOld {
-	//	if err := a.showOldResult(); err != nil {
-	//		return err
-	//	}
-	//}
-
 	var rowN int
 	if rowN, err = a.run(maxLines); err != nil {
 		return err
 	}
 	logInfo(fmt.Sprintf("row=%d items=%d", rowN, len(a.trans.items.counts)))
 
-	if a.useDB && saveDb {
-		if err := a.SaveIni(); err != nil {
-			logError(fmt.Sprintf("Failed to save config\n"))
-		}
+	if err := a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords),
+		0,
+		a.filterRe, a.xFilterRe); err != nil {
+		return err
 	}
-	a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords))
 	a.printCountPerGap(a.countPerGap, "Count per score gap")
 	return nil
 }
 
-// RarStats ... shows count per gap
-func RarStats(rootDir string) error {
+// RarStats ... shows top N rare records and count per gap
+func RarStats(rootDir string,
+	recordsToShow int,
+	filterRe, xFilterRe string,
+) error {
 	a, err := newRarityAnalyzer("",
 		rootDir,
 		"", "",
 		0,
-		-1, -1)
+		-1, -1, 0)
 	if err != nil {
 		return err
 	}
 	if err := a.loadDB(); err != nil {
 		return err
 	}
-	a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords))
+	if recordsToShow == 0 {
+		recordsToShow = cNTopRareRecords
+	}
+	a.printNTops(fmt.Sprintf("%d top rare records", recordsToShow),
+		recordsToShow, filterRe, xFilterRe)
 	a.printCountPerGap(a.countPerGap,
 		fmt.Sprintf("Total count %d\ncounts per gap", a.countTotal))
 	return nil
@@ -158,24 +158,6 @@ func RunFrq(path string,
 		return err
 	}
 	dci.output(trans1.items, trans1.maxTranID)
-
-	return nil
-}
-
-// TestGap .. test if the scores are reasonable
-func TestGap(logPathRegex string) error {
-	at, err := newRarityAnalyzerTester(logPathRegex,
-		"",
-		"", "",
-		0.0, 0.0,
-		0, 0)
-	if err != nil {
-		return err
-	}
-	if cnt, err := at.run(0); err != nil {
-		fmt.Printf("processed %d lines\n", cnt)
-		return err
-	}
 
 	return nil
 }

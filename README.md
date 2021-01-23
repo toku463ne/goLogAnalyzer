@@ -82,6 +82,12 @@ Usage of stats:
   ```
   -d string
         Directory to save the analyzation data
+  -n int
+        Top N rare records to show
+  -s string
+        key word to search
+  -x string
+        key word to exclude
   ```
   
 Usage of frq:
@@ -115,16 +121,14 @@ and next time you can run the way below
 logan rar -d data
 ```
   
-  
-If you think there is too much output or too less output, then change the RARITY_RATE.  
-Reducing the RARITY_RATE means that log records with more "rarity" will show up.  
-So you can get more outputs by increasing the RARITY_RATE. (default 0.0001)
+Check the result from saved data  
 ```
-logan rar -f /var/log/syslog -r 0.0002
+logan stats -d data
 ```  
-  
-If you want to see all log records with score  
+
+We can exclude phrases in the result  
 ```
-logan test -f /var/log/syslog 
-```
+logan stats -d data -x "System clock|The system clock|IKE"
+```  
+
   

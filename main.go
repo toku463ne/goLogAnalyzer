@@ -49,7 +49,11 @@ var (
 	clnRootDir = clnFlag.String("d", "", rootDirDesc)
 	clnDebug   = clnFlag.Bool("v", false, showDebugDesc)
 
-	stsRootDir = stsFlag.String("d", "", rootDirDesc)
+	stsRootDir        = stsFlag.String("d", "", rootDirDesc)
+	recordsToShowDesc = "Top N rare records to show"
+	stsRecordsToShow  = stsFlag.Int("n", 0, recordsToShowDesc)
+	stsFilterRe       = stsFlag.String("s", "", filterReDesc)
+	stsXFilterRe      = stsFlag.String("x", "", xfilterReDesc)
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|stats|test|frq] OPTIONS  
@@ -99,7 +103,7 @@ func stats() error {
 		return fmt.Errorf("%s does not exist", *stsRootDir)
 	}
 
-	err := analyzer.RarStats(*stsRootDir)
+	err := analyzer.RarStats(*stsRootDir, *stsRecordsToShow, *stsFilterRe, *stsXFilterRe)
 	return err
 }
 
@@ -163,16 +167,6 @@ func frq() error {
 	return nil
 }
 
-func testGap() error {
-	testGapFlg := flag.NewFlagSet("testGap", flag.ExitOnError)
-	pathRegex := testGapFlg.String("f", "", "log file path")
-	testGapFlg.Parse(os.Args[2:])
-	if err := analyzer.TestGap(*pathRegex); err != nil {
-		return err
-	}
-	return nil
-}
-
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s\n", usageTxt)
@@ -194,8 +188,6 @@ func main() {
 		err = rar(true, false)
 	case "frq":
 		err = frq()
-	//case "testGap":
-	//	err = testGap()
 	default:
 		flag.Usage()
 	}
