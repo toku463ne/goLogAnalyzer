@@ -105,7 +105,7 @@ func RunRarProc(logPathRegex,
 	logInfo(fmt.Sprintf("row=%d items=%d", rowN, len(a.trans.items.counts)))
 
 	if err := a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords),
-		0,
+		cNTopRareRecords,
 		a.filterRe, a.xFilterRe); err != nil {
 		return err
 	}
