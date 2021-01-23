@@ -365,6 +365,8 @@ func registerNTopRareRec(
 		if logr == nil {
 			newTopN[i] = logr2
 			break
+		} else if score == logr.score && rowID == logr.rowID {
+			return nTopRareLogs, minTopRareScore
 		} else if score > logr.score {
 			newTopN[i] = logr2
 			oldScore2 := 0.0
