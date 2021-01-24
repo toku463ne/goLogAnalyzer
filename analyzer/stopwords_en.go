@@ -1,5 +1,7 @@
 package analyzer
 
+import "strings"
+
 var enStopWords = map[string]string{
 	"-":            "",
 	";":            "",
@@ -341,3 +343,44 @@ var enStopWords = map[string]string{
 	"yours":        "",
 	"yourself":     "",
 	"yourselves":   ""}
+
+func getDelimReplacer() *strings.Replacer {
+	return strings.NewReplacer(
+		"\"", "",
+		"'", "",
+		".", " ",
+		",", " ",
+		":", " ",
+		";", " ",
+		"[", " ",
+		"]", " ",
+		"<", " ",
+		">", " ",
+		"{", " ",
+		"}", " ",
+		"=", " ",
+		"-", " ",
+		";", " ",
+		",", " ",
+		".", " ",
+		"#", " ",
+		"$", " ",
+		"%", " ",
+		"&", " ",
+		"'", " ",
+		"(", " ",
+		")", " ",
+		"=", " ",
+		"~", " ",
+		"^", " ",
+		"|", " ",
+		"{", " ",
+		"}", " ",
+		",", " ",
+		"+", " ",
+		"<", " ",
+		">", " ",
+		"[", " ",
+		"]", " ",
+	)
+}

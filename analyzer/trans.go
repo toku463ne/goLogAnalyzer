@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -12,6 +13,7 @@ type trans struct {
 	tranList  *int2dArray
 	maxTranID int
 	items     *items
+	replacer  *strings.Replacer
 }
 
 func newTrans(useTranList bool) *trans {
@@ -21,6 +23,7 @@ func newTrans(useTranList bool) *trans {
 	}
 	t.items = newItems()
 	t.maxTranID = -1
+	t.replacer = getDelimReplacer()
 	return t
 }
 
@@ -105,6 +108,70 @@ func (t *trans) toTermList(content []byte) []int {
 func (t *trans) tokenizeLine(line, filterRe, xFilterRe string) []int {
 	bline := []byte(line)
 	tran := t.toTermList(bline)
+
+	if line == "" {
+		return nil
+	}
+
+	if filterRe != "" && searchReg(line, filterRe) == false {
+		return nil
+	}
+	if xFilterRe != "" && searchReg(line, xFilterRe) {
+		return nil
+	}
+
+	l := len(tran)
+	if t.tranList != nil && l > 0 {
+		t.add(tran)
+	}
+	return tran
+
+}
+
+func (t *trans) toTermNoregist(content []byte) string {
+	content = bytes.ToLower(content)
+	content = remTags.ReplaceAll(content, []byte(" "))
+	content = norm.NFC.Bytes(content)
+	words := regexp.MustCompile(fmt.Sprintf("%s", cWordReStr)).FindAll(content, -1)
+	res := ""
+	for _, w := range words {
+		word := string(w)
+		if len(word) <= 2 {
+			continue
+		}
+		if _, ok := enStopWords[word]; !ok {
+			res = word
+		}
+	}
+	return res
+}
+
+func (t *trans) tokenizeLineNogeg(line string) {
+	bline := []byte(line)
+	t.toTermNoregist(bline)
+}
+
+func (t *trans) toTermListLight(line string) []int {
+	line = t.replacer.Replace(line)
+	words := strings.Split(line, " ")
+	result := make([]int, len(words))
+	for i, w := range words {
+		word := strings.ToLower(w)
+		result[i] = -1
+		if len(word) > 2 {
+			if isInt(word) {
+				continue
+			}
+			if _, ok := enStopWords[word]; !ok {
+				result[i] = t.items.register(word, 1, true)
+			}
+		}
+	}
+	return result
+}
+
+func (t *trans) tokenizeLineLight(line, filterRe, xFilterRe string) []int {
+	tran := t.toTermListLight(line)
 
 	if line == "" {
 		return nil

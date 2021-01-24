@@ -42,9 +42,9 @@ type rarityAnalyzer struct {
 	countPerGap       []int
 	logRecordsBuff    [][]string
 	logRecordsBuffPos int
+	recordsToShow     int
 	nTopRareLogs      []*logRec
 	minTopRareScore   float64
-	recordsToShow     int
 
 	fp *filePointer
 
@@ -418,17 +418,6 @@ func (a *rarityAnalyzer) loadDBBlock(blockID int) (*block, error) {
 		r.text = text
 		nTopRareLogs[i] = r
 	}
-	minTopRareScore := 0.0
-	for _, logr := range nTopRareLogs {
-		if logr == nil {
-			break
-		}
-		nTopRareLogs, minTopRareScore = registerNTopRareRec(nTopRareLogs, minTopRareScore,
-			logr.rowID, logr.score, logr.text)
-		a.nTopRareLogs, a.minTopRareScore = registerNTopRareRec(a.nTopRareLogs, a.minTopRareScore,
-			logr.rowID, logr.score, logr.text)
-	}
-	b.nTopRareLogs = nTopRareLogs
 
 	return b, nil
 }
@@ -526,33 +515,6 @@ func (a *rarityAnalyzer) deleteOld(blockID int) error {
 		a.countPerGap[i] -= cnt
 	}
 	a.countTotal -= b.blockCnt
-
-	isDeleted := false
-	for _, logr := range b.nTopRareLogs {
-		for j, logr2 := range a.nTopRareLogs {
-			if logr == nil || logr2 == nil {
-				break
-			}
-			if logr.rowID == logr2.rowID {
-				a.nTopRareLogs[j] = new(logRec)
-				isDeleted = true
-			}
-		}
-	}
-	if isDeleted {
-		a.minTopRareScore = 0
-		newNLogr := make([]*logRec, a.recordsToShow)
-		for _, logr := range a.nTopRareLogs {
-			if logr == nil {
-				break
-			}
-			if logr.score > 0 {
-				registerNTopRareRec(newNLogr, a.minTopRareScore,
-					logr.rowID, logr.score, logr.text)
-			}
-		}
-		a.nTopRareLogs = newNLogr
-	}
 
 	if a.useDB {
 		a.deleteItemBlock(blockIDstr)
@@ -674,34 +636,6 @@ func (a *rarityAnalyzer) saveLogRecords(blockID int) error {
 		}
 	}
 
-	table = a.db.tables["nTopRareLogs"]
-	if blockID < 0 {
-		table.dropPartition(blockIDstr)
-	}
-	rows := make([][]string, a.recordsToShow)
-	lastR := -1
-	for i, r := range a.nTopRareLogs {
-		if r == nil {
-			break
-		}
-		if r.text == "" {
-			break
-		}
-		lastR = i + 1
-		rows[i] = []string{
-			fmt.Sprint(r.rowID),
-			fmt.Sprint(r.score),
-			r.text,
-		}
-	}
-	if lastR > 0 {
-		if err := table.insertRows(rows,
-			a.blockID2Str(blockID),
-			lastR); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -715,7 +649,6 @@ func (a *rarityAnalyzer) initCurrBlock(blockID int) {
 	for i := range nTopRareLogs {
 		nTopRareLogs[i] = new(logRec)
 	}
-	a.currBlock.nTopRareLogs = nTopRareLogs
 }
 
 func (a *rarityAnalyzer) nextBlock() {
@@ -830,7 +763,7 @@ func (a *rarityAnalyzer) printNTops(msg string,
 ) error {
 	var nTopRareLogs []*logRec
 	var err error
-	if filterRe != "" || xFilterRe != "" || (recordsToShow > 0 && recordsToShow > a.recordsToShow) {
+	if recordsToShow > 0 && recordsToShow != a.recordsToShow {
 		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, filterRe, xFilterRe)
 		if err != nil {
 			return err
@@ -886,7 +819,7 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 			continue
 		}
 
-		tran := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe)
+		tran := a.trans.tokenizeLineLight(te, a.filterRe, a.xFilterRe)
 		if tran == nil || len(tran) == 0 {
 			continue
 		}
@@ -920,23 +853,13 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 		a.currBlock.countPerGap[gapStage]++
 		a.countTotal++
 
-		//if a.rowID > 1 && a.rowID%cCountToUpdateGapThreshold == 0 {
-		//	a.updateGapThreshold()
-		//}
-
 		linesProcessed++
-		//a.currBlock.blockCnt++
 
 		if err := a.outputRes(a.rowID, score, scoreGap, sa, ss, te); err != nil {
 			return linesProcessed, err
 		}
-
 		a.nTopRareLogs, a.minTopRareScore = registerNTopRareRec(a.nTopRareLogs,
 			a.minTopRareScore, a.rowID, score, te)
-		a.currBlock.nTopRareLogs,
-			a.currBlock.minTopRareScore = registerNTopRareRec(a.currBlock.nTopRareLogs,
-			a.currBlock.minTopRareScore,
-			a.rowID, score, te)
 
 		if a.linesInBlock > 0 && a.currBlock.blockCnt >= a.linesInBlock {
 			a.currBlock.completed = true
@@ -955,5 +878,77 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 			return linesProcessed, err
 		}
 	}
+	return linesProcessed, nil
+}
+
+// To test read speed
+func (a *rarityAnalyzer) runOnlyRead(targetLinesCnt int) (int, error) {
+	linesProcessed := 0
+
+	if a.fp == nil || !a.fp.isOpen() {
+		a.fp = newFilePointer(a.logPathRegex, a.lastFileEpoch, a.lastFileRow)
+		if err := a.fp.open(); err != nil {
+			return 0, err
+		}
+	}
+	for a.fp.next() {
+		linesProcessed++
+		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
+			break
+		}
+	}
+	a.fp.close()
+
+	return linesProcessed, nil
+}
+
+// To test read/tokenize speed
+func (a *rarityAnalyzer) runReadTokenize(targetLinesCnt int) (int, error) {
+	linesProcessed := 0
+
+	if a.fp == nil || !a.fp.isOpen() {
+		a.fp = newFilePointer(a.logPathRegex, a.lastFileEpoch, a.lastFileRow)
+		if err := a.fp.open(); err != nil {
+			return 0, err
+		}
+	}
+	for a.fp.next() {
+		te := a.fp.text()
+		tran := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe)
+		if tran == nil || len(tran) == 0 {
+			continue
+		}
+
+		linesProcessed++
+		if linesProcessed >= targetLinesCnt {
+			break
+		}
+	}
+	a.fp.close()
+
+	return linesProcessed, nil
+}
+
+// To test read/tokenize speed
+func (a *rarityAnalyzer) tokenizeLineNogeg(targetLinesCnt int) (int, error) {
+	linesProcessed := 0
+
+	if a.fp == nil || !a.fp.isOpen() {
+		a.fp = newFilePointer(a.logPathRegex, a.lastFileEpoch, a.lastFileRow)
+		if err := a.fp.open(); err != nil {
+			return 0, err
+		}
+	}
+	for a.fp.next() {
+		te := a.fp.text()
+		a.trans.tokenizeLineNogeg(te)
+
+		linesProcessed++
+		if linesProcessed >= targetLinesCnt {
+			break
+		}
+	}
+	a.fp.close()
+
 	return linesProcessed, nil
 }

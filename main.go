@@ -157,6 +157,41 @@ func rar(verbose, isDebug bool) error {
 	return nil
 }
 
+func readtest() error {
+	rtestFlag := flag.NewFlagSet("rtest", flag.ExitOnError)
+	pathRegex := rtestFlag.String("f", "", pathRegexDesc)
+	maxLines := rtestFlag.Int("n", 0, maxLinesDesc)
+
+	rtestFlag.Parse(os.Args[2:])
+	if err := analyzer.RunReadTest(*pathRegex, *maxLines); err != nil {
+		return err
+	}
+	return nil
+}
+
+func readtokentest() error {
+	rtestFlag := flag.NewFlagSet("rtest", flag.ExitOnError)
+	pathRegex := rtestFlag.String("f", "", pathRegexDesc)
+	maxLines := rtestFlag.Int("n", 0, maxLinesDesc)
+
+	rtestFlag.Parse(os.Args[2:])
+	if err := analyzer.RunReadTokenizeTest(*pathRegex, *maxLines); err != nil {
+		return err
+	}
+	return nil
+}
+func readtokennoregtest() error {
+	rtestFlag := flag.NewFlagSet("rtest", flag.ExitOnError)
+	pathRegex := rtestFlag.String("f", "", pathRegexDesc)
+	maxLines := rtestFlag.Int("n", 0, maxLinesDesc)
+
+	rtestFlag.Parse(os.Args[2:])
+	if err := analyzer.RunReadTokenizeNoregTest(*pathRegex, *maxLines); err != nil {
+		return err
+	}
+	return nil
+}
+
 func frq() error {
 	frqFlag.Parse(os.Args[2:])
 
@@ -186,6 +221,12 @@ func main() {
 		err = stats()
 	case "test":
 		err = rar(true, false)
+	case "readtest":
+		err = readtest()
+	case "readtokentest":
+		err = readtokentest()
+	case "readtokennoregtest":
+		err = readtokennoregtest()
 	case "frq":
 		err = frq()
 	default:

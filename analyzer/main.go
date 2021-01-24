@@ -109,6 +109,7 @@ func RunRarProc(logPathRegex,
 		a.filterRe, a.xFilterRe); err != nil {
 		return err
 	}
+
 	a.printCountPerGap(a.countPerGap, "Count per score gap")
 	return nil
 }
@@ -135,7 +136,7 @@ func RarStats(rootDir string,
 	a.printNTops(fmt.Sprintf("%d top rare records", recordsToShow),
 		recordsToShow, filterRe, xFilterRe)
 	a.printCountPerGap(a.countPerGap,
-		fmt.Sprintf("Total count %d\ncounts per gap", a.countTotal))
+		fmt.Sprintf("Total count=%d items=%d\ncounts per gap", a.countTotal, len(a.trans.items.counts)))
 	return nil
 }
 
@@ -159,5 +160,59 @@ func RunFrq(path string,
 	}
 	dci.output(trans1.items, trans1.maxTranID)
 
+	return nil
+}
+
+// RunReadTest .. To measure read speed
+func RunReadTest(logPathRegex string, maxLines int) error {
+	a, err := newRarityAnalyzer(logPathRegex,
+		"",
+		"", "",
+		0,
+		0, 0, 0)
+	if err != nil {
+		return err
+	}
+	var rowN int
+	if rowN, err = a.runOnlyRead(maxLines); err != nil {
+		return err
+	}
+	logInfo(fmt.Sprintf("Processed %d records.", rowN))
+	return nil
+}
+
+// RunReadTokenizeTest .. To measure read speed
+func RunReadTokenizeTest(logPathRegex string, maxLines int) error {
+	a, err := newRarityAnalyzer(logPathRegex,
+		"",
+		"", "",
+		0,
+		0, 0, 0)
+	if err != nil {
+		return err
+	}
+	var rowN int
+	if rowN, err = a.runReadTokenize(maxLines); err != nil {
+		return err
+	}
+	logInfo(fmt.Sprintf("Processed %d records. items=%d", rowN, len(a.trans.items.counts)))
+	return nil
+}
+
+// RunReadTokenizeNoregTest .. To measure read speed
+func RunReadTokenizeNoregTest(logPathRegex string, maxLines int) error {
+	a, err := newRarityAnalyzer(logPathRegex,
+		"",
+		"", "",
+		0,
+		0, 0, 0)
+	if err != nil {
+		return err
+	}
+	var rowN int
+	if rowN, err = a.tokenizeLineNogeg(maxLines); err != nil {
+		return err
+	}
+	logInfo(fmt.Sprintf("Processed %d records", rowN))
 	return nil
 }

@@ -5,8 +5,9 @@ import (
 )
 
 type items struct {
-	maxItemID  int
-	items      *strindex
+	maxItemID int
+	//items      *strindex
+	items      map[string]int
 	itemMap    map[int]string
 	counts     map[int]int
 	currCounts map[int]int
@@ -18,7 +19,8 @@ func newItems() *items {
 	i := new(items)
 	i.itemMap = make(map[int]string, 10000)
 	i.counts = make(map[int]int, 10000)
-	i.items = newStrIndex(0)
+	//i.items = newStrIndex(0)
+	i.items = make(map[string]int, 10000)
 	i.currCounts = make(map[int]int, 10000)
 	i.maxItemID = -1
 	return i
@@ -28,18 +30,15 @@ func (i *items) register(item string, addCount int, isNew bool) int {
 	if item == "" {
 		return -1
 	}
-	itemID := i.items.getItemID(item)
-	count := 0
-	if itemID < 0 {
+	itemID, ok := i.items[item]
+	if ok == false {
 		i.maxItemID++
 		itemID = i.maxItemID
-	} else {
-		count = i.counts[itemID]
+		i.items[item] = itemID
+		i.itemMap[itemID] = item
 	}
 
-	i.itemMap[itemID] = item
-	i.items.register(itemID, item)
-	i.counts[itemID] = count + addCount
+	i.counts[itemID] += addCount
 	if isNew {
 		i.currCounts[itemID] += addCount
 	}
@@ -80,7 +79,7 @@ func (i *items) subCount(item string, cnt int) {
 	currCnt -= cnt
 	if currCnt == 0 {
 		delete(i.counts, itemID)
-		i.items.unRegister(item)
+		delete(i.items, item)
 		delete(i.itemMap, itemID)
 	} else {
 		i.counts[itemID] = currCnt
@@ -89,7 +88,11 @@ func (i *items) subCount(item string, cnt int) {
 }
 
 func (i *items) getItemID(word string) int {
-	return i.items.getItemID(word)
+	itemID, ok := i.items[word]
+	if ok == false {
+		return -1
+	}
+	return itemID
 }
 
 func (i *items) getCurrCount(itemID int) int {

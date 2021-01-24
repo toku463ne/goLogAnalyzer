@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/damnever/bitarray"
 	"github.com/pkg/errors"
@@ -346,6 +347,15 @@ func ensureDir(dirPath string) error {
 
 func tob(a string) byte {
 	return []byte(a)[0]
+}
+
+func isInt(s string) bool {
+	for _, c := range s {
+		if !unicode.IsDigit(c) {
+			return false
+		}
+	}
+	return true
 }
 
 func registerNTopRareRec(
