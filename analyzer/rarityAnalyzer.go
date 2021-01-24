@@ -763,7 +763,10 @@ func (a *rarityAnalyzer) printNTops(msg string,
 ) error {
 	var nTopRareLogs []*logRec
 	var err error
-	if recordsToShow > 0 && recordsToShow != a.recordsToShow || len(a.nTopRareLogs) == 0 {
+	if recordsToShow > 0 && recordsToShow != a.recordsToShow || a.nTopRareLogs == nil || a.nTopRareLogs[0] == nil {
+		if recordsToShow == 0 {
+			recordsToShow = cNTopRareRecords
+		}
 		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, filterRe, xFilterRe)
 		if err != nil {
 			return err
