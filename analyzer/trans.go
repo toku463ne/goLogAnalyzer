@@ -22,6 +22,7 @@ func newTrans(useTranList bool) *trans {
 		t.tranList = newInt2dArray()
 	}
 	t.items = newItems()
+	t.items.register("", 1, true)
 	t.maxTranID = -1
 	t.replacer = getDelimReplacer()
 	return t
@@ -157,7 +158,7 @@ func (t *trans) toTermListLight(line string) []int {
 	result := make([]int, len(words))
 	for i, w := range words {
 		word := strings.ToLower(w)
-		result[i] = -1
+		result[i] = 0
 		if len(word) > 2 {
 			if isInt(word) {
 				continue

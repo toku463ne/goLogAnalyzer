@@ -350,6 +350,9 @@ func tob(a string) byte {
 }
 
 func isInt(s string) bool {
+	if len(s) > 1 && string(s[0]) == "0" {
+		return false
+	}
 	for _, c := range s {
 		if !unicode.IsDigit(c) {
 			return false

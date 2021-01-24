@@ -73,7 +73,7 @@ func newRarityAnalyzer(logPathRegex,
 				a.logRecordsBuffPos++
 				a.logRecordsBuff[a.logRecordsBuffPos] = []string{
 					fmt.Sprint(rowID),
-					fmt.Sprintf("%3.1f", score),
+					fmt.Sprintf("%3.2f", scoreGap),
 					text,
 				}
 			}
@@ -763,7 +763,7 @@ func (a *rarityAnalyzer) printNTops(msg string,
 ) error {
 	var nTopRareLogs []*logRec
 	var err error
-	if recordsToShow > 0 && recordsToShow != a.recordsToShow {
+	if recordsToShow > 0 && recordsToShow != a.recordsToShow || len(a.nTopRareLogs) == 0 {
 		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, filterRe, xFilterRe)
 		if err != nil {
 			return err
@@ -859,7 +859,7 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 			return linesProcessed, err
 		}
 		a.nTopRareLogs, a.minTopRareScore = registerNTopRareRec(a.nTopRareLogs,
-			a.minTopRareScore, a.rowID, score, te)
+			a.minTopRareScore, a.rowID, scoreGap, te)
 
 		if a.linesInBlock > 0 && a.currBlock.blockCnt >= a.linesInBlock {
 			a.currBlock.completed = true
