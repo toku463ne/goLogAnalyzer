@@ -30,7 +30,8 @@ func setLogLevelByStr(logLevelStr string) {
 
 func logmsg(logLevel int, msg string) {
 	if curLogLevel >= logLevel {
-		log.Printf("%s\n", msg)
+		log.Printf("[%d] %s\n", os.Getpid(),
+			msg)
 	}
 }
 

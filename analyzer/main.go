@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"fmt"
-	"os"
 )
 
 // CleanupDB .. cleanup data with lock
@@ -90,8 +89,7 @@ func RunRarProc(logPathRegex,
 		}
 		a.useDB = saveDb
 	}
-	logInfo(fmt.Sprintf("[%d] datadir=%s search=%s exclude=%s bsize=%d nblocks=%d",
-		os.Getpid(),
+	logInfo(fmt.Sprintf("datadir=%s search=%s exclude=%s bsize=%d nblocks=%d",
 		a.rootDir,
 		a.filterRe, a.xFilterRe,
 		a.linesInBlock, a.maxBlocks))
@@ -102,7 +100,7 @@ func RunRarProc(logPathRegex,
 	if rowN, err = a.run(maxLines); err != nil {
 		return err
 	}
-	logInfo(fmt.Sprintf("row=%d items=%d", rowN, len(a.trans.items.counts)))
+	logInfo(fmt.Sprintf("Completed. row=%d items=%d", rowN, len(a.trans.items.counts)))
 
 	if err := a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords),
 		cNTopRareRecords,
