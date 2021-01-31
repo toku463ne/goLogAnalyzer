@@ -13,7 +13,7 @@ const (
 	cLogLevelError              = 1
 	cLogLevelInfo               = 2
 	cLogLevelDebug              = 3
-	cDefaultBlockSize           = 100000
+	cDefaultBlockSize           = 10000
 	cDefaultMaxBlocks           = 1000
 	cDefaultRowsRateToShow      = 0.00005
 	cDefaultMinNBlockRateForGap = 0.01
