@@ -243,11 +243,7 @@ func (t *csvTable) count(conds map[string]string, partitionID string) (int, erro
 	if rows == nil {
 		return 0, nil
 	}
-	cnt := 0
-	for _ = range rows {
-		cnt++
-	}
-	return cnt, nil
+	return len(rows), nil
 }
 
 func (t *csvTable) select1rec(conds map[string]string, partitionID string) ([]string, error) {

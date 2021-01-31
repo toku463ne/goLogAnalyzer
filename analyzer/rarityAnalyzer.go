@@ -421,6 +421,7 @@ func (a *rarityAnalyzer) loadDBBlock(blockID int) (*block, error) {
 
 	return b, nil
 }
+
 func (a *rarityAnalyzer) loadDBItems() error {
 	var err error
 	items1 := newItems()
@@ -577,6 +578,7 @@ func (a *rarityAnalyzer) saveBlock(blockID int) error {
 		"blockCnt":    fmt.Sprint(b.blockCnt),
 		"scoreSum":    fmt.Sprint(b.scoreSum),
 		"scoreSqrSum": fmt.Sprint(b.scoreSqrSum),
+		"lastEpoch":   fmt.Sprint(a.fp.currFileEpoch()),
 		"createdAt":   timeToString(time.Now()),
 	}
 	if err := a.db.tables["logBlocks"].update(
@@ -705,7 +707,7 @@ func (a *rarityAnalyzer) postBlock(blockID int) error {
 }
 
 func (a *rarityAnalyzer) printCountPerGap(g []int, msg string) {
-	fmt.Printf("\n")
+	//fmt.Printf("\n")
 	fmt.Printf("%s\n", msg)
 	fmt.Printf(" gap | count\n")
 	fmt.Printf(" ----+--------------\n")
@@ -717,7 +719,7 @@ func (a *rarityAnalyzer) printCountPerGap(g []int, msg string) {
 }
 
 func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int,
-	filterRe, xFilterRe string) ([]*logRec, error) {
+	filterRe, xFilterRe string, blockIDstrs []string) ([]*logRec, error) {
 
 	if recordsToShow == 0 {
 		recordsToShow = a.recordsToShow
@@ -725,9 +727,24 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int,
 
 	nTopRareLogs := make([]*logRec, recordsToShow)
 	minTopRareScore := 0.0
-	rows, err := a.db.tables["logRecords"].query(nil, "*")
-	if err != nil {
-		return nil, err
+	var rows [][]string
+	var err error
+	if blockIDstrs == nil {
+		rows, err = a.db.tables["logRecords"].query(nil, "*")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		for _, blockIDstr := range blockIDstrs {
+			if blockIDstr == "" {
+				break
+			}
+			rows1, err := a.db.tables["logRecords"].query(nil, blockIDstr)
+			if err != nil {
+				return nil, err
+			}
+			rows = append(rows, rows1...)
+		}
 	}
 	cols := a.db.tables["logRecords"].colMap
 	idxRowID := cols["rowID"]
@@ -757,17 +774,53 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int,
 	return nTopRareLogs, nil
 }
 
+func (a *rarityAnalyzer) getBlockIDsFromEpoch(startEpoch, endEpoch int64) ([]string, error) {
+	rows, err := a.db.tables["logBlocks"].query(nil, "*")
+	if err != nil {
+		return nil, err
+	}
+	blockIDstrs := make([]string, len(rows))
+
+	cols := a.db.tables["logBlocks"].colMap
+	idxBlockID := cols["blockID"]
+	idxLastEpoch := cols["lastEpoch"]
+
+	i := 0
+	for _, v := range rows {
+		blockIDstr := v[idxBlockID]
+		lastEpoch, err := strconv.ParseInt(v[idxLastEpoch], 10, 64)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if startEpoch > 0 && startEpoch <= lastEpoch {
+			if endEpoch > 0 {
+				if endEpoch >= lastEpoch {
+					blockIDstrs[i] = blockIDstr
+					i++
+				}
+			} else {
+				blockIDstrs[i] = blockIDstr
+				i++
+			}
+		} else if startEpoch <= 0 && endEpoch > 0 && endEpoch >= lastEpoch {
+			blockIDstrs[i] = blockIDstr
+			i++
+		}
+	}
+	return blockIDstrs, nil
+}
+
 func (a *rarityAnalyzer) printNTops(msg string,
 	recordsToShow int,
-	filterRe, xFilterRe string,
+	filterRe, xFilterRe string, blockIDstrs []string,
 ) error {
-	var nTopRareLogs []*logRec
 	var err error
+	var nTopRareLogs []*logRec
 	if recordsToShow > 0 && recordsToShow != a.recordsToShow || a.nTopRareLogs == nil || a.nTopRareLogs[0] == nil {
 		if recordsToShow == 0 {
 			recordsToShow = cNTopRareRecords
 		}
-		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, filterRe, xFilterRe)
+		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, filterRe, xFilterRe, blockIDstrs)
 		if err != nil {
 			return err
 		}
@@ -775,7 +828,6 @@ func (a *rarityAnalyzer) printNTops(msg string,
 		nTopRareLogs = a.nTopRareLogs
 	}
 
-	fmt.Printf("\n")
 	fmt.Printf("%s\n", msg)
 	fmt.Print("score  rowID     text\n")
 	fmt.Print("------+---------+-------\n")

@@ -116,6 +116,15 @@ func RoundDown(num, places float64) float64 {
 	return math.Trunc(num*shift) / shift
 }
 
+// DateStringToEpoch ..
+func DateStringToEpoch(date string) (int64, error) {
+	t, err := time.Parse(time.RFC3339, date+"T00:00:00Z")
+	if err != nil {
+		return -1, err
+	}
+	return t.Unix(), nil
+}
+
 // roundInt
 func roundInt(num float64) float64 {
 	t := math.Trunc(num)

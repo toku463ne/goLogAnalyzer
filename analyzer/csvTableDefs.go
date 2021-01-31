@@ -10,28 +10,28 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	}
 
 	d := map[string]csvTableDef{
-		"lastStatus": csvTableDef{
+		"lastStatus": {
 			"lastStatus",
 			[]string{"lastRowID", "lastBlockID", "fileName", "lastRow",
 				"modifiedEpoch", "modifiedUtcTime"},
 			0},
-		"logBlocks": csvTableDef{
+		"logBlocks": {
 			"logBlocks",
 			[]string{"blockID", "lastRowID", "blockCnt", "scoreSum",
-				"scoreSqrSum", "createdAt"},
+				"scoreSqrSum", "lastEpoch", "createdAt"},
 			maxPartitions},
-		"countPerGap": csvTableDef{
+		"countPerGap": {
 			"countPerGap", countPerGapH,
 			maxPartitions},
-		"items": csvTableDef{
+		"items": {
 			"items",
 			[]string{"word", "cnt"},
 			maxPartitions},
-		"logRecords": csvTableDef{
+		"logRecords": {
 			"logRecords",
 			[]string{"rowID", "score", "text"},
 			maxPartitions},
-		"nTopRareLogs": csvTableDef{
+		"nTopRareLogs": {
 			"nTopRareLogs",
 			[]string{"rowID", "score", "text"},
 			maxPartitions},
@@ -41,11 +41,11 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 
 func getClosedItemsDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	d := map[string]csvTableDef{
-		"closedItemSets": csvTableDef{
+		"closedItemSets": {
 			"closedItemSets",
 			[]string{"support", "key", "itemSets", "lastLine"},
 			maxPartitions},
-		"closedItemKeys": csvTableDef{
+		"closedItemKeys": {
 			"closedItemKeys",
 			[]string{"key"},
 			maxPartitions},
@@ -55,7 +55,7 @@ func getClosedItemsDB(baseDir string, maxPartitions int) (*csvDB, error) {
 
 func getTextWriterDB(baseDir string, maxPartitions int) (*csvDB, error) {
 	d := map[string]csvTableDef{
-		"doc": csvTableDef{
+		"doc": {
 			"doc",
 			[]string{"text"},
 			maxPartitions},

@@ -26,7 +26,7 @@ echo ""
 logan stats -help
 echo ""
 echo ""
-logan test -help
+logan topN -help
 echo ""
 echo ""
 logan frq -help

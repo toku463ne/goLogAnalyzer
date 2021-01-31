@@ -43,7 +43,7 @@ func RunRar(logPathRegex,
 	filterRe, xFilterRe string,
 	rarityThreshold float64,
 	maxLines, linesInBlock, maxBlocks int,
-	debug, verbose1, saveDb bool) error {
+	debug, verbose1, saveDb, silent bool) error {
 
 	lock, err := newLock(rootDir)
 	if err != nil {
@@ -56,7 +56,7 @@ func RunRar(logPathRegex,
 		filterRe, xFilterRe,
 		rarityThreshold,
 		maxLines, linesInBlock, maxBlocks,
-		debug, verbose1, saveDb)
+		debug, verbose1, saveDb, silent)
 	return err
 }
 
@@ -66,7 +66,7 @@ func RunRarProc(logPathRegex,
 	filterRe, xFilterRe string,
 	rarityThreshold float64,
 	maxLines, linesInBlock, maxBlocks int,
-	debug, verbose1, saveDb bool) error {
+	debug, verbose1, saveDb, silent bool) error {
 
 	verbose = verbose1
 
@@ -100,22 +100,46 @@ func RunRarProc(logPathRegex,
 	if rowN, err = a.run(maxLines); err != nil {
 		return err
 	}
-	logInfo(fmt.Sprintf("Completed. row=%d items=%d", rowN, len(a.trans.items.counts)))
+	if silent == false {
+		logInfo(fmt.Sprintf("Completed. row=%d items=%d", rowN, len(a.trans.items.counts)))
 
-	if err := a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords),
-		cNTopRareRecords,
-		a.filterRe, a.xFilterRe); err != nil {
-		return err
+		if err := a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords),
+			cNTopRareRecords,
+			a.filterRe, a.xFilterRe, nil); err != nil {
+			return err
+		}
+
+		//a.printCountPerGap(a.countPerGap, "Count per score gap")
 	}
-
-	a.printCountPerGap(a.countPerGap, "Count per score gap")
 	return nil
 }
 
-// RarStats ... shows top N rare records and count per gap
-func RarStats(rootDir string,
+// RarStats ... shows count per gap
+func RarStats(rootDir string) error {
+	a, err := newRarityAnalyzer("",
+		rootDir,
+		"", "",
+		0,
+		-1, -1, 0)
+	if err != nil {
+		return err
+	}
+
+	if err := a.loadDB(); err != nil {
+		return err
+	}
+
+	a.printCountPerGap(a.countPerGap,
+		fmt.Sprintf("Total count=%d items=%d\ncounts per gap",
+			a.countTotal, len(a.trans.items.counts)))
+	return nil
+}
+
+// RarTopN ... shows top N rare records
+func RarTopN(rootDir string,
 	recordsToShow int,
 	filterRe, xFilterRe string,
+	startEpoch, endEpoch int64,
 ) error {
 	a, err := newRarityAnalyzer("",
 		rootDir,
@@ -125,16 +149,24 @@ func RarStats(rootDir string,
 	if err != nil {
 		return err
 	}
-	if err := a.loadDB(); err != nil {
-		return err
+
+	var blockIDstrs []string
+	if startEpoch > 0 || endEpoch > 0 {
+		if a.useDB {
+			blockIDstrs, err = a.getBlockIDsFromEpoch(startEpoch, endEpoch)
+			if err != nil {
+				return err
+			}
+		}
 	}
+
 	if recordsToShow == 0 {
 		recordsToShow = cNTopRareRecords
 	}
+
 	a.printNTops(fmt.Sprintf("%d top rare records", recordsToShow),
-		recordsToShow, filterRe, xFilterRe)
-	a.printCountPerGap(a.countPerGap,
-		fmt.Sprintf("Total count=%d items=%d\ncounts per gap", a.countTotal, len(a.trans.items.counts)))
+		recordsToShow, filterRe, xFilterRe, blockIDstrs)
+
 	return nil
 }
 

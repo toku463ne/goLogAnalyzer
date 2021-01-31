@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	clnFlag = flag.NewFlagSet("clean", flag.ExitOnError)
-	frqFlag = flag.NewFlagSet("frq", flag.ExitOnError)
-	rarFlag = flag.NewFlagSet("rar", flag.ExitOnError)
-	stsFlag = flag.NewFlagSet("stats", flag.ExitOnError)
+	clnFlag  = flag.NewFlagSet("clean", flag.ExitOnError)
+	frqFlag  = flag.NewFlagSet("frq", flag.ExitOnError)
+	rarFlag  = flag.NewFlagSet("rar", flag.ExitOnError)
+	topNFlag = flag.NewFlagSet("topN", flag.ExitOnError)
+	stsFlag  = flag.NewFlagSet("stats", flag.ExitOnError)
 
 	rootDirDesc   = "Directory to save the analyzation data"
 	rarRootDir    = rarFlag.String("d", "", rootDirDesc)
@@ -37,6 +38,8 @@ var (
 	rarMaxBlock      = rarFlag.Int("maxBlock", -1, maxBlockDesc)
 	maxLinesDesc     = "max lines to process"
 	rarMaxLines      = rarFlag.Int("n", 0, maxLinesDesc)
+	silentDesc       = "Run without message"
+	rarSilent        = rarFlag.Bool("silent", false, silentDesc)
 
 	filePathDesc   = "Text file to analyze"
 	frqPath        = frqFlag.String("f", "", filePathDesc)
@@ -49,14 +52,20 @@ var (
 	clnRootDir = clnFlag.String("d", "", rootDirDesc)
 	clnDebug   = clnFlag.Bool("v", false, showDebugDesc)
 
-	stsRootDir        = stsFlag.String("d", "", rootDirDesc)
+	stsRootDir = stsFlag.String("d", "", rootDirDesc)
+
+	topnRootDir       = topNFlag.String("d", "", rootDirDesc)
 	recordsToShowDesc = "Top N rare records to show"
-	stsRecordsToShow  = stsFlag.Int("n", 0, recordsToShowDesc)
-	stsFilterRe       = stsFlag.String("s", "", filterReDesc)
-	stsXFilterRe      = stsFlag.String("x", "", xfilterReDesc)
+	topnRecordsToShow = topNFlag.Int("n", 0, recordsToShowDesc)
+	topnFilterRe      = topNFlag.String("s", "", filterReDesc)
+	topnXFilterRe     = topNFlag.String("x", "", xfilterReDesc)
+	startDateDesc     = "Start date to collect stats %Y-%m-%d format"
+	topnStartDate     = topNFlag.String("start", "", startDateDesc)
+	endDateDesc       = "End date to collect stats %Y-%m-%d format"
+	topnEndDate       = topNFlag.String("end", "", endDateDesc)
 
 	usageTxt = `Usage of logan:  
-logan [rar|clean|stats|test|frq] OPTIONS  
+logan [rar|clean|topN|stats|test|frq] OPTIONS  
 
 logan -help:
 	Shows this help
@@ -70,12 +79,12 @@ logan clean:
 	Run "logan clean -help" for details.  
 
 logan stats:
-	Shows the statistics according the data in the last execution.
+	Shows the statistics according the saved data.
 	Run "logan stats -help" for details.
 
-logan test:
-	Shows all log records with the score gap.
-	Run "logan test -help" for details.
+logan topN:
+	Shows the top N rare records
+	Run "logan topN -help" for details.
 
 logan frq:
 	Shows the closed frequent itemsets order by the supports.
@@ -102,8 +111,35 @@ func stats() error {
 	if !analyzer.PathExist(*stsRootDir) {
 		return fmt.Errorf("%s does not exist", *stsRootDir)
 	}
+	err := analyzer.RarStats(*stsRootDir)
+	return err
+}
 
-	err := analyzer.RarStats(*stsRootDir, *stsRecordsToShow, *stsFilterRe, *stsXFilterRe)
+func topN() error {
+	topNFlag.Parse(os.Args[2:])
+	if *topnRootDir == "" {
+		return fmt.Errorf("rootDir is must")
+	}
+	if !analyzer.PathExist(*topnRootDir) {
+		return fmt.Errorf("%s does not exist", *topnRootDir)
+	}
+	var startEpoch int64
+	var endEpoch int64
+	var err error
+	if *topnStartDate != "" {
+		startEpoch, err = analyzer.DateStringToEpoch(*topnStartDate)
+		if err != nil {
+			return err
+		}
+	}
+	if *topnEndDate != "" {
+		endEpoch, err = analyzer.DateStringToEpoch(*topnEndDate)
+		if err != nil {
+			return err
+		}
+	}
+	err = analyzer.RarTopN(*topnRootDir, *topnRecordsToShow,
+		*topnFilterRe, *topnXFilterRe, startEpoch, endEpoch)
 	return err
 }
 
@@ -141,7 +177,7 @@ func rar(verbose, isDebug bool) error {
 			*rarFilterRe, *rarXFilterRe,
 			*rarGap,
 			*rarMaxLines, *rarLinesInBlock, *rarMaxBlock,
-			*rarShowDebug, verbose, saveDb); err != nil {
+			*rarShowDebug, verbose, saveDb, *rarSilent); err != nil {
 			return err
 		}
 	} else {
@@ -149,7 +185,7 @@ func rar(verbose, isDebug bool) error {
 			*rarFilterRe, *rarXFilterRe,
 			*rarGap,
 			*rarMaxLines, *rarLinesInBlock, *rarMaxBlock,
-			*rarShowDebug, verbose, saveDb); err != nil {
+			*rarShowDebug, verbose, saveDb, *rarSilent); err != nil {
 			return err
 		}
 	}
@@ -219,6 +255,8 @@ func main() {
 		err = rar(false, true)
 	case "stats":
 		err = stats()
+	case "topN":
+		err = topN()
 	case "test":
 		err = rar(true, false)
 	case "readtest":

@@ -559,13 +559,13 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 		return
 	}
 
-	nTop, err := a.scanAndGetNTops(2, "", "")
+	nTop, err := a.scanAndGetNTops(2, "", "", nil)
 	if len(nTop) != 2 {
 		t.Errorf("nTop is wrong")
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(5, "", "")
+	nTop, err = a.scanAndGetNTops(5, "", "", nil)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -575,7 +575,7 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(0, "", "")
+	nTop, err = a.scanAndGetNTops(0, "", "", nil)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -585,7 +585,7 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(5, "a006", "")
+	nTop, err = a.scanAndGetNTops(5, "a006", "", nil)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -595,7 +595,7 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(5, "", "a006")
+	nTop, err = a.scanAndGetNTops(5, "", "a006", nil)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

@@ -42,3 +42,11 @@ func Test_main2(t *testing.T) {
 
 	debug()
 }
+
+func Test_main3(t *testing.T) {
+	rootDir := "c:\\Users\\kot\\loganal\\realtest4\\data"
+	os.Args = []string{"test", "stats",
+		"-d", rootDir, "-start", "2020-12-06"}
+
+	stats()
+}

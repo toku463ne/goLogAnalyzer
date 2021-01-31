@@ -17,30 +17,30 @@ If you specify a datadir, the result will be saved, and next time the tool will 
   
 ## How to use
   ```
-logan [rar|clean|stats|test|frq] OPTIONS
+logan [rar|clean|topN|stats|frq] OPTIONS  
 
 logan -help:
-        Shows this help
+	Shows this help
 
 logan rar:
-        Calculate rarity score of each log records and show the "rare" records.
-        Run "logan rar -help" for details.
+	Calculate rarity score of each log records and show the "rare" records.
+	Run "logan rar -help" for details.
 
 logan clean:
-        Cleanups all statistics data.
-        Run "logan clean -help" for details.
+	Cleanups all statistics data.
+	Run "logan clean -help" for details.  
 
 logan stats:
-        Shows the statistics according the data in the last execution.
-        Run "logan stats -help" for details.
+	Shows the statistics according the saved data.
+	Run "logan stats -help" for details.
 
-logan test:
-        Shows all log records with the score gap.
-        Run "logan test -help" for details.
+logan topN:
+	Shows the top N rare records
+	Run "logan topN -help" for details.
 
 logan frq:
-        Shows the closed frequent itemsets order by the supports.
-        Only calculate at most 10000 records.
+	Shows the closed frequent itemsets order by the supports.
+	Only calculate at most 10000 records.
   ```
   
 Usage of rar:
@@ -82,14 +82,26 @@ Usage of stats:
   ```
   -d string
         Directory to save the analyzation data
+  ```
+  
+
+Usage of topN:
+  ```
+  -d string
+        Directory to save the analyzation data
+  -end string
+        End date to collect stats %Y-%m-%d format
   -n int
         Top N rare records to show
   -s string
         key word to search
+  -start string
+        Start date to collect stats %Y-%m-%d format
   -x string
         key word to exclude
-  ```
-  
+  ```  
+
+
 Usage of frq:
   ```
   -f string
