@@ -18,7 +18,7 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 		"logBlocks": {
 			"logBlocks",
 			[]string{"blockID", "lastRowID", "blockCnt", "scoreSum",
-				"scoreSqrSum", "lastEpoch", "createdAt"},
+				"scoreSqrSum", "lastEpoch", "createdAt", "completed"},
 			maxPartitions},
 		"countPerGap": {
 			"countPerGap", countPerGapH,

@@ -573,6 +573,10 @@ func (a *rarityAnalyzer) saveBlock(blockID int) error {
 	cond := map[string]string{
 		"blockID": fmt.Sprint(a.currBlockID),
 	}
+	completed := "1"
+	if b.completed == false {
+		completed = "0"
+	}
 	row := map[string]string{
 		"lastRowID":   fmt.Sprint(a.rowID),
 		"blockCnt":    fmt.Sprint(b.blockCnt),
@@ -580,6 +584,7 @@ func (a *rarityAnalyzer) saveBlock(blockID int) error {
 		"scoreSqrSum": fmt.Sprint(b.scoreSqrSum),
 		"lastEpoch":   fmt.Sprint(a.fp.currFileEpoch()),
 		"createdAt":   timeToString(time.Now()),
+		"completed":   completed,
 	}
 	if err := a.db.tables["logBlocks"].update(
 		cond, row, blockIDstr, true); err != nil {
@@ -784,6 +789,7 @@ func (a *rarityAnalyzer) getBlockIDsFromEpoch(startEpoch, endEpoch int64) ([]str
 	cols := a.db.tables["logBlocks"].colMap
 	idxBlockID := cols["blockID"]
 	idxLastEpoch := cols["lastEpoch"]
+	idxCompleted := cols["completed"]
 
 	i := 0
 	for _, v := range rows {
@@ -791,6 +797,10 @@ func (a *rarityAnalyzer) getBlockIDsFromEpoch(startEpoch, endEpoch int64) ([]str
 		lastEpoch, err := strconv.ParseInt(v[idxLastEpoch], 10, 64)
 		if err != nil {
 			return nil, errors.WithStack(err)
+		}
+		completed := v[idxCompleted]
+		if completed == "0" {
+			blockIDstr = cLastTmpBlockStr
 		}
 		if startEpoch > 0 && startEpoch <= lastEpoch {
 			if endEpoch > 0 {
