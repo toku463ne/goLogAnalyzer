@@ -14,6 +14,11 @@ type filePointer struct {
 	lastRow int
 	pos     int
 	e       error
+	currErr error
+	currText string
+	currRow int
+	currPos int
+	isEOF bool
 }
 
 func newFilePointer(pathRegex string,
@@ -39,6 +44,8 @@ func newFilePointer(pathRegex string,
 	fp.epochs = targetEpochs
 	fp.lastRow = lastRow
 	fp.pos = 0
+	fp.isEOF = false
+	fp.currPos = 0
 	return fp
 }
 
@@ -62,6 +69,13 @@ func (fp *filePointer) open() error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	if !r.next() {
+		if err := r.err(); err != nil {
+			return err
+		}
+	}
+
 	logDebug(fmt.Sprintf("Opened %s", fp.files[0]))
 	row := 0
 	if currRow > 0 {
@@ -84,37 +98,62 @@ func (fp *filePointer) open() error {
 func (fp *filePointer) next() bool {
 	// don't consider the case fp.r is nil
 	// case it is nil, it means open() has not been done which is considered as a bug
+
+	err := fp.e
+	fp.currErr = err
+	if err == io.EOF {
+		return false
+	}
+	if err != nil {
+		fp.currText = ""
+		fp.currRow = -1	
+		return false
+	}
+	fp.currText = fp.r.text()
+	fp.currRow = fp.r.rowNum
+	fp.currPos = fp.pos
+	
 	ok := fp.r.next()
 	if ok {
+		fp.isEOF = false
 		return true
 	}
-	err := fp.r.err()
+	
+	err = fp.r.err()
 	if err != nil && err != io.EOF {
 		fp.e = err
-		return false
 	}
+	fp.isEOF = true
+
 	if fp.pos+1 >= len(fp.files) {
 		fp.e = io.EOF
-		return false
+		return true
 	}
 	if fp.r != nil {
 		fp.r.close()
 		fp.r = nil
 	}
-
+	
 	fp.pos++
 	r, err := newReader(fp.files[fp.pos])
 	if err != nil {
 		fp.e = errors.WithStack(err)
-		return false
+		return true
 	}
 	logDebug(fmt.Sprintf("Opened %s", fp.files[fp.pos]))
 	fp.r = r
 	fp.e = nil
 
-	return fp.r.next()
+	fp.r.next()
+	return true
 }
 
+
+func (fp *filePointer) isLastFile() bool {
+	return fp.currPos+1 >= len(fp.files) 
+}
+
+/*
 func (fp *filePointer) OLDnext() bool {
 	if fp.r == nil {
 		fp.e = errors.New("open() first")
@@ -155,16 +194,20 @@ func (fp *filePointer) OLDnext() bool {
 	return fp.r.next()
 }
 
+
 func (fp *filePointer) err() error {
 	return fp.e
 }
+*/
 
 func (fp *filePointer) text() string {
-	return fp.r.text()
+	//return fp.r.text()
+	return fp.currText
 }
 
 func (fp *filePointer) row() int {
-	return fp.r.rowNum
+	//return fp.r.rowNum
+	return fp.currRow
 }
 
 func (fp *filePointer) close() {
@@ -176,7 +219,7 @@ func (fp *filePointer) close() {
 }
 
 func (fp *filePointer) isOpen() bool {
-	if fp.r == nil || fp.r.isOpen() == false {
+	if fp.r == nil || !fp.r.isOpen() {
 		return false
 	}
 	return true

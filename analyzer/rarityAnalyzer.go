@@ -277,7 +277,7 @@ func (a *rarityAnalyzer) loadDBLastStatus() (int, int, int64, error) {
 		return -1, 0, 0, errors.WithStack(err)
 	}
 	a.rowID = lastRowID
-
+ 
 	lastBlockID, err = strconv.Atoi(v[idxLastBlockID])
 	if err != nil {
 		return -1, 0, 0, errors.WithStack(err)
@@ -885,7 +885,7 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 		}
 
 		tran := a.trans.tokenizeLineLight(te, a.filterRe, a.xFilterRe)
-		if tran == nil || len(tran) == 0 {
+		if len(tran) == 0 {
 			continue
 		}
 		score := a.trans.calcScore(tran)
@@ -926,11 +926,12 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 		a.nTopRareLogs, a.minTopRareScore = registerNTopRareRec(a.nTopRareLogs,
 			a.minTopRareScore, a.rowID, scoreGap, te)
 
-		if a.linesInBlock > 0 && a.currBlock.blockCnt >= a.linesInBlock {
+		if a.linesInBlock > 0 && (a.currBlock.blockCnt >= a.linesInBlock || (a.fp.isEOF && !a.fp.isLastFile())) {
 			a.currBlock.completed = true
 			if err := a.postBlock(a.currBlockID); err != nil {
 				return linesProcessed, err
 			}
+		
 		}
 
 		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
@@ -938,7 +939,7 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 		}
 	}
 
-	if a.currBlock.blockCnt > 0 && a.currBlock.completed == false {
+	if a.currBlock.blockCnt > 0 && !a.currBlock.completed {
 		if err := a.postBlock(cLastTmpBlockID); err != nil {
 			return linesProcessed, err
 		}

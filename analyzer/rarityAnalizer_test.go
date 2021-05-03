@@ -2,8 +2,6 @@ package analyzer
 
 import (
 	"fmt"
-	"math"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -104,7 +102,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	if v[2] != "1" {
+	if v[2] != "3" {
 		t.Errorf("blockCnt is incorrect")
 		return
 	}
@@ -214,6 +212,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 
 	a.printCountPerGap(a.countPerGap, "Count per score")
 
+	/*
 	scores := make([]float64, 11)
 	s := 0.0
 	ss := 0.0
@@ -250,7 +249,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 
 		a.close()
 	}
-
+	*/
 	a, err = getTestRarityAnalyzer(testDir, "", 0.0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -258,7 +257,6 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 	}
 	defer a.close()
 	a.run(0)
-
 }
 
 func TestRarityAnalyzer_run2_blocks(t *testing.T) {
