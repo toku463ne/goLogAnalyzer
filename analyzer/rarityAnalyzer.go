@@ -776,7 +776,7 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int,
 			return nil, err
 		}
 
-		if score > topNMaxScore {
+		if topNMaxScore > 0 && score > topNMaxScore {
 			continue
 		}
 
