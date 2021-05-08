@@ -3,10 +3,10 @@ package analyzer
 import "fmt"
 
 func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
-	countPerGapH := make([]string, cCountbyScoreLen+1)
+	countPerScoreH := make([]string, cCountbyScoreLen+1)
 	//countPerGapH[0] = "blockID"
 	for i := 0; i < cCountbyScoreLen; i++ {
-		countPerGapH[i] = fmt.Sprint(i - 1)
+		countPerScoreH[i] = fmt.Sprint(i - 1)
 	}
 
 	d := map[string]csvTableDef{
@@ -20,8 +20,8 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 			[]string{"blockID", "lastRowID", "blockCnt", "scoreSum",
 				"scoreSqrSum", "lastEpoch", "createdAt", "completed"},
 			maxPartitions},
-		"countPerGap": {
-			"countPerGap", countPerGapH,
+		"countPerScore": {
+			"countPerScore", countPerScoreH,
 			maxPartitions},
 		"items": {
 			"items",
@@ -29,7 +29,7 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 			maxPartitions},
 		"logRecords": {
 			"logRecords",
-			[]string{"rowID", "score", "text"},
+			[]string{"rowID", "score", "scoreGap", "text"},
 			maxPartitions},
 		"nTopRareLogs": {
 			"nTopRareLogs",

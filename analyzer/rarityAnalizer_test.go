@@ -133,14 +133,14 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 
 	a.close()
 
-	a.printCountPerGap(a.countPerGap, "Count per score")
+	a.printCountPerScore(a.countPerScore, "Count per score")
 
-	if a.countPerGap[0] != 1 {
-		t.Errorf("countPerGap is incorrect")
+	if a.countPerScore[1] != 2 {
+		t.Errorf("countPerScore is incorrect")
 		return
 	}
-	if a.countPerGap[1] != 5 {
-		t.Errorf("countPerGap is incorrect")
+	if a.countPerScore[2] != 4 {
+		t.Errorf("countPerScore is incorrect")
 		return
 	}
 
@@ -210,45 +210,45 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		}
 	*/
 
-	a.printCountPerGap(a.countPerGap, "Count per score")
+	a.printCountPerScore(a.countPerScore, "Count per score")
 
 	/*
-	scores := make([]float64, 11)
-	s := 0.0
-	ss := 0.0
-	blockID := 0
-	for i := range scores {
-		score := math.Log(float64(i+1)) + 1
-		scores[i] = score
-		s += score
-		ss += score * score
-		if i%5 == 4 {
-			v, err = db.tables["logBlocks"].select1rec(nil, fmt.Sprint(blockID))
-			if err != nil {
-				t.Errorf("%v", err)
-				return
+		scores := make([]float64, 11)
+		s := 0.0
+		ss := 0.0
+		blockID := 0
+		for i := range scores {
+			score := math.Log(float64(i+1)) + 1
+			scores[i] = score
+			s += score
+			ss += score * score
+			if i%5 == 4 {
+				v, err = db.tables["logBlocks"].select1rec(nil, fmt.Sprint(blockID))
+				if err != nil {
+					t.Errorf("%v", err)
+					return
+				}
+				s = Round(s, 4)
+				s1, _ := (strconv.ParseFloat(v[3], 64))
+				s1 = Round(s1, 4)
+				if s1 != s {
+					t.Errorf("scoreSum don't match")
+					return
+				}
+				ss = Round(ss, 4)
+				ss1, _ := strconv.ParseFloat(v[4], 64)
+				ss1 = Round(ss1, 4)
+				if ss1 != ss {
+					t.Errorf("scoreSqrSum don't match")
+					return
+				}
+				s = 0
+				ss = 0
+				blockID++
 			}
-			s = Round(s, 4)
-			s1, _ := (strconv.ParseFloat(v[3], 64))
-			s1 = Round(s1, 4)
-			if s1 != s {
-				t.Errorf("scoreSum don't match")
-				return
-			}
-			ss = Round(ss, 4)
-			ss1, _ := strconv.ParseFloat(v[4], 64)
-			ss1 = Round(ss1, 4)
-			if ss1 != ss {
-				t.Errorf("scoreSqrSum don't match")
-				return
-			}
-			s = 0
-			ss = 0
-			blockID++
-		}
 
-		a.close()
-	}
+			a.close()
+		}
 	*/
 	a, err = getTestRarityAnalyzer(testDir, "", 0.0)
 	if err != nil {

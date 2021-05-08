@@ -39,7 +39,7 @@ type rarityAnalyzer struct {
 	filterRe     string
 	xFilterRe    string
 
-	countPerGap       []int
+	countPerScore     []int
 	logRecordsBuff    [][]string
 	logRecordsBuffPos int
 	recordsToShow     int
@@ -73,6 +73,7 @@ func newRarityAnalyzer(logPathRegex,
 				a.logRecordsBuffPos++
 				a.logRecordsBuff[a.logRecordsBuffPos] = []string{
 					fmt.Sprint(rowID),
+					fmt.Sprintf("%3.2f", score),
 					fmt.Sprintf("%3.2f", scoreGap),
 					text,
 				}
@@ -136,7 +137,7 @@ func (a *rarityAnalyzer) init(logPathRegex,
 	a.blocks = make([]*block, a.maxBlocks)
 	a.logRecordsBuff = make([][]string, a.linesInBlock)
 	a.logRecordsBuffPos = -1
-	a.countPerGap = make([]int, cCountbyScoreLen)
+	a.countPerScore = make([]int, cCountbyScoreLen)
 	a.nTopRareLogs = make([]*logRec, a.recordsToShow)
 
 	if a.useDB {
@@ -277,7 +278,7 @@ func (a *rarityAnalyzer) loadDBLastStatus() (int, int, int64, error) {
 		return -1, 0, 0, errors.WithStack(err)
 	}
 	a.rowID = lastRowID
- 
+
 	lastBlockID, err = strconv.Atoi(v[idxLastBlockID])
 	if err != nil {
 		return -1, 0, 0, errors.WithStack(err)
@@ -372,22 +373,22 @@ func (a *rarityAnalyzer) loadDBBlock(blockID int) (*block, error) {
 		a.countTotal += blockCnt
 	}
 
-	rows, err = a.db.tables["countPerGap"].query(nil, blockIDstr)
+	rows, err = a.db.tables["countPerScore"].query(nil, blockIDstr)
 	if err != nil {
 		return nil, err
 	}
-	cols = a.db.tables["countPerGap"].colMap
+	cols = a.db.tables["countPerScore"].colMap
 	for _, v := range rows {
-		countPerGap := make([]int, cCountbyScoreLen)
+		countPerScore := make([]int, cCountbyScoreLen)
 		for i := 0; i < cCountbyScoreLen; i++ {
 			cnt, err := strconv.Atoi(v[i])
 			if err != nil {
 				break
 			}
-			countPerGap[i] = cnt
-			a.countPerGap[i] += cnt
+			countPerScore[i] = cnt
+			a.countPerScore[i] += cnt
 		}
-		b.countPerGap = countPerGap
+		b.countPerScore = countPerScore
 	}
 
 	rows, err = a.db.tables["nTopRareLogs"].query(nil, blockIDstr)
@@ -512,8 +513,8 @@ func (a *rarityAnalyzer) deleteOld(blockID int) error {
 	a.scoreSum -= b.scoreSum
 	a.scoreSqrSum -= b.scoreSqrSum
 	for i := 0; i < cCountbyScoreLen; i++ {
-		cnt := b.countPerGap[i]
-		a.countPerGap[i] -= cnt
+		cnt := b.countPerScore[i]
+		a.countPerScore[i] -= cnt
 	}
 	a.countTotal -= b.blockCnt
 
@@ -522,7 +523,7 @@ func (a *rarityAnalyzer) deleteOld(blockID int) error {
 		a.db.tables["logBlocks"].dropPartition(blockIDstr)
 		a.db.tables["items"].dropPartition(blockIDstr)
 		a.db.tables["logRecords"].dropPartition(blockIDstr)
-		a.db.tables["countPerGap"].dropPartition(blockIDstr)
+		a.db.tables["countPerScore"].dropPartition(blockIDstr)
 		a.db.tables["nTopRareLogs"].dropPartition(blockIDstr)
 	}
 
@@ -565,7 +566,7 @@ func (a *rarityAnalyzer) saveBlock(blockID int) error {
 	blockIDstr := a.blockID2Str(blockID)
 	if blockID < 0 {
 		a.db.tables["logBlocks"].dropPartition(blockIDstr)
-		a.db.tables["countPerGap"].dropPartition(blockIDstr)
+		a.db.tables["countPerScore"].dropPartition(blockIDstr)
 	}
 
 	//blockID := b.blockID
@@ -592,9 +593,9 @@ func (a *rarityAnalyzer) saveBlock(blockID int) error {
 	}
 	row2 := make([]string, cCountbyScoreLen)
 	for i := 0; i < cCountbyScoreLen; i++ {
-		row2[i] = fmt.Sprint(b.countPerGap[i])
+		row2[i] = fmt.Sprint(b.countPerScore[i])
 	}
-	if err := a.db.tables["countPerGap"].insertRows(
+	if err := a.db.tables["countPerScore"].insertRows(
 		[][]string{row2}, blockIDstr, 0); err != nil {
 		return err
 	}
@@ -661,7 +662,7 @@ func (a *rarityAnalyzer) initCurrBlock(blockID int) {
 func (a *rarityAnalyzer) nextBlock() {
 	if a.currBlock != nil {
 		if curLogLevel == cLogLevelDebug {
-			a.printCountPerGap(a.currBlock.countPerGap,
+			a.printCountPerScore(a.currBlock.countPerScore,
 				fmt.Sprintf("Finished blockID=%d\ncounts per gap",
 					a.currBlockID))
 		}
@@ -711,14 +712,14 @@ func (a *rarityAnalyzer) postBlock(blockID int) error {
 	return nil
 }
 
-func (a *rarityAnalyzer) printCountPerGap(g []int, msg string) {
+func (a *rarityAnalyzer) printCountPerScore(g []int, msg string) {
 	//fmt.Printf("\n")
 	fmt.Printf("%s\n", msg)
 	fmt.Printf(" gap | count\n")
 	fmt.Printf(" ----+--------------\n")
 	for i := 0; i < cCountbyScoreLen; i++ {
 		if g[i] > 0 {
-			fmt.Printf(" %02.1f | %d\n", float64(i)/10, g[i])
+			fmt.Printf(" %02.1f | %d\n", float64(i), g[i])
 		}
 	}
 }
@@ -904,18 +905,18 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 
 		var scoreGap float64
 		if ss > 0 {
-			scoreGap = (score - sa) / (ss) * 0.1
+			scoreGap = (score - sa) / (ss)
 		}
 
-		gapStage := int(math.Floor(scoreGap * 10))
-		if gapStage < 0 {
-			gapStage = 0
+		scoreStage := int(math.Floor(score))
+		if scoreStage < 0 {
+			scoreStage = 0
 		}
-		if gapStage >= cCountbyScoreLen {
-			gapStage = cCountbyScoreLen - 1
+		if scoreStage >= cCountbyScoreLen {
+			scoreStage = cCountbyScoreLen - 1
 		}
-		a.countPerGap[gapStage]++
-		a.currBlock.countPerGap[gapStage]++
+		a.countPerScore[scoreStage]++
+		a.currBlock.countPerScore[scoreStage]++
 		a.countTotal++
 
 		linesProcessed++
@@ -924,14 +925,14 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 			return linesProcessed, err
 		}
 		a.nTopRareLogs, a.minTopRareScore = registerNTopRareRec(a.nTopRareLogs,
-			a.minTopRareScore, a.rowID, scoreGap, te)
+			a.minTopRareScore, a.rowID, score, te)
 
 		if a.linesInBlock > 0 && (a.currBlock.blockCnt >= a.linesInBlock || (a.fp.isEOF && !a.fp.isLastFile())) {
 			a.currBlock.completed = true
 			if err := a.postBlock(a.currBlockID); err != nil {
 				return linesProcessed, err
 			}
-		
+
 		}
 
 		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {

@@ -109,7 +109,7 @@ func RunRarProc(logPathRegex,
 			return err
 		}
 
-		//a.printCountPerGap(a.countPerGap, "Count per score gap")
+		//a.printCountPerScore(a.countPerScore, "Count per score gap")
 	}
 	return nil
 }
@@ -129,7 +129,7 @@ func RarStats(rootDir string) error {
 		return err
 	}
 
-	a.printCountPerGap(a.countPerGap,
+	a.printCountPerScore(a.countPerScore,
 		fmt.Sprintf("Total count=%d items=%d\ncounts per gap",
 			a.countTotal, len(a.trans.items.counts)))
 	return nil
