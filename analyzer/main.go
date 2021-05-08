@@ -105,7 +105,7 @@ func RunRarProc(logPathRegex,
 
 		if err := a.printNTops(fmt.Sprintf("%d top rare records", cNTopRareRecords),
 			cNTopRareRecords,
-			a.filterRe, a.xFilterRe, nil); err != nil {
+			a.filterRe, a.xFilterRe, nil, 0.0); err != nil {
 			return err
 		}
 
@@ -130,7 +130,7 @@ func RarStats(rootDir string) error {
 	}
 
 	a.printCountPerScore(a.countPerScore,
-		fmt.Sprintf("Total count=%d items=%d\ncounts per gap",
+		fmt.Sprintf("Total count=%d items=%d\ncounts per score",
 			a.countTotal, len(a.trans.items.counts)))
 	return nil
 }
@@ -140,6 +140,7 @@ func RarTopN(rootDir string,
 	recordsToShow int,
 	filterRe, xFilterRe string,
 	startEpoch, endEpoch int64,
+	topNMaxScore float64,
 ) error {
 	a, err := newRarityAnalyzer("",
 		rootDir,
@@ -165,7 +166,7 @@ func RarTopN(rootDir string,
 	}
 
 	a.printNTops(fmt.Sprintf("%d top rare records", recordsToShow),
-		recordsToShow, filterRe, xFilterRe, blockIDstrs)
+		recordsToShow, filterRe, xFilterRe, blockIDstrs, topNMaxScore)
 
 	return nil
 }

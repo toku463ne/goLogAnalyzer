@@ -63,6 +63,8 @@ var (
 	topnStartDate     = topNFlag.String("start", "", startDateDesc)
 	endDateDesc       = "End date to collect stats %Y-%m-%d format"
 	topnEndDate       = topNFlag.String("end", "", endDateDesc)
+	maxScoreDesc      = "Max score to show"
+	topnMaxScore      = topNFlag.Float64("maxScore", 0.0, maxScoreDesc)
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats|test|frq] OPTIONS  
@@ -138,8 +140,9 @@ func topN() error {
 			return err
 		}
 	}
+
 	err = analyzer.RarTopN(*topnRootDir, *topnRecordsToShow,
-		*topnFilterRe, *topnXFilterRe, startEpoch, endEpoch)
+		*topnFilterRe, *topnXFilterRe, startEpoch, endEpoch, *topnMaxScore)
 	return err
 }
 

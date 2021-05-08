@@ -663,7 +663,7 @@ func (a *rarityAnalyzer) nextBlock() {
 	if a.currBlock != nil {
 		if curLogLevel == cLogLevelDebug {
 			a.printCountPerScore(a.currBlock.countPerScore,
-				fmt.Sprintf("Finished blockID=%d\ncounts per gap",
+				fmt.Sprintf("Finished blockID=%d\ncounts per score",
 					a.currBlockID))
 		}
 	}
@@ -715,8 +715,8 @@ func (a *rarityAnalyzer) postBlock(blockID int) error {
 func (a *rarityAnalyzer) printCountPerScore(g []int, msg string) {
 	//fmt.Printf("\n")
 	fmt.Printf("%s\n", msg)
-	fmt.Printf(" gap | count\n")
-	fmt.Printf(" ----+--------------\n")
+	fmt.Printf(" score | count\n")
+	fmt.Printf(" ------+--------------\n")
 	for i := 0; i < cCountbyScoreLen; i++ {
 		if g[i] > 0 {
 			fmt.Printf(" %02.1f | %d\n", float64(i), g[i])
@@ -725,7 +725,8 @@ func (a *rarityAnalyzer) printCountPerScore(g []int, msg string) {
 }
 
 func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int,
-	filterRe, xFilterRe string, blockIDstrs []string) ([]*logRec, error) {
+	filterRe, xFilterRe string, blockIDstrs []string,
+	topNMaxScore float64) ([]*logRec, error) {
 
 	if recordsToShow == 0 {
 		recordsToShow = a.recordsToShow
@@ -774,6 +775,11 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int,
 		if err != nil {
 			return nil, err
 		}
+
+		if score > topNMaxScore {
+			continue
+		}
+
 		nTopRareLogs, minTopRareScore = registerNTopRareRec(nTopRareLogs,
 			minTopRareScore, rowID, score, te)
 	}
@@ -824,6 +830,7 @@ func (a *rarityAnalyzer) getBlockIDsFromEpoch(startEpoch, endEpoch int64) ([]str
 func (a *rarityAnalyzer) printNTops(msg string,
 	recordsToShow int,
 	filterRe, xFilterRe string, blockIDstrs []string,
+	topNMaxScore float64,
 ) error {
 	var err error
 	var nTopRareLogs []*logRec
@@ -831,7 +838,7 @@ func (a *rarityAnalyzer) printNTops(msg string,
 		if recordsToShow == 0 {
 			recordsToShow = cNTopRareRecords
 		}
-		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, filterRe, xFilterRe, blockIDstrs)
+		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, filterRe, xFilterRe, blockIDstrs, topNMaxScore)
 		if err != nil {
 			return err
 		}
