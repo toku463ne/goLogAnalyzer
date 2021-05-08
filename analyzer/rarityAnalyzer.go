@@ -719,7 +719,7 @@ func (a *rarityAnalyzer) printCountPerScore(g []int, msg string) {
 	fmt.Printf(" ------+--------------\n")
 	for i := 0; i < cCountbyScoreLen; i++ {
 		if g[i] > 0 {
-			fmt.Printf(" %02.1f | %d\n", float64(i), g[i])
+			fmt.Printf("   %02.1f | %d\n", float64(i), g[i])
 		}
 	}
 }
