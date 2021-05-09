@@ -981,6 +981,7 @@ func (a *rarityAnalyzer) updateLogScore() error {
 	a.initCurrBlock(0)
 
 	cols := a.db.tables["logRecords"].colMap
+	idxRowID := cols["rowID"]
 	idxText := cols["text"]
 
 	for i := 0; i < a.maxBlocks; i++ {
@@ -994,10 +995,11 @@ func (a *rarityAnalyzer) updateLogScore() error {
 		}
 		for _, v := range rows {
 			te := v[idxText]
+			rowID, _ := strconv.ParseInt(v[idxRowID], 10, 64)
 			tran := a.trans.toTermListLight(te, false)
 			score := a.trans.calcScore(tran)
 			a.registerScore(score)
-			if err := a.outputRes(a.rowID, score, 1000, te); err != nil {
+			if err := a.outputRes(rowID, score, 1000, te); err != nil {
 				return err
 			}
 		}
