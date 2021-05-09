@@ -29,7 +29,7 @@ func getRarityAnalDB(baseDir string, maxPartitions int) (*csvDB, error) {
 			maxPartitions},
 		"logRecords": {
 			"logRecords",
-			[]string{"rowID", "score", "scoreGap", "text"},
+			[]string{"rowID", "score", "text"},
 			maxPartitions},
 		"nTopRareLogs": {
 			"nTopRareLogs",

@@ -49,6 +49,9 @@ var (
 	frqMinSupport  = frqFlag.Int("m", 0, minSupportDesc)
 	frqDebug       = frqFlag.Bool("v", false, showDebugDesc)
 
+	stsUpdateDesc = "Update statistics in the saved data"
+	stsUpdate     = stsFlag.Bool("u", false, stsUpdateDesc)
+
 	clnRootDir = clnFlag.String("d", "", rootDirDesc)
 	clnDebug   = clnFlag.Bool("v", false, showDebugDesc)
 
@@ -113,7 +116,12 @@ func stats() error {
 	if !analyzer.PathExist(*stsRootDir) {
 		return fmt.Errorf("%s does not exist", *stsRootDir)
 	}
-	err := analyzer.RarStats(*stsRootDir)
+	var err error
+	if *stsUpdate {
+		err = analyzer.UpdateStats(*stsRootDir)
+	} else {
+		err = analyzer.RarStats(*stsRootDir)
+	}
 	return err
 }
 
@@ -291,6 +299,8 @@ func debug() {
 		err = clean(true)
 	case "rar":
 		err = rar(false, true)
+	case "stats":
+		err = stats()
 	case "test":
 		err = rar(true, true)
 	default:

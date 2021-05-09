@@ -82,6 +82,7 @@ Usage of stats:
   ```
   -d string
         Directory to save the analyzation data
+  -u    Update statistics in the saved data
   ```
   
 
@@ -91,6 +92,8 @@ Usage of topN:
         Directory to save the analyzation data
   -end string
         End date to collect stats %Y-%m-%d format
+  -maxScore float
+        Max score to show
   -n int
         Top N rare records to show
   -s string

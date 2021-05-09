@@ -152,7 +152,7 @@ func (t *trans) tokenizeLineNogeg(line string) {
 	t.toTermNoregist(bline)
 }
 
-func (t *trans) toTermListLight(line string) []int {
+func (t *trans) toTermListLight(line string, registerItem bool) []int {
 	line = t.replacer.Replace(line)
 	words := strings.Split(line, " ")
 	result := make([]int, len(words))
@@ -163,8 +163,10 @@ func (t *trans) toTermListLight(line string) []int {
 			if isInt(word) {
 				continue
 			}
-			if _, ok := enStopWords[word]; !ok {
+			if registerItem {
 				result[i] = t.items.register(word, 1, true)
+			} else {
+				result[i] = t.items.register(word, 0, false)
 			}
 		}
 	}
@@ -172,7 +174,7 @@ func (t *trans) toTermListLight(line string) []int {
 }
 
 func (t *trans) tokenizeLineLight(line, filterRe, xFilterRe string) []int {
-	tran := t.toTermListLight(line)
+	tran := t.toTermListLight(line, true)
 
 	if line == "" {
 		return nil

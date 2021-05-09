@@ -50,3 +50,24 @@ func Test_main3(t *testing.T) {
 
 	topN()
 }
+
+func Test_updSts(t *testing.T) {
+	rootDir := "c:\\Users\\kot\\loganal\\realtest4\\data"
+	linesInBlock := "1000"
+	maxBlocks := "100"
+	logPathRegex := "c:\\Users\\kot\\loganal\\realtest4\\test4.log*"
+	//rarityCountRate := "0.0001"
+	os.Args = []string{"test", "clean", "-d", rootDir}
+	debug()
+
+	os.Args = []string{"test", "rar", "-f", logPathRegex,
+		"-d", rootDir, "-linesInBlock", linesInBlock,
+		"-maxBlock", maxBlocks, "-save", "-n", "20000"}
+
+	debug()
+
+	os.Args = []string{"test", "stats",
+		"-d", rootDir, "-u"}
+
+	debug()
+}

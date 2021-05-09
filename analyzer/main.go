@@ -135,6 +135,26 @@ func RarStats(rootDir string) error {
 	return nil
 }
 
+func UpdateStats(rootDir string) error {
+	a, err := newRarityAnalyzer("",
+		rootDir,
+		"", "",
+		0,
+		-1, -1, 0)
+	if err != nil {
+		return err
+	}
+
+	if err := a.updateLogScore(); err != nil {
+		return err
+	}
+
+	a.printCountPerScore(a.countPerScore,
+		fmt.Sprintf("Total count=%d items=%d\ncounts per score",
+			a.countTotal, len(a.trans.items.counts)))
+	return nil
+}
+
 // RarTopN ... shows top N rare records
 func RarTopN(rootDir string,
 	recordsToShow int,
