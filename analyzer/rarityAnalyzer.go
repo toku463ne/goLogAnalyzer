@@ -984,14 +984,14 @@ func (a *rarityAnalyzer) updateLogScore() error {
 	idxRowID := cols["rowID"]
 	idxText := cols["text"]
 
-	for i := 0; i < a.maxBlocks; i++ {
-		if a.blocks[i] == nil {
-			break
-		}
-
-		rows, err := a.db.tables["logRecords"].query(nil, fmt.Sprint(i))
+	procBlock := func(i int) error {
+		blockIDstr := a.blockID2Str(i)
+		rows, err := a.db.tables["logRecords"].query(nil, blockIDstr)
 		if err != nil {
 			return err
+		}
+		if len(rows) == 0 {
+			return nil
 		}
 		for _, v := range rows {
 			te := v[idxText]
@@ -1004,13 +1004,26 @@ func (a *rarityAnalyzer) updateLogScore() error {
 			}
 		}
 
-		blockIDstr := a.blockID2Str(i)
 		a.db.tables["logRecords"].dropPartition(blockIDstr)
 		a.saveLogRecords(i)
 		a.db.tables["countPerScore"].dropPartition(blockIDstr)
 		a.saveCountPerScore(i)
 		a.nextBlock()
+		return nil
 	}
+
+	for i := 0; i < a.maxBlocks; i++ {
+		if a.blocks[i] == nil {
+			break
+		}
+		if err := procBlock(i); err != nil {
+			return err
+		}
+	}
+	if err := procBlock(cLastTmpBlockID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
