@@ -361,7 +361,6 @@ func getDelimReplacer() *strings.Replacer {
 		")", " ",
 		"|", " ",
 		":", " ",
-		//"%", "-",
 		"&", " ",
 		"?", " ",
 		//"+", "-",
