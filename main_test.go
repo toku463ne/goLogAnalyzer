@@ -52,10 +52,10 @@ func Test_main3(t *testing.T) {
 }
 
 func Test_updSts(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\realtest6\\data"
+	rootDir := "c:\\Users\\kot\\loganal\\realtest7\\data"
 	linesInBlock := "1000"
 	maxBlocks := "100"
-	logPathRegex := "c:\\Users\\kot\\loganal\\realtest6\\pfsense67051.log*"
+	logPathRegex := "c:\\Users\\kot\\loganal\\realtest7\\RYORT001.log*"
 	//rarityCountRate := "0.0001"
 	os.Args = []string{"test", "clean", "-d", rootDir}
 	debug()

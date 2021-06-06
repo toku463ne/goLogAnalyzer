@@ -530,7 +530,6 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 
 	logPathRegex := fmt.Sprintf("%s/sample5.log", testDir)
 	gapThreshold := 0.5
-	verbose = true
 
 	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
@@ -557,13 +556,13 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 		return
 	}
 
-	nTop, err := a.scanAndGetNTops(2, "", "", nil)
+	nTop, _ := a.scanAndGetNTops(2, "", "", nil, 5)
 	if len(nTop) != 2 {
 		t.Errorf("nTop is wrong")
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(5, "", "", nil)
+	nTop, err = a.scanAndGetNTops(5, "", "", nil, 5)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -573,7 +572,7 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(0, "", "", nil)
+	nTop, err = a.scanAndGetNTops(0, "", "", nil, 5)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -583,23 +582,62 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(5, "a006", "", nil)
+	/*
+		nTop, err = a.scanAndGetNTops(5, "a006", "", nil, 10)
+		if err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+		if nTop[0] == nil || nTop[1] == nil || nTop[2] != nil {
+			t.Errorf("nTop is wrong")
+			return
+		}
+
+		nTop, err = a.scanAndGetNTops(5, "", "a006", nil, 10)
+		if err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+		if nTop[0] == nil || nTop[4] == nil {
+			t.Errorf("nTop is wrong")
+			return
+		}
+	*/
+}
+
+func TestRarityAnalyzer_run5_nginx(t *testing.T) {
+
+	testName := "TestRarityAnalyzer_run5_nginx"
+	testDir, err := ensureTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
-		return
-	}
-	if nTop[0] == nil || nTop[1] == nil || nTop[2] != nil {
-		t.Errorf("nTop is wrong")
 		return
 	}
 
-	nTop, err = a.scanAndGetNTops(5, "", "a006", nil)
+	logPathRegex := fmt.Sprintf("%s/nginx.log", testDir)
+	gapThreshold := 0.5
+
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if nTop[0] == nil || nTop[4] == nil {
-		t.Errorf("nTop is wrong")
+	defer a.close()
+	if _, err := copyFile("inputs/nginx.log",
+		fmt.Sprintf("%s/nginx.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.clean(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	_, err = a.run(0)
+	if err != nil {
+		println(err)
+		t.Errorf("%v", err)
 		return
 	}
 }

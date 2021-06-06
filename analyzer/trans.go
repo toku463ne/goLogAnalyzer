@@ -158,6 +158,9 @@ func (t *trans) toTermListLight(line string, registerItem bool) []int {
 	result := make([]int, len(words))
 	for i, w := range words {
 		word := strings.ToLower(w)
+		if len(word) > cWordMaxLen {
+			word = word[:cWordMaxLen]
+		}
 		result[i] = 0
 		if len(word) > 2 {
 			if isInt(word) {
