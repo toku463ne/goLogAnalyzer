@@ -7,6 +7,7 @@ const (
 	cIPReStr             = `[0-9]+\.[0-9]+\.[0-9]+.[0-9]+`
 	cWordReStr           = `[0-9\pL\p{Mc}\p{Mn}.%]{2,}`
 	cWordMaxLen          = 40 // IPv6
+	cNumMaxDigits        = 3  // HTTP codes
 	cLogLevelError       = 1
 	cLogLevelInfo        = 2
 	cLogLevelDebug       = 3

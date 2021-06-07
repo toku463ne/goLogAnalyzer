@@ -163,7 +163,7 @@ func (t *trans) toTermListLight(line string, registerItem bool) []int {
 		}
 		result[i] = 0
 		if len(word) > 2 {
-			if isInt(word) {
+			if isInt(word) && len(word) > cNumMaxDigits {
 				continue
 			}
 			if registerItem {
