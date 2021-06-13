@@ -8,7 +8,7 @@ import (
 
 func getTestRarityAnalyzer(
 	testDir, logPathRegex string,
-	gapThreshold float64) (*rarityAnalyzer, error) {
+	minGapToRecord float64) (*rarityAnalyzer, error) {
 	rootDir := fmt.Sprintf("%s/data", testDir)
 	linesInBlock := 5
 	maxBlocks := 3
@@ -16,7 +16,7 @@ func getTestRarityAnalyzer(
 	a, err := newRarityAnalyzer(logPathRegex,
 		rootDir,
 		"", "",
-		gapThreshold,
+		minGapToRecord,
 		linesInBlock, maxBlocks, 3)
 
 	return a, err
@@ -31,9 +31,9 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample3.log*", testDir)
-	gapThreshold := 0.5
+	minGapToRecord := 0.5
 
-	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, minGapToRecord)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -150,7 +150,7 @@ func TestRarityAnalyzer_run1(t *testing.T) {
 		return
 	}
 
-	a, err = getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err = getTestRarityAnalyzer(testDir, logPathRegex, minGapToRecord)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -306,10 +306,10 @@ func TestRarityAnalyzer_run2_blocks(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample4.log*", testDir)
-	gapThreshold := 0.0
+	minGapToRecord := 0.0
 	verbose = true
 
-	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, minGapToRecord)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -420,7 +420,7 @@ func TestRarityAnalyzer_run2_blocks(t *testing.T) {
 	befScoreSum := a.scoreSum
 	befScoreSqrSum := a.scoreSqrSum
 
-	a, err = getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err = getTestRarityAnalyzer(testDir, logPathRegex, minGapToRecord)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -473,9 +473,9 @@ func TestRarityAnalyzer_run3_dontsave(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample.txt", testDir)
-	gapThreshold := 0.5
+	minGapToRecord := 0.5
 
-	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, minGapToRecord)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -529,9 +529,9 @@ func TestRarityAnalyzer_scanAndGetNTops(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/sample5.log", testDir)
-	gapThreshold := 0.5
+	minGapToRecord := 0.5
 
-	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, minGapToRecord)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -615,9 +615,9 @@ func TestRarityAnalyzer_run5_nginx(t *testing.T) {
 	}
 
 	logPathRegex := fmt.Sprintf("%s/nginx.log", testDir)
-	gapThreshold := 0.5
+	minGapToRecord := 0.5
 
-	a, err := getTestRarityAnalyzer(testDir, logPathRegex, gapThreshold)
+	a, err := getTestRarityAnalyzer(testDir, logPathRegex, minGapToRecord)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -640,4 +640,22 @@ func TestRarityAnalyzer_run5_nginx(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+}
+
+// RunReadTokenizeNoregTest .. To measure read speed
+func RunReadTokenizeNoregTest(logPathRegex string, maxLines int) error {
+	a, err := newRarityAnalyzer(logPathRegex,
+		"",
+		"", "",
+		0,
+		0, 0, 0)
+	if err != nil {
+		return err
+	}
+	var rowN int
+	if rowN, err = a.tokenizeLineNogeg(maxLines); err != nil {
+		return err
+	}
+	logInfo(fmt.Sprintf("Processed %d records", rowN))
+	return nil
 }

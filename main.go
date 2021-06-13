@@ -204,41 +204,6 @@ func rar(verbose, isDebug bool) error {
 	return nil
 }
 
-func readtest() error {
-	rtestFlag := flag.NewFlagSet("rtest", flag.ExitOnError)
-	pathRegex := rtestFlag.String("f", "", pathRegexDesc)
-	maxLines := rtestFlag.Int("n", 0, maxLinesDesc)
-
-	rtestFlag.Parse(os.Args[2:])
-	if err := analyzer.RunReadTest(*pathRegex, *maxLines); err != nil {
-		return err
-	}
-	return nil
-}
-
-func readtokentest() error {
-	rtestFlag := flag.NewFlagSet("rtest", flag.ExitOnError)
-	pathRegex := rtestFlag.String("f", "", pathRegexDesc)
-	maxLines := rtestFlag.Int("n", 0, maxLinesDesc)
-
-	rtestFlag.Parse(os.Args[2:])
-	if err := analyzer.RunReadTokenizeTest(*pathRegex, *maxLines); err != nil {
-		return err
-	}
-	return nil
-}
-func readtokennoregtest() error {
-	rtestFlag := flag.NewFlagSet("rtest", flag.ExitOnError)
-	pathRegex := rtestFlag.String("f", "", pathRegexDesc)
-	maxLines := rtestFlag.Int("n", 0, maxLinesDesc)
-
-	rtestFlag.Parse(os.Args[2:])
-	if err := analyzer.RunReadTokenizeNoregTest(*pathRegex, *maxLines); err != nil {
-		return err
-	}
-	return nil
-}
-
 func frq() error {
 	frqFlag.Parse(os.Args[2:])
 
@@ -270,12 +235,6 @@ func main() {
 		err = topN()
 	case "test":
 		err = rar(true, false)
-	case "readtest":
-		err = readtest()
-	case "readtokentest":
-		err = readtokentest()
-	case "readtokennoregtest":
-		err = readtokennoregtest()
 	case "frq":
 		err = frq()
 	default:
@@ -286,27 +245,14 @@ func main() {
 	}
 }
 
-func debug() {
-	if len(os.Args) < 2 {
-		flag.Usage()
-		return
-	}
-	var err error
-	err = nil
-	opt := os.Args[1]
-	switch opt {
-	case "clean":
-		err = clean(true)
-	case "rar":
-		err = rar(false, true)
-	case "stats":
-		err = stats()
-	case "test":
-		err = rar(true, true)
-	default:
-		flag.Usage()
-	}
+func ensureTestDir(testname string) (string, error) {
+	userDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("%+v\n", err)
+		return "", err
 	}
+	rootDir := fmt.Sprintf("%s/loganal/%s", userDir, testname)
+	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
+		os.Mkdir(rootDir, 0755)
+	}
+	return rootDir, nil
 }

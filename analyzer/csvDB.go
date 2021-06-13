@@ -16,7 +16,8 @@ func newCsvDB(baseDir string, tableDefs map[string]csvTableDef) (*csvDB, error) 
 		cdb.tables[name] = newCsvTable(name,
 			tableDef.columns,
 			baseDir,
-			tableDef.maxPartitions)
+			tableDef.maxPartitions,
+			tableDef.useGzip)
 	}
 	cdb.baseDir = baseDir
 	if _, err := os.Stat(baseDir); os.IsNotExist(err) {

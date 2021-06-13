@@ -13,6 +13,7 @@ type csvTableDef struct {
 	name          string
 	columns       []string
 	maxPartitions int
+	useGzip       bool
 }
 
 type csvTable struct {
@@ -21,6 +22,7 @@ type csvTable struct {
 	baseDir       string
 	maxPartitions int
 	partitionIDs  map[string]bool
+	useGzip       bool
 }
 
 type csvCursor struct {
@@ -31,7 +33,7 @@ type csvCursor struct {
 }
 
 func newCsvTable(name string, columns []string,
-	baseDir string, maxPartitions int) *csvTable {
+	baseDir string, maxPartitions int, useGzip bool) *csvTable {
 
 	t := new(csvTable)
 	t.name = name
@@ -41,7 +43,7 @@ func newCsvTable(name string, columns []string,
 	}
 	t.colMap = colMap
 	t.maxPartitions = maxPartitions
-
+	t.useGzip = useGzip
 	t.baseDir = baseDir
 	return t
 }
@@ -56,6 +58,10 @@ func (t *csvTable) getPath(partitionID string) string {
 	} else {
 		filename = fmt.Sprintf("%s.csv", t.name)
 	}
+	if t.useGzip {
+		filename = fmt.Sprintf("%s.gz", filename)
+	}
+
 	path = fmt.Sprintf("%s/%s", t.baseDir, filename)
 	return path
 }
@@ -246,6 +252,30 @@ func (t *csvTable) count(conds map[string]string, partitionID string) (int, erro
 	return len(rows), nil
 }
 
+func (t *csvTable) sum(colname string,
+	conds map[string]string, partitionID string) (float64, error) {
+	rows, err := t.query(conds, partitionID)
+	if err != nil {
+		return -1.0, err
+	}
+	if rows == nil {
+		return 0.0, nil
+	}
+
+	colIdx := t.colMap[colname]
+
+	s := 0.0
+	for _, row := range rows {
+		vstr := row[colIdx]
+		v, err := strconv.ParseFloat(vstr, 64)
+		if err != nil {
+			continue
+		}
+		s += v
+	}
+	return s, nil
+}
+
 func (t *csvTable) select1rec(conds map[string]string, partitionID string) ([]string, error) {
 	rows, err := t.query(conds, partitionID)
 	if err != nil {
@@ -304,6 +334,9 @@ func (t *csvTable) update(
 	var err error
 	for _, filename := range cur.filenames {
 		newFilename := filename + ".tmp"
+		if t.useGzip {
+			newFilename += ".gz"
+		}
 		isUpdated, err = t.updatePartition(filename, newFilename,
 			conds, updates)
 		if err != nil {

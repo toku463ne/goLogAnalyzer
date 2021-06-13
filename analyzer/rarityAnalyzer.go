@@ -45,6 +45,7 @@ type rarityAnalyzer struct {
 	recordsToShow     int
 	nTopRareLogs      []*logRec
 	minTopRareScore   float64
+	minGapToRecord    float64
 
 	fp *filePointer
 
@@ -54,20 +55,20 @@ type rarityAnalyzer struct {
 func newRarityAnalyzer(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
-	gapThreshold float64,
+	minGapToRecord float64,
 	linesInBlock, maxBlocks, recordsToShow int) (*rarityAnalyzer, error) {
 
 	a := new(rarityAnalyzer)
 	if err := a.init(logPathRegex,
 		rootDir,
 		filterRe, xFilterRe,
-		gapThreshold,
+		minGapToRecord,
 		linesInBlock, maxBlocks, recordsToShow); err != nil {
 		return nil, err
 	}
 
 	a.outputRes = func(rowID int64, score, scoreGap float64, text string) error {
-		if verbose || scoreGap >= cMinGapToRecord {
+		if verbose || scoreGap >= a.minGapToRecord {
 
 			if a.useDB {
 				a.logRecordsBuffPos++
@@ -84,10 +85,26 @@ func newRarityAnalyzer(logPathRegex,
 	return a, nil
 }
 
+func loadAnalyzer(rootDir string) (*rarityAnalyzer, error) {
+	a, err := newRarityAnalyzer("",
+		rootDir,
+		"", "",
+		0,
+		-1, -1, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := a.loadDB(); err != nil {
+		return nil, err
+	}
+	return a, err
+}
+
 func (a *rarityAnalyzer) init(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
-	gapThreshold float64,
+	minGapToRecord float64,
 	linesInBlock, maxBlocks, recordsToShow int) error {
 
 	a.useDB = false
@@ -101,6 +118,7 @@ func (a *rarityAnalyzer) init(logPathRegex,
 	a.linesInBlock = cDefaultBlockSize
 	a.maxBlocks = cDefaultMaxBlocks
 	a.recordsToShow = cNTopRareRecords
+	a.minGapToRecord = cMinGapToRecord
 
 	if a.useDB {
 		if err := a.loadIni(); err != nil {
@@ -126,6 +144,10 @@ func (a *rarityAnalyzer) init(logPathRegex,
 	}
 	if recordsToShow > 0 {
 		a.recordsToShow = recordsToShow
+	}
+
+	if minGapToRecord > 0 {
+		a.minGapToRecord = minGapToRecord
 	}
 
 	maxBlockNum := int(math.Pow10(cMaxBlockDitigs))
@@ -565,7 +587,7 @@ func (a *rarityAnalyzer) saveBlock(blockID int) error {
 	blockIDstr := a.blockID2Str(blockID)
 	if blockID < 0 {
 		a.db.tables["logBlocks"].dropPartition(blockIDstr)
-		a.db.tables["countPerScore"].dropPartition(blockIDstr)
+		//a.db.tables["countPerScore"].dropPartition(blockIDstr)
 	}
 
 	//blockID := b.blockID
@@ -876,7 +898,7 @@ func (a *rarityAnalyzer) printNTops(msg string,
 	return nil
 }
 
-func (a *rarityAnalyzer) registerScore(score float64) {
+func getScoreStage(score float64) int {
 	scoreStage := int(math.Floor(score))
 	if scoreStage < 0 {
 		scoreStage = 0
@@ -884,6 +906,12 @@ func (a *rarityAnalyzer) registerScore(score float64) {
 	if scoreStage >= cCountbyScoreLen {
 		scoreStage = cCountbyScoreLen - 1
 	}
+	return scoreStage
+}
+
+func (a *rarityAnalyzer) registerScore(score float64) {
+	scoreStage := getScoreStage(score)
+
 	a.countPerScore[scoreStage]++
 	a.currBlock.countPerScore[scoreStage]++
 }
@@ -971,21 +999,18 @@ func (a *rarityAnalyzer) run(targetLinesCnt int) (int, error) {
 }
 
 func (a *rarityAnalyzer) updateLogScore() error {
-	if err := a.loadDBItems(); err != nil {
-		return err
-	}
-	if err := a.loadDBBlocks(); err != nil {
-		return err
-	}
-
-	a.initCurrBlock(0)
+	//a.initCurrBlock(0)
+	a.logRecordsBuff = make([][]string, a.linesInBlock)
+	a.logRecordsBuffPos = -1
+	//a.nextBlock()
 
 	cols := a.db.tables["logRecords"].colMap
 	idxRowID := cols["rowID"]
 	idxText := cols["text"]
+	idxScore := cols["score"]
 
-	procBlock := func(i int) error {
-		blockIDstr := a.blockID2Str(i)
+	procBlock := func(blockID int) error {
+		blockIDstr := a.blockID2Str(blockID)
 		rows, err := a.db.tables["logRecords"].query(nil, blockIDstr)
 		if err != nil {
 			return err
@@ -997,17 +1022,25 @@ func (a *rarityAnalyzer) updateLogScore() error {
 			te := v[idxText]
 			rowID, _ := strconv.ParseInt(v[idxRowID], 10, 64)
 			tran := a.trans.toTermListLight(te, false)
+			oldscore, _ := strconv.ParseFloat(v[idxScore], 64)
+			scoreStorage := getScoreStage(oldscore)
+			a.countPerScore[scoreStorage]--
+			a.blocks[blockID].countPerScore[scoreStorage]--
 			score := a.trans.calcScore(tran)
-			a.registerScore(score)
+			scoreStorage = getScoreStage(score)
+			a.countPerScore[scoreStorage]++
+			a.blocks[blockID].countPerScore[scoreStorage]++
+
 			if err := a.outputRes(rowID, score, 1000, te); err != nil {
 				return err
 			}
 		}
 
+		a.currBlock = a.blocks[blockID]
 		a.db.tables["logRecords"].dropPartition(blockIDstr)
-		a.saveLogRecords(i)
+		a.saveLogRecords(blockID)
 		a.db.tables["countPerScore"].dropPartition(blockIDstr)
-		a.saveCountPerScore(i)
+		a.saveCountPerScore(blockID)
 		a.nextBlock()
 		return nil
 	}
@@ -1020,10 +1053,6 @@ func (a *rarityAnalyzer) updateLogScore() error {
 			return err
 		}
 	}
-	if err := procBlock(cLastTmpBlockID); err != nil {
-		return err
-	}
-
 	return nil
 }
 

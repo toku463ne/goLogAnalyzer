@@ -41,7 +41,7 @@ func CleanupDBProc(rootDir string, debug bool) error {
 func RunRar(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
-	rarityThreshold float64,
+	minGapToRecord float64,
 	maxLines, linesInBlock, maxBlocks int,
 	debug, verbose1, saveDb, silent bool) error {
 
@@ -54,7 +54,7 @@ func RunRar(logPathRegex,
 	err = RunRarProc(logPathRegex,
 		rootDir,
 		filterRe, xFilterRe,
-		rarityThreshold,
+		minGapToRecord,
 		maxLines, linesInBlock, maxBlocks,
 		debug, verbose1, saveDb, silent)
 	return err
@@ -64,7 +64,7 @@ func RunRar(logPathRegex,
 func RunRarProc(logPathRegex,
 	rootDir string,
 	filterRe, xFilterRe string,
-	rarityThreshold float64,
+	minGapToRecord float64,
 	maxLines, linesInBlock, maxBlocks int,
 	debug, verbose1, saveDb, silent bool) error {
 
@@ -77,7 +77,7 @@ func RunRarProc(logPathRegex,
 	a, err := newRarityAnalyzer(logPathRegex,
 		rootDir,
 		filterRe, xFilterRe,
-		rarityThreshold,
+		minGapToRecord,
 		linesInBlock, maxBlocks, 0)
 	if err != nil {
 		return err
@@ -116,19 +116,10 @@ func RunRarProc(logPathRegex,
 
 // RarStats ... shows count per gap
 func RarStats(rootDir string) error {
-	a, err := newRarityAnalyzer("",
-		rootDir,
-		"", "",
-		0,
-		-1, -1, 0)
+	a, err := loadAnalyzer(rootDir)
 	if err != nil {
 		return err
 	}
-
-	if err := a.loadDB(); err != nil {
-		return err
-	}
-
 	a.printCountPerScore(a.countPerScore,
 		fmt.Sprintf("Total count=%d items=%d\ncounts per score",
 			a.countTotal, len(a.trans.items.counts)))
@@ -136,11 +127,7 @@ func RarStats(rootDir string) error {
 }
 
 func UpdateStats(rootDir string) error {
-	a, err := newRarityAnalyzer("",
-		rootDir,
-		"", "",
-		0,
-		-1, -1, 0)
+	a, err := loadAnalyzer(rootDir)
 	if err != nil {
 		return err
 	}
@@ -247,23 +234,5 @@ func RunReadTokenizeTest(logPathRegex string, maxLines int) error {
 		return err
 	}
 	logInfo(fmt.Sprintf("Processed %d records. items=%d", rowN, len(a.trans.items.counts)))
-	return nil
-}
-
-// RunReadTokenizeNoregTest .. To measure read speed
-func RunReadTokenizeNoregTest(logPathRegex string, maxLines int) error {
-	a, err := newRarityAnalyzer(logPathRegex,
-		"",
-		"", "",
-		0,
-		0, 0, 0)
-	if err != nil {
-		return err
-	}
-	var rowN int
-	if rowN, err = a.tokenizeLineNogeg(maxLines); err != nil {
-		return err
-	}
-	logInfo(fmt.Sprintf("Processed %d records", rowN))
 	return nil
 }

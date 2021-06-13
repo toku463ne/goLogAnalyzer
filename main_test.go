@@ -5,69 +5,39 @@ import (
 	"testing"
 )
 
-func Test_main(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\realtest\\test"
-	linesInBlock := "1000"
-	maxBlocks := "100"
-	logPathRegex := "c:\\Users\\kot\\loganal\\realtest\\test.log*"
-	//rarityCountRate := "0.0001"
-	os.Args = []string{"test", "clean", "-d", rootDir}
-	debug()
+func Test_rar(t *testing.T) {
+	rootDir, err := ensureTestDir("main")
+	if err != nil {
+		t.Errorf("%+v", err)
+	}
+	linesInblock := "5"
+	maxBlocks := "3"
+	logPathRegex := "analyzer/inputs/maintest.log"
 
-	os.Args = []string{"test", "rar", "-f", logPathRegex,
-		"-d", rootDir, "-linesInBlock", linesInBlock,
+	os.Args = []string{"logan", "clean", "-d", rootDir}
+	main()
+
+	os.Args = []string{"logan", "rar", "-f", logPathRegex,
+		"-d", rootDir, "-linesInBlock", linesInblock,
 		"-maxBlock", maxBlocks, "-save"}
+	main()
 
-	debug()
+	os.Args = []string{"logan", "stats", "-d", rootDir}
+	main()
 
-	//os.Args = []string{"test", "rar", "-f", logPathRegex,
-	//	"-d", rootDir, "-linesInBlock", linesInBlock,
-	//	"-maxBlock", maxBlocks, "-n", "1000", "-a", "-g", "0.4"}
+	os.Args = []string{"logan", "stats", "-d", rootDir, "-u"}
+	main()
 
-	//debug()
+	os.Args = []string{"logan", "rar", "-f", logPathRegex,
+		"-d", rootDir, "-linesInBlock", linesInblock,
+		"-maxBlock", maxBlocks, "-save"}
+	main()
+
 }
 
-func Test_main2(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\realtest5\\data"
-	linesInBlock := "10000"
-	maxBlocks := "1000"
-	logPathRegex := "c:\\Users\\kot\\loganal\\realtest5\\test.log*"
-	//rarityCountRate := "0.0001"
-	os.Args = []string{"test", "clean", "-d", rootDir}
-	debug()
+func Test_frq(t *testing.T) {
+	logPathRegex := "analyzer/inputs/maintest.log"
 
-	os.Args = []string{"test", "rar", "-f", logPathRegex,
-		"-d", rootDir, "-linesInBlock", linesInBlock,
-		"-maxBlock", maxBlocks, "-save", "-n", "20000"}
-
-	debug()
-}
-
-func Test_main3(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\realtest4\\data"
-	os.Args = []string{"test", "topN",
-		"-d", rootDir, "-start", "2020-12-06"}
-
-	topN()
-}
-
-func Test_updSts(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\realtest7\\data"
-	linesInBlock := "1000"
-	maxBlocks := "100"
-	logPathRegex := "c:\\Users\\kot\\loganal\\realtest7\\RYORT001.log*"
-	//rarityCountRate := "0.0001"
-	os.Args = []string{"test", "clean", "-d", rootDir}
-	debug()
-
-	os.Args = []string{"test", "rar", "-f", logPathRegex,
-		"-d", rootDir, "-linesInBlock", linesInBlock,
-		"-maxBlock", maxBlocks, "-save", "-n", "20000"}
-
-	debug()
-
-	os.Args = []string{"test", "stats",
-		"-d", rootDir, "-u"}
-
-	debug()
+	os.Args = []string{"logan", "frq", "-f", logPathRegex}
+	main()
 }

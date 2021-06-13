@@ -12,7 +12,7 @@ const (
 	cLogLevelInfo        = 2
 	cLogLevelDebug       = 3
 	cDefaultBlockSize    = 10000
-	cDefaultMaxBlocks    = 1000
+	cDefaultMaxBlocks    = 100
 	cMaxRecsToProcessFrq = 10000
 	cEOF                 = -1
 	cCountbyScoreLen     = 100
