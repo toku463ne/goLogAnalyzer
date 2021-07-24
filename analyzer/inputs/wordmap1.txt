@@ -1,3 +1,0 @@
-apple 3
-melon 5
-lemon 2

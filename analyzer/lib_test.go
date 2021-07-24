@@ -1,7 +1,6 @@
 package analyzer
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -58,41 +57,4 @@ func Test_searchReg(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test_registerNTopRareRec(t *testing.T) {
-	ntr := make([]*logRec, 3)
-	m := 0.0
-	for i := 0; i < 3; i++ {
-		rowID := int64(i)
-		score := float64(i) * 2.0
-		text := fmt.Sprintf("%03d", i)
-		ntr, m = registerNTopRareRec(ntr, m, rowID, score, text)
-	}
-
-	if ntr[0].rowID != 2 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-	if ntr[2].rowID != 0 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-
-	for i := 3; i < 5; i++ {
-		rowID := int64(i)
-		score := float64(i) * 2.0
-		text := fmt.Sprintf("%03d", i)
-		ntr, m = registerNTopRareRec(ntr, m, rowID, score, text)
-	}
-
-	if ntr[0].rowID != 4 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-	if ntr[2].rowID != 2 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-
 }

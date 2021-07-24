@@ -1,41 +1,42 @@
 package analyzer
 
 import (
+	"fmt"
 	"math"
+
+	"github.com/pkg/errors"
 )
 
-type items struct {
-	maxItemID int
-	//items      *strindex
-	items      map[string]int
-	itemMap    map[int]string
-	counts     map[int]int
-	currCounts map[int]int
-	scores     map[int]float64
-	totalCount int
-}
-
-func newItems() *items {
+func newItems(dataDir string, maxBlocks, maxRowsInBlock int) (*items, error) {
+	d, err := newCircuitDB(dataDir, "items", maxBlocks, maxRowsInBlock)
+	if err != nil {
+		return nil, err
+	}
 	i := new(items)
-	i.itemMap = make(map[int]string, 10000)
+	i.circuitDB = d
+	i.termMap = make(map[int]string, 10000)
 	i.counts = make(map[int]int, 10000)
-	//i.items = newStrIndex(0)
-	i.items = make(map[string]int, 10000)
+	i.terms = make(map[string]int, 10000)
 	i.currCounts = make(map[int]int, 10000)
 	i.maxItemID = -1
-	return i
+	if dataDir != "" {
+		if err := i.loadDB(); err != nil {
+			return nil, err
+		}
+	}
+	return i, nil
 }
 
 func (i *items) register(item string, addCount int, isNew bool) int {
 	if item == "" {
 		return -1
 	}
-	itemID, ok := i.items[item]
-	if ok == false {
+	itemID, ok := i.terms[item]
+	if !ok {
 		i.maxItemID++
 		itemID = i.maxItemID
-		i.items[item] = itemID
-		i.itemMap[itemID] = item
+		i.terms[item] = itemID
+		i.termMap[itemID] = item
 	}
 
 	i.counts[itemID] += addCount
@@ -50,7 +51,7 @@ func (i *items) getWord(itemID int) string {
 	if itemID < 0 {
 		return "-"
 	}
-	return i.itemMap[itemID]
+	return i.termMap[itemID]
 }
 
 func (i *items) getScore(itemID int) float64 {
@@ -79,17 +80,17 @@ func (i *items) subCount(item string, cnt int) {
 	currCnt -= cnt
 	if currCnt == 0 {
 		delete(i.counts, itemID)
-		delete(i.items, item)
-		delete(i.itemMap, itemID)
+		delete(i.terms, item)
+		delete(i.termMap, itemID)
 	} else {
 		i.counts[itemID] = currCnt
 	}
 	i.totalCount -= cnt
 }
 
-func (i *items) getItemID(word string) int {
-	itemID, ok := i.items[word]
-	if ok == false {
+func (i *items) getItemID(term string) int {
+	itemID, ok := i.terms[term]
+	if !ok {
 		return -1
 	}
 	return itemID
@@ -101,4 +102,66 @@ func (i *items) getCurrCount(itemID int) int {
 
 func (i *items) clearCurrCount() {
 	i.currCounts = make(map[int]int, 10000)
+}
+
+func (i *items) next() error {
+	i.rowNo++
+	if i.maxRowsInBlock > 0 && i.rowNo >= i.maxRowsInBlock {
+		if i.dataDir != "" {
+			if err := i.commit(true); err != nil {
+				return err
+			}
+		}
+		i.clearCurrCount()
+		i.nextBlock()
+	}
+	return nil
+}
+
+func (i *items) commit(completed bool) error {
+	if err := i.dropBlock(i.blockNo); err != nil {
+		return err
+	}
+	if err := i.createBlock(i.blockNo); err != nil {
+		return err
+	}
+
+	sqlstr := fmt.Sprintf("INSERT INTO %s(item, itemCount) VALUES(?,?) \n",
+		i.getBlockTableName(i.blockNo))
+	stmt, err := i.conn.Prepare(sqlstr)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	for itemID, cnt := range i.currCounts {
+		term := i.getWord(itemID)
+		_, err := stmt.Exec(term, cnt)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	err = i.updateBlockStatus(completed)
+	return err
+}
+
+func (i *items) loadDB() error {
+	rows, err := i.query([]string{"item", "itemCount"}, "")
+	if err != nil {
+		return err
+	}
+	if rows == nil {
+		return nil
+	}
+
+	for rows.next() {
+		var item string
+		var itemCount int
+		err = rows.scan(&item, &itemCount)
+		if err != nil {
+			return err
+		}
+		i.register(item, itemCount, !rows.blockCompleted)
+	}
+	return nil
 }

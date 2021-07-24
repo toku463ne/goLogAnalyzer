@@ -13,13 +13,13 @@ func TestFilePointer_run1(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if _, err := copyFile("inputs/sample1.log.1.gz",
+	if _, err := copyFile("testdata/filepointer/sample1.log.1.gz",
 		fmt.Sprintf("%s/sample1.log.1.gz", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	time.Sleep(time.Second * 2)
-	if _, err := copyFile("inputs/sample1.log",
+	if _, err := copyFile("testdata/filepointer/sample1.log",
 		fmt.Sprintf("%s/sample1.log", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return

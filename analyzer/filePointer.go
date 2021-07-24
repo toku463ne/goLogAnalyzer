@@ -8,17 +8,17 @@ import (
 )
 
 type filePointer struct {
-	files   []string
-	epochs  []int64
-	r       *reader
-	lastRow int
-	pos     int
-	e       error
-	currErr error
+	files    []string
+	epochs   []int64
+	r        *reader
+	lastRow  int
+	pos      int
+	e        error
+	currErr  error
 	currText string
-	currRow int
-	currPos int
-	isEOF bool
+	currRow  int
+	currPos  int
+	isEOF    bool
 }
 
 func newFilePointer(pathRegex string,
@@ -106,19 +106,19 @@ func (fp *filePointer) next() bool {
 	}
 	if err != nil {
 		fp.currText = ""
-		fp.currRow = -1	
+		fp.currRow = -1
 		return false
 	}
 	fp.currText = fp.r.text()
 	fp.currRow = fp.r.rowNum
 	fp.currPos = fp.pos
-	
+
 	ok := fp.r.next()
 	if ok {
 		fp.isEOF = false
 		return true
 	}
-	
+
 	err = fp.r.err()
 	if err != nil && err != io.EOF {
 		fp.e = err
@@ -133,7 +133,7 @@ func (fp *filePointer) next() bool {
 		fp.r.close()
 		fp.r = nil
 	}
-	
+
 	fp.pos++
 	r, err := newReader(fp.files[fp.pos])
 	if err != nil {
@@ -148,57 +148,9 @@ func (fp *filePointer) next() bool {
 	return true
 }
 
-
 func (fp *filePointer) isLastFile() bool {
-	return fp.currPos+1 >= len(fp.files) 
+	return fp.currPos+1 >= len(fp.files)
 }
-
-/*
-func (fp *filePointer) OLDnext() bool {
-	if fp.r == nil {
-		fp.e = errors.New("open() first")
-		return false
-	}
-
-	ok := fp.r.next()
-	err := fp.r.err()
-	fp.e = err
-	if !ok {
-		if err != nil && err != io.EOF {
-			return false
-		}
-	}
-	if ok {
-		fp.e = nil
-		return true
-	}
-
-	if fp.pos+1 >= len(fp.files) {
-		fp.e = io.EOF
-		return false
-	}
-	if fp.r != nil {
-		fp.r.close()
-		fp.r = nil
-	}
-
-	fp.pos++
-	r, err := newReader(fp.files[fp.pos])
-	if err != nil {
-		fp.e = errors.WithStack(err)
-		return false
-	}
-	logDebug(fmt.Sprintf("Opened %s", fp.files[fp.pos]))
-	fp.r = r
-
-	return fp.r.next()
-}
-
-
-func (fp *filePointer) err() error {
-	return fp.e
-}
-*/
 
 func (fp *filePointer) text() string {
 	//return fp.r.text()

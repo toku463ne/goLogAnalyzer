@@ -13,8 +13,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/damnever/bitarray"
 	"github.com/pkg/errors"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func setLogLevelByStr(logLevelStr string) {
@@ -45,38 +46,6 @@ func logInfo(msg string) {
 
 func logError(msg string) {
 	logmsg(cLogLevelError, fmt.Sprintf("ERROR - %s", msg))
-}
-
-func bitAnd(b1 *bitarray.BitArray, b2 *bitarray.BitArray) *bitarray.BitArray {
-	a1 := b1.ToArray()
-	a2 := b2.ToArray()
-	var x, y []int
-	if len(a1) <= len(a2) {
-		x = a1
-		y = a2
-	} else {
-		x = a2
-		y = a1
-	}
-	c := bitarray.New(len(y))
-	for i := range x {
-		c.Put(i, x[i]*y[i])
-	}
-	return c
-}
-
-func bitOr(b1 *bitarray.BitArray, b2 *bitarray.BitArray) *bitarray.BitArray {
-	a1 := b1.ToArray()
-	a2 := b2.ToArray()
-	c := bitarray.New(len(a1))
-	for i := range a1 {
-		if a1[i] == 1 || a2[i] == 1 {
-			c.Put(i, 1)
-		} else {
-			c.Put(i, 0)
-		}
-	}
-	return c
 }
 
 func searchReg(s, reStr string) bool {
@@ -152,9 +121,6 @@ func argParseANum(args map[string]string, key string) (int, error) {
 	return vs, nil
 }
 
-func removeNewLine(str string) string {
-	return reNewline.Copy().ReplaceAllString(str, "")
-}
 func timeToString(t time.Time) string {
 	str := t.Format(cTimestampLayout)
 	return str
@@ -330,14 +296,6 @@ func countDigits(i int) (count int) {
 	return count
 }
 
-func intSliceToString(insl []int) []string {
-	ousl := make([]string, len(insl))
-	for i, v := range insl {
-		ousl[i] = fmt.Sprint(v)
-	}
-	return ousl
-}
-
 // PathExist ..
 func PathExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {
@@ -350,7 +308,7 @@ func ensureDir(dirPath string) error {
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		os.MkdirAll(dirPath, 0755)
 	} else if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	return nil
 }
@@ -371,47 +329,22 @@ func isInt(s string) bool {
 	return true
 }
 
-func registerNTopRareRec(
-	nTopRareLogs []*logRec,
-	minTopRareScore float64,
-	rowID int64,
-	score float64, text string) ([]*logRec, float64) {
-	if minTopRareScore > 0 && score <= minTopRareScore {
-		return nTopRareLogs, minTopRareScore
+func getRegex(reStr string) *regexp.Regexp {
+	if reStr == "" {
+		return nil
 	}
-	newTopN := make([]*logRec, len(nTopRareLogs))
-	logr2 := new(logRec)
-	logr2.rowID = rowID
-	logr2.score = score
-	logr2.text = text
-	for i, logr := range nTopRareLogs {
-		if logr == nil {
-			newTopN[i] = logr2
-			break
-		} else if score == logr.score && rowID == logr.rowID {
-			return nTopRareLogs, minTopRareScore
-		} else if score > logr.score {
-			newTopN[i] = logr2
-			oldScore2 := 0.0
-			for j := i + 1; j < len(nTopRareLogs); j++ {
-				if nTopRareLogs[j-1] == nil {
-					break
-				}
-				score2 := nTopRareLogs[j-1].score
-				if nTopRareLogs[j-1].text == "" {
-					minTopRareScore = oldScore2
-					break
-				}
-				if j >= cNTopRareRecords-1 {
-					minTopRareScore = score2
-				}
-				newTopN[j] = nTopRareLogs[j-1]
-				oldScore2 = score2
-			}
-			break
-		} else {
-			newTopN[i] = logr
-		}
+
+	return regexp.MustCompile(fmt.Sprintf(".*%s.*", reStr))
+}
+
+func re2str(re *regexp.Regexp) string {
+	if re == nil {
+		return ""
 	}
-	return newTopN, minTopRareScore
+	return re.String()
+}
+
+func getCurrentEpoch() int64 {
+	now := time.Now()
+	return now.Unix()
 }

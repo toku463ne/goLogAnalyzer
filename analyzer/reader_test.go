@@ -14,8 +14,8 @@ func TestReader_basic(t *testing.T) {
 		wantCount int
 		wantErr   bool
 	}{
-		{"textfile", fields{"inputs/sample.txt"}, 6, false},
-		{"gzipfile", fields{"inputs/sample.txt.gz"}, 6, false},
+		{"textfile", fields{"testdata/reader/sample.txt"}, 6, false},
+		{"gzipfile", fields{"testdata/reader/sample.txt.gz"}, 6, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
