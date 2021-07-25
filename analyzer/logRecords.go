@@ -20,6 +20,8 @@ func newLogRecords(dataDir string,
 }
 
 func (lr *logRecords) commit(completed bool) error {
+	logInfo("logRecords.commit() start")
+
 	if lr.rowNo == 0 {
 		return nil
 	}
@@ -53,6 +55,8 @@ func (lr *logRecords) commit(completed bool) error {
 	lr.startRowNo = 0
 
 	err = lr.updateBlockStatus(completed)
+	logInfo("logRecords.commit() %d rows completed")
+
 	return err
 }
 

@@ -18,6 +18,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+func initLog(rootDir string) {
+	logFile := fmt.Sprintf("%s/analyzer.log", rootDir)
+	w, _ := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	multiLogFile := io.MultiWriter(os.Stdout, w)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	log.SetOutput(multiLogFile)
+}
+
 func setLogLevelByStr(logLevelStr string) {
 	switch logLevelStr {
 	case "error":
@@ -32,7 +40,7 @@ func setLogLevelByStr(logLevelStr string) {
 func logmsg(logLevel int, msg string) {
 	if curLogLevel >= logLevel {
 		log.Printf("[%d] %s\n", os.Getpid(),
-			msg)
+			fmt.Sprintf(msg))
 	}
 }
 

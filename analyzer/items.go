@@ -119,6 +119,8 @@ func (i *items) next() error {
 }
 
 func (i *items) commit(completed bool) error {
+	logInfo("items.commit() start")
+
 	if i.rowNo == 0 {
 		return nil
 	}
@@ -148,6 +150,7 @@ func (i *items) commit(completed bool) error {
 	if err != nil {
 		return err
 	}
+	logInfo("items.commit() %d rows completed")
 	return err
 }
 

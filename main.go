@@ -176,6 +176,7 @@ func stats() error {
 }
 
 func main() {
+
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s\n", usageTxt)
 	}

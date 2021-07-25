@@ -30,6 +30,8 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	if err := ensureDir(a.rootDir); err != nil {
 		return err
 	}
+	initLog(a.rootDir)
+	logInfo("init() start")
 
 	a.minGapToRecord = minGapToRecord
 
@@ -56,11 +58,15 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 			return err
 		}
 	}
+	logInfo("init() completed")
 
 	return nil
 }
 
 func (a *rarityAnalyzer) load() error {
+	initLog(a.rootDir)
+	logInfo("load() start")
+
 	d, err := newDB(a.rootDir, "main")
 	if err != nil {
 		return err
@@ -90,6 +96,7 @@ FROM config;`
 		return err
 	}
 
+	logInfo("load() completed")
 	return nil
 }
 
@@ -180,9 +187,11 @@ func (a *rarityAnalyzer) close() {
 	if a.trans != nil {
 		a.trans.close()
 	}
+	logInfo("close() completed")
 }
 
 func (a *rarityAnalyzer) commit(completed bool) error {
+	logInfo("commit() start")
 	if err := a.trans.commit(completed); err != nil {
 		return err
 	}
@@ -198,6 +207,7 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	if err := a.saveLastStatus(); err != nil {
 		return err
 	}
+	logInfo("commit() completed")
 	return nil
 }
 
