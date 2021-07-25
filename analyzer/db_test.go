@@ -12,7 +12,7 @@ func Test_db01(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	dbName := "test_db"
+	dbName := "testdb"
 
 	err = dropDB(dataDir, dbName)
 	if err != nil {

@@ -20,6 +20,9 @@ func newLogRecords(dataDir string,
 }
 
 func (lr *logRecords) commit(completed bool) error {
+	if lr.rowNo == 0 {
+		return nil
+	}
 	if err := lr.dropBlockIfCompeted(lr.blockNo); err != nil {
 		return err
 	}

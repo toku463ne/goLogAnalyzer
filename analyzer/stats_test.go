@@ -65,7 +65,7 @@ AND seqNo = (SELECT MAX(seqNo) FROM scores WHERE blockNo = %d);`, blockNo, block
 		t.Errorf("%v", err)
 		return
 	}
-	err = dropDB(dataDir, "main")
+	err = dropDB(dataDir, "stats")
 	if err != nil {
 		t.Errorf("%v", err)
 		return

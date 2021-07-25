@@ -119,6 +119,9 @@ func (i *items) next() error {
 }
 
 func (i *items) commit(completed bool) error {
+	if i.rowNo == 0 {
+		return nil
+	}
 	if err := i.dropBlock(i.blockNo); err != nil {
 		return err
 	}
@@ -142,11 +145,18 @@ func (i *items) commit(completed bool) error {
 	}
 
 	err = i.updateBlockStatus(completed)
+	if err != nil {
+		return err
+	}
 	return err
 }
 
 func (i *items) loadDB() error {
-	rows, err := i.query([]string{"item", "itemCount"}, "")
+	if err := i.loadCircuitDBStatus(); err != nil {
+		return err
+	}
+
+	rows, err := i.selectRows([]string{"item", "itemCount"}, "", nil)
 	if err != nil {
 		return err
 	}

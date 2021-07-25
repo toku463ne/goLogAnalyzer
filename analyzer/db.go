@@ -68,7 +68,7 @@ func (d *db) query(sqlstr string) (*sql.Rows, error) {
 }
 
 func (d *db) getSqlFileContents(sqlFile string) (string, error) {
-	f, err := os.Open(fmt.Sprintf("./sqls/%s", sqlFile))
+	f, err := os.Open(fmt.Sprintf("%s", sqlFile))
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -88,9 +88,19 @@ func (d *db) execFromFile(sqlFile string) (sql.Result, error) {
 	return d.exec(sqlstr)
 }
 
+/*
 func (d *db) createTable(tableName string) error {
 	sqlFile := fmt.Sprintf("%s/create_table_%s.sql", d.dbName, tableName)
 	_, err := d.execFromFile(sqlFile)
+	return err
+}*/
+
+func (d *db) createTable(tableName string) error {
+	_, err := d.exec(dbDefVar[d.dbName][tableName])
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 

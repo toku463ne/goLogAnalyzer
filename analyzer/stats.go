@@ -23,7 +23,7 @@ func newStats(dataDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s.rowNo = 0
 	s.seqNo = 0
 	if dataDir != "" {
-		d, err := newDB(dataDir, "main")
+		d, err := newDB(dataDir, "stats")
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,8 @@ func (s *stats) registerScore(score float64) error {
 	s.rowNo++
 
 	if s.rowNo >= s.maxRowsInBlock {
-		return s.nextBlock()
+		err := s.nextBlock()
+		return err
 	}
 	return nil
 }
@@ -119,6 +120,10 @@ func (s *stats) prepareTables() error {
 }
 
 func (s *stats) commit(completed bool) error {
+	if s.rowNo == 0 {
+		return nil
+	}
+
 	cb := s.currBlock
 
 	stmt, err := s.conn.Prepare(`REPLACE INTO scores(

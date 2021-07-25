@@ -41,9 +41,8 @@ type circuitDB struct {
 	maxRowsInBlock int
 	blockNo        int
 	rowNo          int
-	rows           [][]interface{}
-	cols           []string
 	lastIndex      int64
+	lastEpoch      int64
 }
 
 type circuitRows struct {

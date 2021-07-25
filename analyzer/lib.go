@@ -85,15 +85,6 @@ func RoundDown(num, places float64) float64 {
 	return math.Trunc(num*shift) / shift
 }
 
-// DateStringToEpoch ..
-func DateStringToEpoch(date string) (int64, error) {
-	t, err := time.Parse(time.RFC3339, date+"T00:00:00Z")
-	if err != nil {
-		return -1, err
-	}
-	return t.Unix(), nil
-}
-
 // roundInt
 func roundInt(num float64) float64 {
 	t := math.Trunc(num)
@@ -297,7 +288,7 @@ func countDigits(i int) (count int) {
 }
 
 // PathExist ..
-func PathExist(path string) bool {
+func pathExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {
 		return false
 	}
@@ -347,4 +338,59 @@ func re2str(re *regexp.Regexp) string {
 func getCurrentEpoch() int64 {
 	now := time.Now()
 	return now.Unix()
+}
+
+func removePath(pathRegex string) error {
+	fileNames, _ := filepath.Glob(pathRegex)
+	for _, p := range fileNames {
+		if err := os.Remove(p); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	return nil
+}
+
+func registerNTopRareRec(
+	nTopRareLogs []*colLogRecords,
+	minTopRareScore float64,
+	rowID int64,
+	score float64, text string) ([]*colLogRecords, float64) {
+	if minTopRareScore > 0 && score <= minTopRareScore {
+		return nTopRareLogs, minTopRareScore
+	}
+	newTopN := make([]*colLogRecords, len(nTopRareLogs))
+	logr2 := new(colLogRecords)
+	logr2.rowid = rowID
+	logr2.score = score
+	logr2.record = text
+	for i, logr := range nTopRareLogs {
+		if logr == nil {
+			newTopN[i] = logr2
+			break
+		} else if score == logr.score && rowID == logr.rowid {
+			return nTopRareLogs, minTopRareScore
+		} else if score > logr.score {
+			newTopN[i] = logr2
+			oldScore2 := 0.0
+			for j := i + 1; j < len(nTopRareLogs); j++ {
+				if nTopRareLogs[j-1] == nil {
+					break
+				}
+				score2 := nTopRareLogs[j-1].score
+				if nTopRareLogs[j-1].record == "" {
+					minTopRareScore = oldScore2
+					break
+				}
+				if j >= cNTopRareRecords-1 {
+					minTopRareScore = score2
+				}
+				newTopN[j] = nTopRareLogs[j-1]
+				oldScore2 = score2
+			}
+			break
+		} else {
+			newTopN[i] = logr
+		}
+	}
+	return newTopN, minTopRareScore
 }

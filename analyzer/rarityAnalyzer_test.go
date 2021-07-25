@@ -3,6 +3,7 @@ package analyzer
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func Test_rarityAnalyzerInit(t *testing.T) {
@@ -73,13 +74,8 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		"", "",
-		0.0, 0, 0, 0); err != nil {
+		-1.0, -1, -1, -1); err != nil {
 		t.Errorf("%v", err)
-		return
-	}
-
-	if a.logPathRegex != logPathRegex || a.minGapToRecord != cMinGapToRecord || a.maxBlocks != cDefaultMaxBlocks || a.maxItemBlocks != cDefaultMaxItemBlocks || a.linesInBlock != cDefaultBlockSize {
-		t.Errorf("Not properly initialized")
 		return
 	}
 
@@ -88,11 +84,6 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 	a = newRarityAnalyzer(rootDir)
 	if err := a.load(); err != nil {
 		t.Errorf("%v", err)
-		return
-	}
-
-	if a.logPathRegex != logPathRegex || a.minGapToRecord != cMinGapToRecord || a.maxBlocks != cDefaultMaxBlocks || a.maxItemBlocks != cDefaultMaxItemBlocks || a.linesInBlock != cDefaultBlockSize {
-		t.Errorf("Not properly loaded config")
 		return
 	}
 
@@ -113,13 +104,18 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 	logPathRegex := fmt.Sprintf("%s/sample.log*", testDir)
 	filterStr := ""
 	xFilterStr := ""
-	minGapToRecord := 0.0
+	minGapToRecord := -100.0
 	maxBlocks := 3
 	maxItemBlocks := 6
 	linesInBlock := 5
 
-	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log",
-		fmt.Sprintf("%s/sample.log", testDir)); err != nil {
+	if err := removePath(fmt.Sprintf("%s/sample.log*", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log.1",
+		fmt.Sprintf("%s/sample.log.1", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -138,7 +134,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	if lines, err := a.run(0, 0); err != nil {
+	if lines, err := a.analyze(0); err != nil {
 		t.Errorf("%v", err)
 		return
 	} else {
@@ -146,6 +142,11 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 			t.Errorf("%v", err)
 			return
 		}
+	}
+
+	if err := getGotExpErr("rowNo", a.rowID, int64(31)); err != nil {
+		t.Errorf("%v", err)
+		return
 	}
 
 	if err := getGotExpErr("logRecords count", a.logRecs.countAll(""), 11); err != nil {
@@ -171,5 +172,191 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+
+	lastFileEpoch := 0
+	lastFileRow := 0
+	if err := a.db.select1rec(`SELECT lastFileEpoch, lastFileRow FROM lastStatus;`,
+		&lastFileEpoch, &lastFileRow); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if lastFileEpoch == 0 || lastFileRow == 0 {
+			t.Errorf("lastStatus is not properly configured")
+			return
+		}
+	}
+
+	a.close()
+
+	time.Sleep(time.Second * 2)
+
+	a = newRarityAnalyzer(rootDir)
+	if err := a.load(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log",
+		fmt.Sprintf("%s/sample.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if lines, err := a.analyze(0); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if err := getGotExpErr("lines processed", lines, 4); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	if err := getGotExpErr("rowNo", a.rowID, int64(35)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := getGotExpErr("items count test3*",
+		a.trans.items.countAll("item LIKE 'test3%'"), 30); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	topN, err := a.scanAndGetNTops(5, 0, "", "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("topN len", len(topN), 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("topN top1", topN[0].rowid, int64(30)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+}
+
+func Test_rarityAnalyzerRun2(t *testing.T) {
+	testDir, err := ensureTestDir("rarityAnalyzerRun2")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	rootDir := testDir + "/data"
+	logPathRegex := fmt.Sprintf("%s/sample.log*", testDir)
+	filterStr := ""
+	xFilterStr := ""
+	minGapToRecord := 0.0
+	maxBlocks := 3
+	maxItemBlocks := 6
+	linesInBlock := 5
+
+	if err := removePath(fmt.Sprintf("%s/sample.log*", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log.1",
+		fmt.Sprintf("%s/sample.log.1", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a := newRarityAnalyzer(rootDir)
+
+	if err := a.clear(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.init(logPathRegex,
+		filterStr, xFilterStr,
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if lines, err := a.analyze(6); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if err := getGotExpErr("lines processed", lines, 6); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	if err := getGotExpErr("rowNo", a.rowID, int64(6)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := getGotExpErr("items count test3*",
+		a.trans.items.countAll("item LIKE 'test3%'"), 6); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a.close()
+
+	a = newRarityAnalyzer(rootDir)
+	if err := a.load(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if lines, err := a.analyze(5); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if err := getGotExpErr("lines processed", lines, 5); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	if err := getGotExpErr("rowNo", a.rowID, int64(11)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := getGotExpErr("items count test3*",
+		a.trans.items.countAll("item LIKE 'test3%'"), 11); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	a.close()
+
+	a = newRarityAnalyzer(rootDir)
+	if err := a.load(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if lines, err := a.analyze(100); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if err := getGotExpErr("lines processed", lines, 20); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	if err := getGotExpErr("rowNo", a.rowID, int64(31)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := getGotExpErr("items count test3*",
+		a.trans.items.countAll("item LIKE 'test3%'"), 26); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	a.close()
 
 }

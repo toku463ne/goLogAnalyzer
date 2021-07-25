@@ -225,5 +225,24 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 		return
 	}
 
+	rows, err := lr.selectRows2([]string{"rowId", "score"}, "score > 1.0",
+		"score desc", 3, []int{0, 1})
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	cnt = 0
+	for rows.Next() {
+		//var rowId int
+		//var score float64
+		//rows.Scan(&rowId, &score)
+		//fmt.Printf("rowId=%d score=%f", rowId, score)
+		cnt++
+	}
+	if err := getGotExpErr("limit count", cnt, 3); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 	lr.close()
 }

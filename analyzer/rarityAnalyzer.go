@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 )
 
@@ -11,7 +13,7 @@ func newRarityAnalyzer(rootDir string) *rarityAnalyzer {
 }
 
 func (a *rarityAnalyzer) clear() error {
-	for _, dbName := range []string{"main", "logRecords", "items"} {
+	for _, dbName := range []string{"main", "logRecords", "items", "stats"} {
 		if err := dropDB(a.rootDir, dbName); err != nil {
 			return err
 		}
@@ -29,11 +31,8 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 		return err
 	}
 
-	a.setDefaults()
+	a.minGapToRecord = minGapToRecord
 
-	if minGapToRecord >= 0 {
-		a.minGapToRecord = minGapToRecord
-	}
 	if maxBlocks > 0 {
 		a.maxBlocks = maxBlocks
 	}
@@ -50,8 +49,10 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	}
 
 	if a.rootDir != "" {
-		err := a.saveConfig()
-		if err != nil {
+		if err := a.saveConfig(); err != nil {
+			return err
+		}
+		if err := a.saveLastStatus(); err != nil {
 			return err
 		}
 	}
@@ -60,11 +61,11 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 }
 
 func (a *rarityAnalyzer) load() error {
-	a.setDefaults()
 	d, err := newDB(a.rootDir, "main")
 	if err != nil {
 		return err
 	}
+	a.db = d
 	sqlstr := `SELECT 
 logPathRegex, linesInBlock, maxBlocks, maxItemBlocks, filterRe, xFilterRe, minGapToRecord
 FROM config;`
@@ -79,8 +80,8 @@ FROM config;`
 	a.xFilterRe = getRegex(xFilterReStr)
 
 	sqlstr = `SELECT 
-	lastFileEpoch, lastFileRow FROM lastStatus;`
-	err = d.select1rec(sqlstr, &a.lastFileEpoch, &a.lastFileRow)
+	lastRowID, lastFileEpoch, lastFileRow FROM lastStatus;`
+	err = d.select1rec(sqlstr, &a.rowID, &a.lastFileEpoch, &a.lastFileRow)
 	if err != nil {
 		return err
 	}
@@ -90,13 +91,6 @@ FROM config;`
 	}
 
 	return nil
-}
-
-func (a *rarityAnalyzer) setDefaults() {
-	a.minGapToRecord = cMinGapToRecord
-	a.maxBlocks = cDefaultMaxBlocks
-	a.maxItemBlocks = cDefaultMaxItemBlocks
-	a.linesInBlock = cDefaultBlockSize
 }
 
 func (a *rarityAnalyzer) openObjs() error {
@@ -145,16 +139,28 @@ VALUES (?,?,?,?,?,?,?,?)`
 	if err != nil {
 		return errors.WithStack(err)
 	}
+	return nil
+}
 
+func (a *rarityAnalyzer) saveLastStatus() error {
+	d := a.db
 	if err := d.createTable("lastStatus"); err != nil {
 		return err
 	}
-	sqlstr = `REPLACE INTO lastStatus(lastFileEpoch, lastFileRow) VALUES (?,?)`
-	stmt, err = d.conn.Prepare(sqlstr)
+	if _, err := d.exec(`DELETE FROM lastStatus;`); err != nil {
+		return err
+	}
+
+	sqlstr := `INSERT INTO lastStatus(lastRowID, lastFileEpoch, lastFileRow) VALUES (?,?,?)`
+	stmt, err := d.conn.Prepare(sqlstr)
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	_, err = stmt.Exec(0, 0)
+	if a.fp != nil {
+		_, err = stmt.Exec(a.rowID, a.fp.currFileEpoch(), a.fp.row())
+	} else {
+		_, err = stmt.Exec(a.rowID, 0, 0)
+	}
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -189,55 +195,34 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	if err := a.saveConfig(); err != nil {
 		return err
 	}
+	if err := a.saveLastStatus(); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (a *rarityAnalyzer) registerItems(targetLinesCnt int) error {
+func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 	linesProcessed := 0
 
 	if a.fp == nil || !a.fp.isOpen() {
 		a.fp = newFilePointer(a.logPathRegex, a.lastFileEpoch, a.lastFileRow)
 		if err := a.fp.open(); err != nil {
-			return err
-		}
-	}
-	for a.fp.next() {
-		te := a.fp.text()
-		if te == "" {
-			continue
-		}
-		tran, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
-		if err != nil {
-			return err
-		}
-		if len(tran) == 0 {
-			continue
-		}
-
-		linesProcessed++
-		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
-			break
-		}
-	}
-	a.fp = nil
-	return nil
-}
-
-func (a *rarityAnalyzer) calcRare(targetLinesCnt int, startEpoch int64) (int, error) {
-	linesProcessed := 0
-
-	if a.fp == nil || !a.fp.isOpen() {
-		a.fp = newFilePointer(a.logPathRegex, startEpoch, 0)
-		if err := a.fp.open(); err != nil {
 			return 0, err
 		}
 	}
+	var lastEpoch int64
 	for a.fp.next() {
+
 		te := a.fp.text()
 		if te == "" {
 			continue
 		}
-		tran, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, false)
+
+		lastEpoch = a.fp.currFileEpoch()
+		a.trans.items.lastEpoch = lastEpoch
+		a.logRecs.lastEpoch = lastEpoch
+
+		tran, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
 		if err != nil {
 			return linesProcessed, err
 		}
@@ -255,8 +240,14 @@ func (a *rarityAnalyzer) calcRare(targetLinesCnt int, startEpoch int64) (int, er
 				return linesProcessed, err
 			}
 		}
+		if a.fp.isEOF && !a.fp.isLastFile() {
+			if err := a.saveLastStatus(); err != nil {
+				return linesProcessed, err
+			}
+		}
 
 		linesProcessed++
+		a.rowID++
 		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
 			break
 		}
@@ -267,16 +258,78 @@ func (a *rarityAnalyzer) calcRare(targetLinesCnt int, startEpoch int64) (int, er
 	return linesProcessed, nil
 }
 
-func (a *rarityAnalyzer) run(targetLinesCnt int, startEpoch int64) (int, error) {
-	linesProcessed := 0
-	var err error
-
-	if err := a.registerItems(targetLinesCnt); err != nil {
-		return 0, err
+func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch int64,
+	filterReStr, xFilterReStr string) ([]*colLogRecords, error) {
+	wherestr := ""
+	if startEpoch > 0 {
+		wherestr = fmt.Sprintf("WHERE lastEpoch=%d", startEpoch)
 	}
-	linesProcessed, err = a.calcRare(targetLinesCnt, startEpoch)
+	rows, err := a.logRecs.query(`SELECT blockNo FROM circuitDBStatus` + wherestr)
 	if err != nil {
-		return linesProcessed, err
+		return nil, err
 	}
-	return linesProcessed, nil
+	blockNos := make([]int, 0)
+	for rows.Next() {
+		blockNo := 0
+		if err := rows.Scan(&blockNo); err != nil {
+			return nil, err
+		}
+		blockNos = append(blockNos, blockNo)
+	}
+
+	r, err := a.logRecs.selectRows([]string{"rowId", "score", "record"}, "", blockNos)
+	if err != nil {
+		return nil, err
+	}
+
+	filterRe := getRegex(filterReStr)
+	xFilterRe := getRegex(xFilterReStr)
+	var rowID int64
+	var score float64
+	var record string
+	nTopRareLogs := make([]*colLogRecords, recordsToShow)
+	m := 0.0
+	for r.next() {
+		if err := r.scan(&rowID, &score, &record); err != nil {
+			return nil, err
+		}
+		if filterRe != nil && !filterRe.Match([]byte(record)) {
+			continue
+		}
+		if xFilterRe != nil && xFilterRe.Match([]byte(record)) {
+			continue
+		}
+		nTopRareLogs, m = registerNTopRareRec(nTopRareLogs, m, rowID, score, record)
+	}
+	return nTopRareLogs, nil
+}
+
+func (a *rarityAnalyzer) printNTops(msg string,
+	recordsToShow int, startEpoch int64,
+	filterReStr, xFilterReStr string,
+) error {
+	var err error
+	var nTopRareLogs []*colLogRecords
+	nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch,
+		filterReStr, xFilterReStr)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", msg)
+	fmt.Print("score   rowID      text\n")
+	fmt.Print("-------+----------+-------\n")
+	for i, logr := range nTopRareLogs {
+		if logr == nil {
+			break
+		}
+		fmt.Printf(" %5.2f   %8d   %s\n", logr.score, logr.rowid, logr.record)
+		if logr.score == 0 {
+			break
+		}
+		if i+1 >= recordsToShow {
+			break
+		}
+	}
+	return nil
 }
