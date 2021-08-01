@@ -1,46 +1,49 @@
 package analyzer
 
-import "fmt"
+import "io"
 
 func (r *circuitRows) next() bool {
 	if r.pos >= len(r.tableNames) {
-		r.err = nil
+		r.err = io.EOF
 		r.rows = nil
 		return false
 	}
 
 	if r.rows == nil {
-		sqlstr := fmt.Sprintf(`SELECT %s FROM %s;`, r.fields, r.tableNames[r.pos])
-		if r.conds != "" {
-			sqlstr = `WHERE ` + r.conds
-		}
-		rows, err := r.db.query(sqlstr)
-		if err != nil {
-			r.err = err
-			return false
-		}
 		completed := true
-		err = r.db.select1rec(fmt.Sprintf(`SELECT completed FROM circuitDBStatus
-WHERE blockID = '%s'`, r.tableNames[r.pos]), &completed)
+		if err := r.statusTable.Select1Row(func(v []string) bool {
+			return v[r.blockIDIdx] == r.tableNames[r.pos]
+		}, []string{"completed"}, &completed); err != nil {
+			r.err = err
+			return false
+		}
+
+		t, err := r.csvdbObj.GetTable(r.tableNames[r.pos])
 		if err != nil {
 			r.err = err
 			return false
 		}
-		r.blockCompleted = completed
+		rows, err := t.SelectRows(r.conditionCheckFunc, r.columns)
+		if err != nil {
+			r.err = err
+			return false
+		}
 		r.rows = rows
+		r.blockCompleted = completed
+
 	}
 
-	res := r.rows.Next()
+	r.rows.Next()
 	err := r.rows.Err()
-	if err != nil {
-		r.err = err
-		return false
-	}
+	r.err = err
 
-	if !res {
+	if err != nil && err.Error() == "EOF" {
 		r.pos++
 		r.rows = nil
 		return r.next()
+	} else if err != nil {
+		r.err = err
+		return false
 	}
 	return true
 }

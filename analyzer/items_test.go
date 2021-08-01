@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -9,6 +10,9 @@ import (
 )
 
 func Test_Items(t *testing.T) {
+	blockNoIdx := getColIdx("circuitDBStatus", "blockNo")
+	itemIdx := getColIdx("items", "item")
+
 	registerTran := func(it *items, itemCount int, a ...string) error {
 		for _, item := range a {
 			if itemID := it.register(item, itemCount, true); itemID < 0 {
@@ -29,9 +33,15 @@ func Test_Items(t *testing.T) {
 		return nil
 	}
 
+	blockExists := func(it *items, blockNo int) bool {
+		cnt := it.statusTable.Count(func(v []string) bool {
+			return v[blockNoIdx] == strconv.Itoa(blockNo)
+		})
+		return cnt > 0
+	}
+
 	checkCircuitDBStatus := func(it *items, blockNo int, expected []interface{}) error {
-		cnt := it.count("circuitDBStatus", fmt.Sprintf(`blockNO = %d`, blockNo))
-		if cnt != 1 {
+		if !blockExists(it, blockNo) {
 			return errors.New("blockNo must be uniq")
 		}
 
@@ -39,11 +49,13 @@ func Test_Items(t *testing.T) {
 		var blockID string
 		var rowNo int
 		var completed bool
-		if err := it.select1rec(fmt.Sprintf(`SELECT lastIndex, blockID, rowNo, completed 
-FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
+		if err := it.statusTable.Select1Row(func(v []string) bool {
+			return v[blockNoIdx] == strconv.Itoa(blockNo)
+		}, []string{"lastIndex", "blockID", "rowNo", "completed"},
 			&lastIndex, &blockID, &rowNo, &completed); err != nil {
 			return err
 		}
+
 		if err := getGotExpErr("lastIndex", lastIndex, expected[0]); err != nil {
 			return err
 		}
@@ -62,17 +74,20 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 
 	getItemCountInBlock := func(it *items, blockNo int, item string) int {
 		tableName := it.getBlockTableName(blockNo)
-		cnt := it.count(tableName, fmt.Sprintf("item = '%s'", item))
-		if cnt == 0 {
+		if !blockExists(it, blockNo) {
 			return 0
 		}
-		itemCount := 0
-		if s, err := it.sum(tableName, "itemCount",
-			fmt.Sprintf(`item = '%s'`, item)); err != nil {
+		t, err := it.GetTable(tableName)
+		if err != nil {
 			return -1
-		} else {
-			itemCount = int(s)
 		}
+		itemCount := 0
+		if err := t.Sum(func(v []string) bool {
+			return v[itemIdx] == item
+		}, "itemCount", &itemCount); err != nil {
+			return -1
+		}
+
 		return itemCount
 	}
 
@@ -100,13 +115,13 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 		return nil
 	}
 
-	dataDir, err := ensureTestDir("items")
+	dataDir, err := ensureTestDir("itemsTest")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	err = dropDB(dataDir, "items")
+	err = dropCsvDB(dataDir, "items")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -136,12 +151,6 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 		return
 	}
 
-	cnt := it.count("sqlite_master", "type = 'table'")
-	if cnt != 1 {
-		t.Errorf("Number of tables must be 1")
-		return
-	}
-
 	inRows = [][]string{
 		{"test100", "test200", "test304"},
 		{"test100", "test200", "test305"},
@@ -168,18 +177,6 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 	}
 	if err := checkItemCountInBlock(it, 0, "test200", 5); err != nil {
 		t.Errorf("%v", err)
-		return
-	}
-
-	cnt = it.count("sqlite_master", "type = 'table'")
-	if cnt != 2 {
-		t.Errorf("Number of tables must be 2")
-		return
-	}
-
-	cnt = it.count("circuitDBStatus", "")
-	if cnt != 1 {
-		t.Errorf("Number of status must be 1")
 		return
 	}
 
@@ -309,6 +306,10 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 
 	it, err = newItems(dataDir, maxBlocks, maxRowsInBlock)
 	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := it.load(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

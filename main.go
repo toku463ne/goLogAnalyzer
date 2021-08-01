@@ -1,19 +1,21 @@
 package main
 
 import (
-	"analyzer/analyzer"
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/toku463ne/goLogAnalyzer/analyzer"
 )
 
 const (
 	cDefaultBlockSize     = 10000
-	cDefaultMaxBlocks     = 10
-	cDefaultMaxItemBlocks = 100
+	cDefaultMaxBlocks     = 100
+	cDefaultMaxItemBlocks = 1000
 	cMinGapToRecord       = 0.5
 )
 
@@ -51,11 +53,14 @@ var (
 
 	topnRootDir       = topNFlag.String("d", "", rootDirDesc)
 	recordsToShowDesc = "Top N rare records to show"
-	topnRecordsToShow = topNFlag.Int("n", 0, recordsToShowDesc)
+	topnRecordsToShow = topNFlag.Int("n", 10, recordsToShowDesc)
 	topnFilterRe      = topNFlag.String("s", "", filterReDesc)
 	topnXFilterRe     = topNFlag.String("x", "", xfilterReDesc)
 	startDateDesc     = "Start date to collect stats %Y-%m-%d format"
 	topnStartDate     = topNFlag.String("start", "", startDateDesc)
+
+	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
+	stsRecordsToShow = stsFlag.Int("n", 0, recordsToShowDesc)
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -97,6 +102,7 @@ func dateStringToEpoch(date string) (int64, error) {
 }
 
 func clean() error {
+	log.Printf("cleaning up %s", *clnRootDir)
 	clnFlag.Parse(os.Args[2:])
 	return analyzer.Clean(*clnRootDir)
 }
@@ -135,7 +141,7 @@ func rar() error {
 	rarFlag.Parse(os.Args[2:])
 
 	forceSaveDb := *rarForceSaveDb
-	if forceSaveDb == false {
+	if !forceSaveDb {
 		if *rarRootDir != "" {
 			if pathExist(*rarRootDir) {
 				fmt.Printf("Update data on %s? (y/n) (default 'no') ", *rarRootDir)
@@ -152,13 +158,7 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 		}
 	}
 
-	/*
-		rootDir, logPathRegex,
-		filterStr, xFilterStr string,
-		minGapToRecord float64,
-		maxBlocks, maxItemBlocks, linesInBlock int,
-		linesToProcess int
-	*/
+	log.Printf("start analyzing %s", *rarPathRegex)
 
 	linesProcessed, err := analyzer.AnalyzeRarity(*rarRootDir, *rarPathRegex,
 		*rarFilterRe, *rarXFilterRe,
@@ -166,16 +166,26 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 		*rarMaxBlock, *rarMaxItemBlock, *rarLinesInBlock,
 		*rarMaxLines)
 
-	fmt.Printf("%d lines processed\n", linesProcessed)
+	log.Printf("%d lines processed\n", linesProcessed)
 
 	return err
 }
 
 func stats() error {
-	return nil
+	stsFlag.Parse(os.Args[2:])
+	if *stsRootDir == "" {
+		return fmt.Errorf("rootDir is must")
+	}
+	if !pathExist(*stsRootDir) {
+		return fmt.Errorf("%s does not exist", *stsRootDir)
+	}
+
+	err := analyzer.RarStats(*stsRootDir)
+	return err
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s\n", usageTxt)
@@ -199,6 +209,6 @@ func main() {
 		flag.Usage()
 	}
 	if err != nil {
-		fmt.Printf("%+v\n", err)
+		log.Printf("error occurred!\n%+v", err)
 	}
 }

@@ -2,6 +2,9 @@ package analyzer
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -12,11 +15,9 @@ func newRarityAnalyzer(rootDir string) *rarityAnalyzer {
 	return a
 }
 
-func (a *rarityAnalyzer) clear() error {
-	for _, dbName := range []string{"main", "logRecords", "items", "stats"} {
-		if err := dropDB(a.rootDir, dbName); err != nil {
-			return err
-		}
+func (a *rarityAnalyzer) clean() error {
+	if pathExist(a.rootDir) {
+		return os.RemoveAll(a.rootDir)
 	}
 	return nil
 }
@@ -27,11 +28,12 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	a.filterRe = getRegex(filterStr)
 	a.xFilterRe = getRegex(xFilterStr)
 
-	if err := ensureDir(a.rootDir); err != nil {
-		return err
+	if a.rootDir != "" {
+		if err := ensureDir(a.rootDir); err != nil {
+			return err
+		}
 	}
-	initLog(a.rootDir)
-	logInfo("init() start")
+	InitLog(a.rootDir)
 
 	a.minGapToRecord = minGapToRecord
 
@@ -57,21 +59,23 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 		if err := a.saveLastStatus(); err != nil {
 			return err
 		}
+		if err := a.saveObjs(); err != nil {
+			return err
+		}
 	}
-	logInfo("init() completed")
 
 	return nil
 }
 
 func (a *rarityAnalyzer) load() error {
-	initLog(a.rootDir)
-	logInfo("load() start")
+	InitLog(a.rootDir)
+	log.Printf("loading data from %s", a.rootDir)
 
-	d, err := newDB(a.rootDir, "main")
+	d, err := newSqliteObj(a.rootDir, "main")
 	if err != nil {
 		return err
 	}
-	a.db = d
+	a.sqliteObj = d
 	sqlstr := `SELECT 
 logPathRegex, linesInBlock, maxBlocks, maxItemBlocks, filterRe, xFilterRe, minGapToRecord
 FROM config;`
@@ -95,8 +99,10 @@ FROM config;`
 	if err := a.openObjs(); err != nil {
 		return err
 	}
+	if err := a.loadObjs(); err != nil {
+		return err
+	}
 
-	logInfo("load() completed")
 	return nil
 }
 
@@ -121,12 +127,35 @@ func (a *rarityAnalyzer) openObjs() error {
 	return nil
 }
 
+func (a *rarityAnalyzer) loadObjs() error {
+	if err := a.trans.load(); err != nil {
+		return err
+	}
+	if err := a.stats.load(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *rarityAnalyzer) saveObjs() error {
+	if err := a.trans.commit(false); err != nil {
+		return err
+	}
+	if err := a.stats.commit(false); err != nil {
+		return err
+	}
+	if err := a.logRecs.commit(false); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *rarityAnalyzer) saveConfig() error {
-	d, err := newDB(a.rootDir, "main")
+	d, err := newSqliteObj(a.rootDir, "main")
 	if err != nil {
 		return err
 	}
-	a.db = d
+	a.sqliteObj = d
 	if err := d.createTable("config"); err != nil {
 		return err
 	}
@@ -150,7 +179,7 @@ VALUES (?,?,?,?,?,?,?,?)`
 }
 
 func (a *rarityAnalyzer) saveLastStatus() error {
-	d := a.db
+	d := a.sqliteObj
 	if err := d.createTable("lastStatus"); err != nil {
 		return err
 	}
@@ -187,11 +216,9 @@ func (a *rarityAnalyzer) close() {
 	if a.trans != nil {
 		a.trans.close()
 	}
-	logInfo("close() completed")
 }
 
 func (a *rarityAnalyzer) commit(completed bool) error {
-	logInfo("commit() start")
 	if err := a.trans.commit(completed); err != nil {
 		return err
 	}
@@ -207,7 +234,6 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	if err := a.saveLastStatus(); err != nil {
 		return err
 	}
-	logInfo("commit() completed")
 	return nil
 }
 
@@ -246,7 +272,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 			return linesProcessed, err
 		}
 		if a.stats.lastGap >= a.minGapToRecord {
-			if err := a.logRecs.insertRow(a.rowID, score, te); err != nil {
+			if err := a.logRecs.insert(a.rowID, score, te, a.lastFileEpoch); err != nil {
 				return linesProcessed, err
 			}
 		}
@@ -256,7 +282,11 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 			}
 		}
 
+		if linesProcessed > 0 && linesProcessed%cLogPerLines == 0 {
+			log.Printf("processed %d lines", linesProcessed)
+		}
 		linesProcessed++
+
 		a.rowID++
 		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
 			break
@@ -270,14 +300,23 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 
 func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch int64,
 	filterReStr, xFilterReStr string) ([]*colLogRecords, error) {
-	wherestr := ""
+	var conditionCheckFunc func(v []string) bool
+
 	if startEpoch > 0 {
-		wherestr = fmt.Sprintf("WHERE lastEpoch=%d", startEpoch)
+		lastEpochIdx := getColIdx("circuitDBStatus", "lastEpoch")
+		conditionCheckFunc = func(v []string) bool {
+			lastEpoch, _ := strconv.ParseInt(v[lastEpochIdx], 10, 64)
+			return lastEpoch >= startEpoch
+		}
+	} else {
+		conditionCheckFunc = nil
 	}
-	rows, err := a.logRecs.query(`SELECT blockNo FROM circuitDBStatus` + wherestr)
+
+	rows, err := a.logRecs.statusTable.SelectRows(conditionCheckFunc, []string{"blockNo"})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
+
 	blockNos := make([]int, 0)
 	for rows.Next() {
 		blockNo := 0
@@ -287,7 +326,7 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch int64,
 		blockNos = append(blockNos, blockNo)
 	}
 
-	r, err := a.logRecs.selectRows([]string{"rowId", "score", "record"}, "", blockNos)
+	r, err := a.logRecs.selectRows(nil, blockNos, []string{"rowID", "score", "record"})
 	if err != nil {
 		return nil, err
 	}

@@ -17,4 +17,5 @@ const (
 	cMaxBlockDitigs  = 10
 	cMaxRowID        = int64(9999999999999)
 	cNTopRareRecords = 5
+	cLogPerLines     = 1000000
 )

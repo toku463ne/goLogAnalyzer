@@ -1,165 +1,223 @@
 package analyzer
 
 import (
-	"database/sql"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
+	csvdb "github.com/toku463ne/goCsvDb"
 )
 
-func newCircuitDB(dataDir, dbName string,
-	maxBlocks, maxRowsInBlock int) (*circuitDB, error) {
-	rt := new(circuitDB)
-	if dataDir != "" {
-		d, err := newDB(dataDir, dbName)
-		if err != nil {
-			return nil, err
-		}
-		rt.db = d
-		if err := rt.createCircuitDBStatus(); err != nil {
-			return nil, err
-		}
-	}
-	rt.maxBlocks = maxBlocks
-	rt.maxRowsInBlock = maxRowsInBlock
-	rt.blockNo = 0
-	rt.rowNo = 0
-	if err := rt.loadCircuitDBStatus(); err != nil {
+func newCircuitDB(rootDir, name string, maxBlocks, maxRowsInBlock int) (*circuitDB, error) {
+	cdb := new(circuitDB)
+	cdb.dataDir = fmt.Sprintf("%s/%s", rootDir, name)
+	cdb.name = name
+	cdb.maxRowsInBlock = maxRowsInBlock
+	cdb.maxBlocks = maxBlocks
+	db, err := newCsvdbObj(rootDir, name)
+	if err != nil {
 		return nil, err
 	}
-	//rt.rows = make([][]interface{}, maxRowsInBlock)
-	//rt.nextBlock()
-	return rt, nil
+	cdb.csvdbObj = db
+	cdb.writeMode = csvdb.CWriteModeAppend
+
+	if cdb.csvdbObj.TableExists("circuitDBStatus") {
+		if err := cdb.loadCircuitDBStatus(); err != nil {
+			return nil, err
+		}
+	} else {
+		st, err := cdb.CreateCsvTable("circuitDBStatus",
+			tableDefs["circuitDBStatus"], false, maxRowsInBlock)
+
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		cdb.statusTable = st
+	}
+
+	t, err := cdb.getBlockTable(cdb.blockNo)
+	if err != nil {
+		return nil, err
+	}
+	cdb.currTable = t
+
+	return cdb, nil
 }
 
-func (rt *circuitDB) createCircuitDBStatus() error {
-	if _, err := rt.exec(dbDefVar["default"]["circuitDBStatus"]); err != nil {
-		return err
+func (cdb *circuitDB) getBlockTable(blockNo int) (*csvdb.CsvTable, error) {
+	blockID := cdb.getBlockTableName(cdb.blockNo)
+	cols, ok := tableDefs[cdb.name]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("Table %s is not defined", cdb.name))
 	}
-	return nil
+	return cdb.CreateCsvTableIfNotExists(blockID, cols, true, cdb.maxRowsInBlock)
 }
 
-func (rt *circuitDB) loadCircuitDBStatus() error {
-	if cnt := rt.db.count("circuitDBStatus", ""); cnt <= 0 {
-		return nil
-	}
-
+func (cdb *circuitDB) loadCircuitDBStatus() error {
+	var lastIndex, lastEpoch int64
+	var blockNo, rowNo int
 	var completed bool
-	if err := rt.db.select1rec(`SELECT lastIndex, blockNo, rowNo, lastEpoch, completed 
-FROM circuitDBStatus
-WHERE lastIndex = (SELECT MAX(lastIndex) FROM circuitDBStatus);`,
-		&rt.lastIndex, &rt.blockNo, &rt.rowNo, &rt.lastEpoch, &completed); err != nil {
-		return err
+
+	t, err := cdb.GetTable("circuitDBStatus")
+	if err != nil {
+		return errors.WithStack(err)
 	}
+
+	if err := t.Max(nil, "lastIndex", &lastIndex); err != nil {
+		return errors.WithStack(err)
+	}
+
+	lastIndexStr := strconv.Itoa(int(lastIndex))
+	idx := getColIdx("circuitDBStatus", "lastIndex")
+	if err := t.Select1Row(func(v []string) bool {
+		return v[idx] == lastIndexStr
+	}, []string{"blockNo", "rowNo", "lastEpoch", "completed"},
+		&blockNo, &rowNo, &lastEpoch, &completed); err != nil {
+		return errors.WithStack(err)
+	}
+
+	cdb.blockNo = blockNo
+	cdb.lastIndex = lastIndex
+	cdb.lastEpoch = lastEpoch
+	cdb.rowNo = rowNo
+	cdb.writeMode = csvdb.CWriteModeAppend
 
 	if completed {
-		if err := rt.nextBlock(); err != nil {
+		if err := cdb.nextBlock(); err != nil {
 			return err
 		}
 	}
 
+	cdb.statusTable = t
 	return nil
 }
 
-func (rt *circuitDB) getBlockTableName(blockNo int) string {
-	return fmt.Sprintf("BLK%s", rt.getBlockID(blockNo))
-}
-
-func (rt *circuitDB) execFromFile(sqlFile string, blockNo int) (sql.Result, error) {
-	sqlstr, err := rt.getSqlFileContents(sqlFile)
-	if err != nil {
-		return nil, err
+func (cdb *circuitDB) nextBlock() error {
+	if err := cdb.updateBlockStatus(true); err != nil {
+		return err
 	}
-	sqlstr = strings.ReplaceAll(sqlstr, "{{ blockName }}", rt.getBlockTableName(rt.blockNo))
-	return rt.exec(sqlstr)
+
+	cdb.rowNo = 0
+	cdb.blockNo++
+	if cdb.blockNo >= cdb.maxBlocks {
+		cdb.blockNo = 0
+	}
+	cdb.lastIndex++
+	cdb.writeMode = "w"
+
+	t, err := cdb.getBlockTable(cdb.blockNo)
+	if err != nil {
+		return err
+	}
+	cdb.currTable = t
+	//rt.rows = make([][]interface{}, rt.maxRowsInBlock)
+	return nil
 }
 
-func (rt *circuitDB) createBlock(blockNo int) error {
-	_, err := rt.exec(strings.ReplaceAll(dbDefVar[rt.dbName]["block"],
-		"{{ blockName }}", rt.getBlockTableName(rt.blockNo)))
-	return err
+func (cdb *circuitDB) getBlockID(blockNo int) string {
+	return fmt.Sprintf("%0"+strconv.Itoa(cMaxBlockDitigs)+"d", blockNo)
 }
 
-func (rt *circuitDB) dropBlock(blockNo int) error {
-	_, err := rt.db.exec(`DELETE FROM 
-circuitDBStatus WHERE blockNo =` + strconv.Itoa(rt.blockNo))
+func (cdb *circuitDB) getBlockTableName(blockNo int) string {
+	return fmt.Sprintf("BLK%s", cdb.getBlockID(blockNo))
+}
+
+func (cdb *circuitDB) dropBlock(blockNo int) error {
+	t, err := cdb.getBlockTable(cdb.blockNo)
 	if err != nil {
 		return err
 	}
 
-	return rt.dropTable(rt.getBlockTableName(rt.blockNo))
+	if err := t.Delete(nil); err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
-func (rt *circuitDB) dropBlockIfCompeted(blockNo int) error {
-	cnt := rt.count("circuitDBStatus", fmt.Sprintf("blockNo = %d", blockNo))
+func (cdb *circuitDB) dropBlockIfCompeted(blockNo int) error {
+	//fmt.Sprintf("blockNo = %d", blockNo)
+	idx := getColIdx("circuitDBStatus", "blockNo")
+	cnt := cdb.statusTable.Count(func(v []string) bool {
+		return v[idx] == strconv.Itoa(blockNo)
+	})
 	if cnt <= 0 {
 		return nil
 	}
 
 	var completed bool
-	if err := rt.db.select1rec(fmt.Sprintf(`SELECT completed 
-FROM circuitDBStatus
-WHERE blockNo = %d;`, blockNo),
-		&completed); err != nil {
+	if err := cdb.statusTable.Select1Row(func(v []string) bool {
+		return v[idx] == strconv.Itoa(blockNo)
+	}, []string{"completed"}, completed); err != nil {
 		return err
 	}
 	if completed {
-		if err := rt.dropBlock(rt.blockNo); err != nil {
+		if err := cdb.dropBlock(cdb.blockNo); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (rt *circuitDB) updateBlockStatus(completed bool) error {
-	_, err := rt.db.exec(`DELETE FROM 
-circuitDBStatus WHERE blockNo =` + strconv.Itoa(rt.blockNo))
-	if err != nil {
+func (cdb *circuitDB) insertRow(columns []string, row ...interface{}) error {
+	if cdb.writeMode == csvdb.CWriteModeWrite {
+		if err := cdb.currTable.Delete(nil); err != nil {
+			return errors.WithStack(err)
+		}
+		cdb.writeMode = csvdb.CWriteModeAppend
+	}
+
+	if err := cdb.currTable.InsertRow(columns, row...); err != nil {
+		return errors.WithStack(err)
+	}
+	cdb.writeMode = csvdb.CWriteModeAppend
+	return nil
+}
+
+func (cdb *circuitDB) updateBlockStatus(completed bool) error {
+	idx := getColIdx("circuitDBStatus", "blockNo")
+	blockID := cdb.getBlockTableName(cdb.blockNo)
+
+	if err := cdb.statusTable.Upsert(func(v []string) bool {
+		return v[idx] == strconv.Itoa(cdb.blockNo)
+	}, map[string]interface{}{
+		"lastIndex": cdb.lastIndex,
+		"blockNo":   cdb.blockNo,
+		"blockID":   blockID,
+		"rowNo":     cdb.rowNo,
+		"lastEpoch": cdb.lastEpoch,
+		"completed": completed,
+	}); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+func (cdb *circuitDB) commit(completed bool) error {
+	if err := cdb.currTable.Flush(); err != nil {
+		return errors.WithStack(err)
+	}
+	if err := cdb.updateBlockStatus(false); err != nil {
 		return err
 	}
-
-	stmt, err := rt.db.conn.Prepare(`INSERT INTO 
-circuitDBStatus(lastIndex, blockNo, blockID, rowNo, lastEpoch, completed) 
- VALUES(?,?,?,?,?,?)`)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	blockID := rt.getBlockTableName(rt.blockNo)
-	_, err = stmt.Exec(rt.lastIndex, rt.blockNo, blockID, rt.rowNo, rt.lastEpoch, completed)
-	if err != nil {
-		return errors.WithStack(err)
-	}
 	return nil
 }
 
-func (rt *circuitDB) setLastEpoch(lastEpoch int64) {
-	rt.lastEpoch = lastEpoch
-}
-
-func (rt *circuitDB) nextBlock() error {
-	rt.rowNo = 0
-	rt.blockNo++
-	if rt.blockNo >= rt.maxBlocks {
-		rt.blockNo = 0
+func (cdb *circuitDB) getBlockNos() ([]int, error) {
+	cnt := cdb.statusTable.Count(nil)
+	if cnt <= 0 {
+		return nil, nil
 	}
-	rt.lastIndex++
-	//rt.rows = make([][]interface{}, rt.maxRowsInBlock)
-	return nil
-}
-
-func (rt *circuitDB) getBlockID(blockNo int) string {
-	return fmt.Sprintf("%0"+strconv.Itoa(cMaxBlockDitigs)+"d", blockNo)
-}
-
-func (rt *circuitDB) getBlockNos() ([]int, error) {
-	cnt := rt.count(`circuitDBStatus`, "")
 	blockNos := make([]int, cnt)
-	rows, err := rt.db.query(`SELECT blockNo FROM circuitDBStatus;`)
+	rows, err := cdb.statusTable.SelectRows(nil, []string{"blockNo"})
 	if err != nil {
 		return nil, err
 	}
+
+	if rows == nil {
+		return nil, nil
+	}
+
 	i := 0
 	for rows.Next() {
 		if err := rows.Scan(&blockNos[i]); err != nil {
@@ -170,11 +228,11 @@ func (rt *circuitDB) getBlockNos() ([]int, error) {
 	return blockNos, nil
 }
 
-func (rt *circuitDB) selectRows(fields []string,
-	conds string, blockNos []int) (*circuitRows, error) {
+func (cdb *circuitDB) selectRows(conditionCheckFunc func([]string) bool,
+	blockNos []int, columns []string) (*circuitRows, error) {
 	var err error
 	if blockNos == nil {
-		blockNos, err = rt.getBlockNos()
+		blockNos, err = cdb.getBlockNos()
 		if err != nil {
 			return nil, err
 		}
@@ -184,80 +242,36 @@ func (rt *circuitDB) selectRows(fields []string,
 	r.tableNames = make([]string, len(blockNos))
 	pos := 0
 	for _, blockNo := range blockNos {
-		r.tableNames[pos] = rt.getBlockTableName(blockNo)
+		r.tableNames[pos] = cdb.getBlockTableName(blockNo)
 		pos++
 	}
+
+	r.statusTable = cdb.statusTable
+	r.conditionCheckFunc = conditionCheckFunc
+	r.columns = columns
+	r.blockIDIdx = getColIdx("circuitDBStatus", "blockID")
+	r.completedIdx = getColIdx("circuitDBStatus", "completed")
+
 	r.pos = 0
-	r.fields = strings.Join(fields, ", ")
-	r.conds = conds
-	r.db = rt.db
+	r.csvdbObj = cdb.csvdbObj
 	return r, nil
 }
 
-func (rt *circuitDB) selectRows2(fields []string, conds string,
-	orderby string, limit int, blockNos []int) (*sql.Rows, error) {
-	var err error
-	fieldstr := "*"
-	if fields != nil {
-		fieldstr = strings.Join(fields, ",")
-	}
-	condstr := ""
-	if conds != "" {
-		condstr = "WHERE " + conds
-	}
-	orderbystr := ""
-	if orderby != "" {
-		orderbystr = "ORDER BY " + orderby
-	}
-	if blockNos == nil {
-		blockNos, err = rt.getBlockNos()
-		if err != nil {
-			return nil, err
-		}
-	}
-	limitstr := ""
-	if limit > 0 {
-		limitstr = fmt.Sprintf("limit %d", limit)
-	}
-	sqlstr := ""
-	for _, blockNo := range blockNos {
-		if sqlstr != "" {
-			sqlstr += "\n UNION \n"
-		}
-		tableName := rt.getBlockTableName(blockNo)
-		sqlstr += fmt.Sprintf(`SELECT %s FROM %s %s`, fieldstr, tableName, condstr)
-	}
-	sqlstr = fmt.Sprintf("SELECT * FROM \n(%s)\n %s %s", sqlstr, orderbystr, limitstr)
-	//print(sqlstr)
-	return rt.db.query(sqlstr)
-}
-
-func (rt *circuitDB) countAll(cond string) int {
-	cnt := rt.count("circuitDBStatus", "")
-	if cnt < 0 {
-		return -1
-	}
-	tableNames := make([]string, cnt)
-	rows, err := rt.db.query(`SELECT blockID FROM circuitDBStatus;`)
+func (cdb *circuitDB) countAll(conditionCheckFunc func([]string) bool) int {
+	blockNos, err := cdb.getBlockNos()
 	if err != nil {
 		return -1
 	}
-	pos := 0
-	for rows.Next() {
-		name := ""
-		if err := rows.Scan(&name); err != nil {
+	cnt := 0
+	for _, blockNo := range blockNos {
+		t, err := cdb.GetTable(cdb.getBlockTableName(blockNo))
+		if err != nil {
 			return -1
 		}
-		tableNames[pos] = name
-		pos++
-	}
-	cnt = 0
-	for _, name := range tableNames {
-		cnt += rt.db.count(name, cond)
+		tcnt := t.Count(conditionCheckFunc)
+		if tcnt > 0 {
+			cnt += tcnt
+		}
 	}
 	return cnt
 }
-
-//func (rt *circuitDB) setInsertCols(cols []string) {
-//	rt.cols = cols
-//}

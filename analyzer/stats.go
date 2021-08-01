@@ -12,7 +12,7 @@ func newColStats() *colStats {
 	return s
 }
 
-func newStats(dataDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
+func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s := new(stats)
 	s.colStats = newColStats()
 	s.currBlock = newColStats()
@@ -22,19 +22,18 @@ func newStats(dataDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s.blockNo = 0
 	s.rowNo = 0
 	s.seqNo = 0
-	if dataDir != "" {
-		d, err := newDB(dataDir, "stats")
+	s.rootDir = rootDir
+	if s.rootDir != "" {
+		d, err := newSqliteObj(s.rootDir, "stats")
 		if err != nil {
 			return nil, err
 		}
-		s.db = d
+		s.sqliteObj = d
 		if err := s.prepareTables(); err != nil {
 			return nil, err
 		}
-		if err := s.loadDB(); err != nil {
-			return nil, err
-		}
 	}
+
 	return s, nil
 }
 
@@ -86,13 +85,13 @@ func (s *stats) registerScore(score float64) error {
 }
 
 func (s *stats) close() {
-	if s.db != nil {
-		s.db.close()
+	if s.sqliteObj != nil {
+		s.sqliteObj.close()
 	}
 }
 
 func (s *stats) nextBlock() error {
-	if s.dataDir != "" {
+	if s.rootDir != "" {
 		err := s.commit(true)
 		if err != nil {
 			return err
@@ -169,7 +168,7 @@ func (s *stats) blockExists(blockNo int) bool {
 	return cnt > 0
 }
 
-func (s *stats) loadDB() error {
+func (s *stats) load() error {
 	cb := s.currBlock
 	var completed bool
 
@@ -222,4 +221,22 @@ WHERE seqNo=%d AND blockNo=%d;)`, s.seqNo, s.blockNo))
 	}
 
 	return nil
+}
+
+func (s *stats) getAllScorePerCount() (map[int]int, error) {
+	var scoreStage int
+	var itemCount int
+	rows, err := s.query(`SELECT scoreStage, itemCount 
+FROM statistics;)`)
+	if err != nil {
+		return nil, err
+	}
+	countPerScore := make(map[int]int)
+	for rows.Next() {
+		if err := rows.Scan(&scoreStage, &itemCount); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		countPerScore[scoreStage] += itemCount
+	}
+	return countPerScore, nil
 }

@@ -1,10 +1,19 @@
 package analyzer
 
-func getTableDef(dbName, tableName string) {
-
-}
-
 var (
+	tableDefs = map[string][]string{
+		"config": {"rootDir", "logPathRegex", "linesInBlock",
+			"maxBlocks", "maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord"},
+		"lastStatus": {"lastRowID", "lastFileEpoch", "lastFileRow"},
+		"items":      {"item", "itemCount"},
+		"logRecords": {"rowID", "score", "record"},
+		"scores":     {"seqNo", "blockNo", "rowCount", "scoreSum", "scoreSqrSum", "completed"},
+		"statistics": {"lastRowID", "lastFileEpoch", "lastFileRow"},
+		"blockInfo": {"lastIndex", "blockNo", "blockID",
+			"rowNo", "lastEpoch", "completed"},
+		"circuitDBStatus": {"lastIndex", "blockNo", "blockID", "rowNo", "lastEpoch", "completed"},
+	}
+
 	dbDefVar = map[string](map[string]string){
 		"testdb": map[string]string{
 			"item": `CREATE TABLE IF NOT EXISTS item_{{ blockname }} (
@@ -15,19 +24,6 @@ var (
 				id INTEGER,
 				comment TEXT
 				);`,
-		},
-		"items": map[string]string{
-			"block": `CREATE TABLE IF NOT EXISTS {{ blockName }} (
-				item INTEGER,
-				itemCount INTEGER
-			);`,
-		},
-		"logRecords": map[string]string{
-			"block": `CREATE TABLE IF NOT EXISTS {{ blockName }} (
-				rowId INTEGER,
-				score REAL,
-				record TEXT
-			);`,
 		},
 		"main": map[string]string{
 			"config": `CREATE TABLE IF NOT EXISTS config (

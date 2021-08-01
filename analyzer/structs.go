@@ -6,9 +6,16 @@ import (
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+	csvdb "github.com/toku463ne/goCsvDb"
 )
 
-type db struct {
+type csvdbObj struct {
+	dataDir string
+	dbName  string
+	*csvdb.CsvDB
+}
+
+type sqliteObj struct {
 	dataDir string
 	dbName  string
 	conn    *sql.DB
@@ -21,8 +28,9 @@ type colStats struct {
 }
 
 type stats struct {
-	*db
+	*sqliteObj
 	*colStats
+	rootDir        string
 	currBlock      *colStats
 	countPerScore  []int
 	maxBlocks      int
@@ -36,24 +44,32 @@ type stats struct {
 }
 
 type circuitDB struct {
-	*db
+	*csvdbObj
+	name           string
+	dataDir        string
 	maxBlocks      int
 	maxRowsInBlock int
 	blockNo        int
 	rowNo          int
 	lastIndex      int64
 	lastEpoch      int64
+	currTable      *csvdb.CsvTable
+	statusTable    *csvdb.CsvTable
+	writeMode      string
 }
 
 type circuitRows struct {
-	tableNames     []string
-	rows           *sql.Rows
-	pos            int
-	err            error
-	db             *db
-	fields         string
-	conds          string
-	blockCompleted bool
+	tableNames []string
+	rows       *csvdb.CsvRows
+	pos        int
+	err        error
+	*csvdbObj
+	columns            []string
+	conditionCheckFunc func([]string) bool
+	blockCompleted     bool
+	completedIdx       int
+	blockIDIdx         int
+	statusTable        *csvdb.CsvTable
 }
 
 type colItems struct {
@@ -69,8 +85,6 @@ type colLogRecords struct {
 
 type logRecords struct {
 	*circuitDB
-	rows       []colLogRecords
-	startRowNo int
 }
 
 type trans struct {
@@ -82,17 +96,18 @@ type trans struct {
 
 type items struct {
 	*circuitDB
-	maxItemID  int
-	terms      map[string]int
-	termMap    map[int]string
-	counts     map[int]int
-	scores     map[int]float64
-	currCounts map[int]int
-	totalCount int
+	maxItemID          int
+	maxRowsInItemBlock int
+	terms              map[string]int
+	termMap            map[int]string
+	counts             map[int]int
+	scores             map[int]float64
+	currCounts         map[int]int
+	totalCount         int
 }
 
 type rarityAnalyzer struct {
-	db             *db
+	*sqliteObj
 	rootDir        string
 	trans          *trans
 	stats          *stats

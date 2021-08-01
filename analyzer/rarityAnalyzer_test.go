@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -24,7 +25,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 
 	a := newRarityAnalyzer(rootDir)
 
-	if err := a.clear(); err != nil {
+	if err := a.clean(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -70,7 +71,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 	a.close()
 
 	a = newRarityAnalyzer(rootDir)
-	a.clear()
+	a.clean()
 
 	if err := a.init(logPathRegex,
 		"", "",
@@ -122,7 +123,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 
 	a := newRarityAnalyzer(rootDir)
 
-	if err := a.clear(); err != nil {
+	if err := a.clean(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -149,33 +150,42 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	if err := getGotExpErr("logRecords count", a.logRecs.countAll(""), 11); err != nil {
+	if err := getGotExpErr("logRecords count", a.logRecs.countAll(nil), 11); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := getGotExpErr("items count", a.trans.items.countAll(""), 38); err != nil {
+	if err := getGotExpErr("items count", a.trans.items.countAll(nil), 38); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
+
+	itemIdx := getColIdx("items", "item")
+	it := "test100"
+	fu := func(v []string) bool {
+		return strings.Index(v[itemIdx], it) >= 0
+	}
+
 	if err := getGotExpErr("items count test100",
-		a.trans.items.countAll("item = 'test100'"), 2); err != nil {
+		a.trans.items.countAll(fu), 2); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
+	it = "test102"
 	if err := getGotExpErr("items count test102",
-		a.trans.items.countAll("item = 'test102'"), 1); err != nil {
+		a.trans.items.countAll(fu), 1); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
+	it = "test3"
 	if err := getGotExpErr("items count test3*",
-		a.trans.items.countAll("item LIKE 'test3%'"), 26); err != nil {
+		a.trans.items.countAll(fu), 26); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
 	lastFileEpoch := 0
 	lastFileRow := 0
-	if err := a.db.select1rec(`SELECT lastFileEpoch, lastFileRow FROM lastStatus;`,
+	if err := a.sqliteObj.select1rec(`SELECT lastFileEpoch, lastFileRow FROM lastStatus;`,
 		&lastFileEpoch, &lastFileRow); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -217,8 +227,9 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
+	it = "test3"
 	if err := getGotExpErr("items count test3*",
-		a.trans.items.countAll("item LIKE 'test3%'"), 30); err != nil {
+		a.trans.items.countAll(fu), 30); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -268,7 +279,7 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 
 	a := newRarityAnalyzer(rootDir)
 
-	if err := a.clear(); err != nil {
+	if err := a.clean(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -295,8 +306,13 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 		return
 	}
 
+	itemIdx := getColIdx("items", "item")
+	it := "test3"
+	fu := func(v []string) bool {
+		return strings.Index(v[itemIdx], it) >= 0
+	}
 	if err := getGotExpErr("items count test3*",
-		a.trans.items.countAll("item LIKE 'test3%'"), 6); err != nil {
+		a.trans.items.countAll(fu), 6); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -324,8 +340,9 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 		return
 	}
 
+	it = "test3"
 	if err := getGotExpErr("items count test3*",
-		a.trans.items.countAll("item LIKE 'test3%'"), 11); err != nil {
+		a.trans.items.countAll(fu), 11); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -352,8 +369,9 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 		return
 	}
 
+	it = "test3"
 	if err := getGotExpErr("items count test3*",
-		a.trans.items.countAll("item LIKE 'test3%'"), 26); err != nil {
+		a.trans.items.countAll(fu), 26); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

@@ -20,9 +20,13 @@ func newTrans(dataDir string, maxBlocks, maxRowsInBlock int) (*trans, error) {
 }
 
 func (t *trans) close() {
-	if t.items.db != nil {
-		t.items.db.close()
+	if t.items.circuitDB != nil {
+		t.items.close()
 	}
+}
+
+func (t *trans) load() error {
+	return t.items.load()
 }
 
 func (t *trans) calcScore(tran []int) float64 {

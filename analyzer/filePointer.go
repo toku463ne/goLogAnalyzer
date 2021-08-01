@@ -1,7 +1,6 @@
 package analyzer
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
@@ -76,7 +75,6 @@ func (fp *filePointer) open() error {
 		}
 	}
 
-	logDebug(fmt.Sprintf("Opened %s", fp.files[0]))
 	row := 0
 	if currRow > 0 {
 		for r.next() {
@@ -140,7 +138,6 @@ func (fp *filePointer) next() bool {
 		fp.e = errors.WithStack(err)
 		return true
 	}
-	logDebug(fmt.Sprintf("Opened %s", fp.files[fp.pos]))
 	fp.r = r
 	fp.e = nil
 

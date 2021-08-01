@@ -2,16 +2,20 @@ package analyzer
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
 
 func Test_logRecords(t *testing.T) {
+	blockIdx := getColIdx("circuitDBStatus", "blockNo")
 	// checks lastIndex, blockID, rowNo, completed and count of the blockID
 	checkCircuitDBStatus := func(lr *logRecords, blockNo int, expected []interface{}) error {
-		cnt := lr.count("circuitDBStatus", fmt.Sprintf(`blockNO = %d`, blockNo))
+		cnt := lr.statusTable.Count(func(v []string) bool {
+			return v[blockIdx] == strconv.Itoa(blockNo)
+		})
+
 		if cnt != 1 {
 			return errors.New("blockNo must be uniq")
 		}
@@ -20,11 +24,13 @@ func Test_logRecords(t *testing.T) {
 		var blockID string
 		var rowNo int
 		var completed bool
-		if err := lr.select1rec(fmt.Sprintf(`SELECT lastIndex, blockID, rowNo, completed 
-FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
+		if err := lr.statusTable.Select1Row(func(v []string) bool {
+			return v[blockIdx] == strconv.Itoa(blockNo)
+		}, []string{"lastIndex", "blockID", "rowNo", "completed"},
 			&lastIndex, &blockID, &rowNo, &completed); err != nil {
 			return err
 		}
+
 		if err := getGotExpErr("lastIndex", lastIndex, expected[0]); err != nil {
 			return err
 		}
@@ -41,13 +47,27 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 		return nil
 	}
 
+	checkScore := func(lr *logRecords, tableName string, score float64, want int) error {
+		scoreIdx := getColIdx("logRecords", "score")
+		var cnt int
+		if score >= 0 {
+			cnt = lr.count(tableName, func(v []string) bool {
+				_score, _ := strconv.ParseFloat(v[scoreIdx], 64)
+				return score == _score
+			})
+		} else {
+			cnt = lr.count(tableName, nil)
+		}
+		return getGotExpErr(fmt.Sprintf("score %f count", score), cnt, want)
+	}
+
 	dataDir, err := ensureTestDir("logRecords")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	err = dropDB(dataDir, "logRecords")
+	err = dropCsvDB(dataDir, "logRecords")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -68,16 +88,16 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 	}
 
 	for _, row := range inRows {
-		err := lr.insertRow(row.rowid, row.score, row.record)
+		err := lr.insert(row.rowid, row.score, row.record, 1)
 		if err != nil {
 			t.Errorf("%v", err)
 			return
 		}
 	}
 
-	cnt := lr.count("sqlite_master", "type = 'table'")
-	if cnt != 1 {
-		t.Errorf("Number of tables must be 1")
+	cnt := lr.currTable.Count(nil)
+	if err := getGotExpErr("first count", cnt, 0); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
@@ -88,22 +108,25 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 	}
 
 	for _, row := range inRows {
-		err := lr.insertRow(row.rowid, row.score, row.record)
+		err := lr.insert(row.rowid, row.score, row.record, 2)
 		if err != nil {
 			t.Errorf("%v", err)
 			return
 		}
 	}
 
-	cnt = lr.count("sqlite_master", "type = 'table'")
-	if cnt != 2 {
-		t.Errorf("Number of tables must be 2")
+	if err := checkScore(lr, "BLK0000000000", -1, 5); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
-	cnt = lr.count("circuitDBStatus", "")
-	if cnt != 1 {
-		t.Errorf("Number of status must be 1")
+	blockIDs, err := lr.getBlockNos()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("number of blockIDs", len(blockIDs), 1); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
@@ -127,7 +150,7 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 	}
 
 	for _, row := range inRows {
-		err := lr.insertRow(row.rowid, row.score, row.record)
+		err := lr.insert(row.rowid, row.score, row.record, 3)
 		if err != nil {
 			t.Errorf("%v", err)
 			return
@@ -161,33 +184,33 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 		return
 	}
 
-	cnt = lr.count("sqlite_master", "type = 'table'")
-	if cnt != 4 {
-		t.Errorf("got=%d expect=%d", cnt, 4)
+	blockIDs, err = lr.getBlockNos()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("number of blockIDs", len(blockIDs), 3); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
-	cnt = lr.count("BLK0000000000", "score = 1.5")
-	if cnt != 0 {
-		t.Errorf("got=%d expect=%d", cnt, 0)
+	if err := checkScore(lr, "BLK0000000000", 1.5, 0); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
-	cnt = lr.count("BLK0000000000", "score = 3.5")
-	if cnt != 1 {
-		t.Errorf("got=%d expect=%d", cnt, 1)
+	if err := checkScore(lr, "BLK0000000000", 3.5, 1); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
-	cnt = lr.count("BLK0000000000", "")
-	if cnt != 1 {
-		t.Errorf("got=%d expect=%d", cnt, 1)
+	if err := checkScore(lr, "BLK0000000000", -1.0, 1); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
-	cnt = lr.count("BLK0000000001", "score = 3.5")
-	if cnt != 4 {
-		t.Errorf("Count must be 4")
+	if err := checkScore(lr, "BLK0000000001", 3.5, 4); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 
@@ -198,6 +221,7 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 		t.Errorf("%v", err)
 		return
 	}
+
 	inRows = []colLogRecords{
 		{17, 4.5, "test4"},
 		{18, 4.5, "test4"},
@@ -207,7 +231,7 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 	}
 
 	for _, row := range inRows {
-		err := lr.insertRow(row.rowid, row.score, row.record)
+		err := lr.insert(row.rowid, row.score, row.record, 4)
 		if err != nil {
 			t.Errorf("%v", err)
 			return
@@ -219,27 +243,7 @@ FROM circuitDBStatus WHERE blockNo = %d;`, blockNo),
 		return
 	}
 
-	cnt = lr.count("BLK0000000000", "")
-	if cnt != 5 {
-		t.Errorf("got=%d expect=%d", cnt, 5)
-		return
-	}
-
-	rows, err := lr.selectRows2([]string{"rowId", "score"}, "score > 1.0",
-		"score desc", 3, []int{0, 1})
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	cnt = 0
-	for rows.Next() {
-		//var rowId int
-		//var score float64
-		//rows.Scan(&rowId, &score)
-		//fmt.Printf("rowId=%d score=%f", rowId, score)
-		cnt++
-	}
-	if err := getGotExpErr("limit count", cnt, 3); err != nil {
+	if err := checkScore(lr, "BLK0000000000", -1.0, 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

@@ -18,42 +18,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func initLog(rootDir string) {
-	logFile := fmt.Sprintf("%s/analyzer.log", rootDir)
-	w, _ := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	multiLogFile := io.MultiWriter(os.Stdout, w)
+func InitLog(rootDir string) {
+	if rootDir != "" {
+		logFile := fmt.Sprintf("%s/analyzer.log", rootDir)
+		w, _ := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		multiLogFile := io.MultiWriter(os.Stdout, w)
+		log.SetOutput(multiLogFile)
+	}
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	log.SetOutput(multiLogFile)
-}
-
-func setLogLevelByStr(logLevelStr string) {
-	switch logLevelStr {
-	case "error":
-		curLogLevel = cLogLevelError
-	case "debug":
-		curLogLevel = cLogLevelDebug
-	default:
-		curLogLevel = cLogLevelInfo
-	}
-}
-
-func logmsg(logLevel int, msg string) {
-	if curLogLevel >= logLevel {
-		log.Printf("[%d] %s\n", os.Getpid(),
-			fmt.Sprintf(msg))
-	}
-}
-
-func logDebug(msg string) {
-	logmsg(cLogLevelDebug, fmt.Sprintf("DEBUG - %s", msg))
-}
-
-func logInfo(msg string) {
-	logmsg(cLogLevelInfo, fmt.Sprintf("INFO - %s", msg))
-}
-
-func logError(msg string) {
-	logmsg(cLogLevelError, fmt.Sprintf("ERROR - %s", msg))
 }
 
 func searchReg(s, reStr string) bool {
@@ -401,4 +373,17 @@ func registerNTopRareRec(
 		}
 	}
 	return newTopN, minTopRareScore
+}
+
+func getColIdx(tableName, colName string) int {
+	cols, ok := tableDefs[tableName]
+	if !ok {
+		return -1
+	}
+	for i, col := range cols {
+		if col == colName {
+			return i
+		}
+	}
+	return -1
 }
