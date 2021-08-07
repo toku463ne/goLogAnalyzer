@@ -112,13 +112,13 @@ func (s *stats) nextBlock() error {
 
 func (s *stats) prepareTables() error {
 	if t, err := s.CreateTableIfNotExists("statistics",
-		tableDefs["statistics"], false, s.maxBlocks); err != nil {
+		tableDefs["statistics"], false, cDefaultBuffSize); err != nil {
 		return err
 	} else {
 		s.statsTable = t
 	}
 	if t, err := s.CreateTableIfNotExists("scores",
-		tableDefs["scores"], false, cDefaultBuffSize); err != nil {
+		tableDefs["scores"], false, s.maxBlocks); err != nil {
 		return err
 	} else {
 		s.scoresTable = t
@@ -145,13 +145,14 @@ func (s *stats) commit(completed bool) error {
 	}); err != nil {
 		return errors.WithStack(err)
 	}
+	blockNoidx := s.statsTable.GetColIdx("blockNo")
+	scoreStageIdx := s.statsTable.GetColIdx("scoreStage")
 	for i, cnt := range s.countPerScore {
 		if cnt == 0 {
 			continue
 		}
 		if err := s.statsTable.Upsert(func(v []string) bool {
-			i := s.statsTable.GetColIdx("blockNo")
-			return v[i] == strconv.Itoa(s.blockNo)
+			return v[blockNoidx] == strconv.Itoa(s.blockNo) && v[scoreStageIdx] == strconv.Itoa(i)
 		}, map[string]interface{}{
 			"seqNo":      s.seqNo,
 			"blockNo":    s.blockNo,
