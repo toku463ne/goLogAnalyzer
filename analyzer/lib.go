@@ -14,8 +14,6 @@ import (
 	"unicode"
 
 	"github.com/pkg/errors"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func InitLog(rootDir string) {

@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
 	csvdb "github.com/toku463ne/goCsvDb"
 )
 

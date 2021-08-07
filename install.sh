@@ -5,7 +5,6 @@ echo "Installing goLogAnalyzer"
 go get "github.com/pkg/errors"
 go get "github.com/go-ini/ini"
 go get "golang.org/x/text/unicode/norm"
-go get "github.com/mattn/go-sqlite3"
 go get "github.com/toku463ne/goCsvDb"
 echo go build -o logan main.go
 go build -o logan main.go
