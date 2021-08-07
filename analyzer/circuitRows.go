@@ -18,7 +18,13 @@ func (r *circuitRows) next() bool {
 			return false
 		}
 
-		t, err := r.csvdbObj.GetTable(r.tableNames[r.pos])
+		g, err := r.GetGroup(r.groupName)
+		if err != nil {
+			r.err = err
+			return false
+		}
+
+		t, err := g.GetTable(r.tableNames[r.pos])
 		if err != nil {
 			r.err = err
 			return false

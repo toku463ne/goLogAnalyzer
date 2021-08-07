@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+	csvdb "github.com/toku463ne/goCsvDb"
 )
 
 func newRarityAnalyzer(rootDir string) *rarityAnalyzer {
@@ -53,6 +54,10 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	}
 
 	if a.rootDir != "" {
+		if err := a.prepareDB(); err != nil {
+			return err
+		}
+
 		if err := a.saveConfig(); err != nil {
 			return err
 		}
@@ -67,32 +72,51 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	return nil
 }
 
+func (a *rarityAnalyzer) prepareDB() error {
+	d, err := csvdb.NewCsvDB(a.rootDir)
+	if err != nil {
+		return err
+	}
+	ct, err := d.CreateTableIfNotExists("config", tableDefs["config"], false, 1)
+	if err != nil {
+		return err
+	}
+	a.configTable = ct
+
+	ls, err := d.CreateTableIfNotExists("lastStatus", tableDefs["lastStatus"], false, 1)
+	if err != nil {
+		return err
+	}
+	a.lastStatusTable = ls
+
+	a.CsvDB = d
+	return nil
+}
+
 func (a *rarityAnalyzer) load() error {
 	InitLog(a.rootDir)
 	log.Printf("loading data from %s", a.rootDir)
 
-	d, err := newSqliteObj(a.rootDir, "main")
-	if err != nil {
+	if err := a.prepareDB(); err != nil {
 		return err
 	}
-	a.sqliteObj = d
-	sqlstr := `SELECT 
-logPathRegex, linesInBlock, maxBlocks, maxItemBlocks, filterRe, xFilterRe, minGapToRecord
-FROM config;`
+
 	filterReStr := ""
 	xFilterReStr := ""
-	err = d.select1rec(sqlstr, &a.logPathRegex, &a.linesInBlock, &a.maxBlocks, &a.maxItemBlocks,
-		&filterReStr, &xFilterReStr, &a.minGapToRecord)
-	if err != nil {
+	if err := a.configTable.Select1Row(nil,
+		[]string{"logPathRegex", "linesInBlock", "maxBlocks",
+			"maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord"},
+		&a.logPathRegex, &a.linesInBlock, &a.maxBlocks, &a.maxItemBlocks,
+		&filterReStr, &xFilterReStr, &a.minGapToRecord); err != nil {
 		return err
 	}
+
 	a.filterRe = getRegex(filterReStr)
 	a.xFilterRe = getRegex(xFilterReStr)
 
-	sqlstr = `SELECT 
-	lastRowID, lastFileEpoch, lastFileRow FROM lastStatus;`
-	err = d.select1rec(sqlstr, &a.rowID, &a.lastFileEpoch, &a.lastFileRow)
-	if err != nil {
+	if err := a.lastStatusTable.Select1Row(nil,
+		[]string{"lastRowID", "lastFileEpoch", "lastFileRow"},
+		&a.rowID, &a.lastFileEpoch, &a.lastFileRow); err != nil {
 		return err
 	}
 
@@ -134,6 +158,9 @@ func (a *rarityAnalyzer) loadObjs() error {
 	if err := a.stats.load(); err != nil {
 		return err
 	}
+	if err := a.logRecs.load(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -151,54 +178,40 @@ func (a *rarityAnalyzer) saveObjs() error {
 }
 
 func (a *rarityAnalyzer) saveConfig() error {
-	d, err := newSqliteObj(a.rootDir, "main")
-	if err != nil {
-		return err
-	}
-	a.sqliteObj = d
-	if err := d.createTable("config"); err != nil {
-		return err
-	}
-	sqlstr := `REPLACE INTO config(rootDir,
-logPathRegex, linesInBlock, maxBlocks, maxItemBlocks, filterRe, xFilterRe, minGapToRecord)
-VALUES (?,?,?,?,?,?,?,?)`
-	stmt, err := d.conn.Prepare(sqlstr)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
 	filterReStr := re2str(a.filterRe)
 	xFilterReStr := re2str(a.xFilterRe)
 
-	_, err = stmt.Exec(a.rootDir, a.logPathRegex, a.linesInBlock, a.maxBlocks, a.maxItemBlocks,
-		filterReStr, xFilterReStr, a.minGapToRecord)
-	if err != nil {
-		return errors.WithStack(err)
+	if err := a.configTable.Upsert(nil, map[string]interface{}{
+		"logPathRegex":   a.logPathRegex,
+		"linesInBlock":   a.linesInBlock,
+		"maxBlocks":      a.maxBlocks,
+		"maxItemBlocks":  a.maxItemBlocks,
+		"filterRe":       filterReStr,
+		"xFilterRe":      xFilterReStr,
+		"minGapToRecord": a.minGapToRecord,
+	}); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (a *rarityAnalyzer) saveLastStatus() error {
-	d := a.sqliteObj
-	if err := d.createTable("lastStatus"); err != nil {
-		return err
-	}
-	if _, err := d.exec(`DELETE FROM lastStatus;`); err != nil {
-		return err
+	var epoch int64
+	rowNo := 0
+	if a.fp != nil {
+		epoch = a.fp.currFileEpoch()
+		rowNo = a.fp.row()
+	} else {
+		epoch = 0
+		rowNo = 0
 	}
 
-	sqlstr := `INSERT INTO lastStatus(lastRowID, lastFileEpoch, lastFileRow) VALUES (?,?,?)`
-	stmt, err := d.conn.Prepare(sqlstr)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	if a.fp != nil {
-		_, err = stmt.Exec(a.rowID, a.fp.currFileEpoch(), a.fp.row())
-	} else {
-		_, err = stmt.Exec(a.rowID, 0, 0)
-	}
-	if err != nil {
-		return errors.WithStack(err)
+	if err := a.lastStatusTable.Upsert(nil, map[string]interface{}{
+		"lastRowID":     a.rowID,
+		"lastFileEpoch": epoch,
+		"lastFileRow":   rowNo,
+	}); err != nil {
+		return err
 	}
 	return nil
 }
@@ -211,7 +224,7 @@ func (a *rarityAnalyzer) close() {
 		a.stats.close()
 	}
 	if a.logRecs != nil {
-		a.logRecs.close()
+		a.logRecs = nil
 	}
 	if a.trans != nil {
 		a.trans.close()

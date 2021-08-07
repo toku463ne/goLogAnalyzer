@@ -8,32 +8,33 @@ import (
 	csvdb "github.com/toku463ne/goCsvDb"
 )
 
-func newCircuitDB(rootDir, name string, maxBlocks, maxRowsInBlock int) (*circuitDB, error) {
+func newCircuitDB(rootDir, name string, columns []string,
+	maxBlocks, maxRowsInBlock int) (*circuitDB, error) {
 	cdb := new(circuitDB)
 	cdb.dataDir = fmt.Sprintf("%s/%s", rootDir, name)
 	cdb.name = name
 	cdb.maxRowsInBlock = maxRowsInBlock
 	cdb.maxBlocks = maxBlocks
-	db, err := newCsvdbObj(rootDir, name)
+
+	db, err := csvdb.NewCsvDB(cdb.dataDir)
 	if err != nil {
 		return nil, err
 	}
-	cdb.csvdbObj = db
+	_, err = db.CreateGroup(name, columns, useGzipInCircuitTables, maxRowsInBlock)
+	if err != nil {
+		return nil, err
+	}
+
 	cdb.writeMode = csvdb.CWriteModeAppend
 
-	if cdb.csvdbObj.TableExists("circuitDBStatus") {
-		if err := cdb.loadCircuitDBStatus(); err != nil {
-			return nil, err
-		}
-	} else {
-		st, err := cdb.CreateCsvTable("circuitDBStatus",
-			tableDefs["circuitDBStatus"], false, maxRowsInBlock)
-
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		cdb.statusTable = st
+	st, err := db.CreateTableIfNotExists("circuitDBStatus",
+		tableDefs["circuitDBStatus"], false, maxBlocks)
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
+	cdb.statusTable = st
+
+	cdb.CsvDB = db
 
 	t, err := cdb.getBlockTable(cdb.blockNo)
 	if err != nil {
@@ -45,12 +46,8 @@ func newCircuitDB(rootDir, name string, maxBlocks, maxRowsInBlock int) (*circuit
 }
 
 func (cdb *circuitDB) getBlockTable(blockNo int) (*csvdb.CsvTable, error) {
-	blockID := cdb.getBlockTableName(cdb.blockNo)
-	cols, ok := tableDefs[cdb.name]
-	if !ok {
-		return nil, errors.New(fmt.Sprintf("Table %s is not defined", cdb.name))
-	}
-	return cdb.CreateCsvTableIfNotExists(blockID, cols, true, cdb.maxRowsInBlock)
+	blockID := cdb.getBlockTableName(blockNo)
+	return cdb.Groups[cdb.name].GetTable(blockID)
 }
 
 func (cdb *circuitDB) loadCircuitDBStatus() error {
@@ -58,11 +55,7 @@ func (cdb *circuitDB) loadCircuitDBStatus() error {
 	var blockNo, rowNo int
 	var completed bool
 
-	t, err := cdb.GetTable("circuitDBStatus")
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
+	t := cdb.statusTable
 	if err := t.Max(nil, "lastIndex", &lastIndex); err != nil {
 		return errors.WithStack(err)
 	}
@@ -88,7 +81,12 @@ func (cdb *circuitDB) loadCircuitDBStatus() error {
 		}
 	}
 
-	cdb.statusTable = t
+	t, err := cdb.getBlockTable(cdb.blockNo)
+	if err != nil {
+		return err
+	}
+	cdb.currTable = t
+
 	return nil
 }
 
@@ -239,6 +237,7 @@ func (cdb *circuitDB) selectRows(conditionCheckFunc func([]string) bool,
 	}
 
 	r := new(circuitRows)
+	r.groupName = cdb.name
 	r.tableNames = make([]string, len(blockNos))
 	pos := 0
 	for _, blockNo := range blockNos {
@@ -247,13 +246,13 @@ func (cdb *circuitDB) selectRows(conditionCheckFunc func([]string) bool,
 	}
 
 	r.statusTable = cdb.statusTable
+	r.CsvDB = cdb.CsvDB
 	r.conditionCheckFunc = conditionCheckFunc
 	r.columns = columns
 	r.blockIDIdx = getColIdx("circuitDBStatus", "blockID")
 	r.completedIdx = getColIdx("circuitDBStatus", "completed")
 
 	r.pos = 0
-	r.csvdbObj = cdb.csvdbObj
 	return r, nil
 }
 
@@ -264,7 +263,7 @@ func (cdb *circuitDB) countAll(conditionCheckFunc func([]string) bool) int {
 	}
 	cnt := 0
 	for _, blockNo := range blockNos {
-		t, err := cdb.GetTable(cdb.getBlockTableName(blockNo))
+		t, err := cdb.Groups[cdb.name].GetTable(cdb.getBlockTableName(blockNo))
 		if err != nil {
 			return -1
 		}

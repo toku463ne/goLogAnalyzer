@@ -21,7 +21,7 @@ func newTrans(dataDir string, maxBlocks, maxRowsInBlock int) (*trans, error) {
 
 func (t *trans) close() {
 	if t.items.circuitDB != nil {
-		t.items.close()
+		t.items = nil
 	}
 }
 

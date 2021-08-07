@@ -77,7 +77,11 @@ func Test_Items(t *testing.T) {
 		if !blockExists(it, blockNo) {
 			return 0
 		}
-		t, err := it.GetTable(tableName)
+		g, err := it.GetGroup("items")
+		if err != nil {
+			return -1
+		}
+		t, err := g.GetTable(tableName)
 		if err != nil {
 			return -1
 		}
@@ -121,20 +125,17 @@ func Test_Items(t *testing.T) {
 		return
 	}
 
-	err = dropCsvDB(dataDir, "items")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
 	maxBlocks := 3
 	maxRowsInBlock := 5
+	useGzipInCircuitTables = false
 	//tl, err := newTableLogRecords(dataDir, maxBlocks, maxRowsInBlock)
 	it, err := newItems(dataDir, maxBlocks, maxRowsInBlock)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
+	it.DropAll()
+
 	inRows := [][]string{
 		{"test100", "test200", "test301"},
 		{"test100", "test200", "test302"},
@@ -302,7 +303,7 @@ func Test_Items(t *testing.T) {
 		return
 	}
 
-	it.close()
+	it = nil
 
 	it, err = newItems(dataDir, maxBlocks, maxRowsInBlock)
 	if err != nil {
@@ -364,5 +365,5 @@ func Test_Items(t *testing.T) {
 		return
 	}
 
-	it.close()
+	it = nil
 }

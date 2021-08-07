@@ -185,7 +185,9 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 
 	lastFileEpoch := 0
 	lastFileRow := 0
-	if err := a.sqliteObj.select1rec(`SELECT lastFileEpoch, lastFileRow FROM lastStatus;`,
+
+	if err := a.lastStatusTable.Select1Row(nil,
+		[]string{"lastFileEpoch", "lastFileRow"},
 		&lastFileEpoch, &lastFileRow); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -265,6 +267,7 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 	maxBlocks := 3
 	maxItemBlocks := 6
 	linesInBlock := 5
+	useGzipInCircuitTables = false
 
 	if err := removePath(fmt.Sprintf("%s/sample.log*", testDir)); err != nil {
 		t.Errorf("%v", err)

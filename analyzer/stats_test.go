@@ -1,8 +1,10 @@
 package analyzer
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
+
+	csvdb "github.com/toku463ne/goCsvDb"
 )
 
 func Test_stats(t *testing.T) {
@@ -38,13 +40,16 @@ func Test_stats(t *testing.T) {
 		var scoreSum float64
 		var scoreSqrSum float64
 		var completed bool
-		if err := st.select1rec(fmt.Sprintf(`SELECT 
-rowCount, scoreSum, scoreSqrSum, completed 
-FROM scores WHERE blockNo = %d 
-AND seqNo = (SELECT MAX(seqNo) FROM scores WHERE blockNo = %d);`, blockNo, blockNo),
+
+		blockNoIdx := st.scoresTable.GetColIdx("blockNo")
+		blockNoStr := strconv.Itoa(blockNo)
+		if err := st.scoresTable.Select1Row(func(v []string) bool {
+			return v[blockNoIdx] == blockNoStr
+		}, []string{"rowCount", "scoreSum", "scoreSqrSum", "completed"},
 			&rowCount, &scoreSum, &scoreSqrSum, &completed); err != nil {
 			return err
 		}
+
 		if err := getGotExpErr("rowCount", rowCount, expected[0]); err != nil {
 			return err
 		}
@@ -60,16 +65,14 @@ AND seqNo = (SELECT MAX(seqNo) FROM scores WHERE blockNo = %d);`, blockNo, block
 		return nil
 	}
 
-	dataDir, err := ensureTestDir("statstest")
+	dataDir, err := ensureTestDir("statsTest")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	err = dropSqliteDB(dataDir, "stats")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
+
+	db, _ := csvdb.NewCsvDB(dataDir)
+	db.DropAll()
 
 	maxBlocks := 3
 	maxRowsInBlock := 5

@@ -7,7 +7,7 @@ import (
 )
 
 func newItems(dataDir string, maxBlocks, maxRowsInBlock int) (*items, error) {
-	d, err := newCircuitDB(dataDir, "items", maxBlocks, 0)
+	d, err := newCircuitDB(dataDir, "items", tableDefs["items"], maxBlocks, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +110,6 @@ func (i *items) clearCurrCount() {
 }
 
 func (i *items) loadDB() error {
-	if !i.TableExists("circuitDBStatus") {
-		return nil
-	}
 	cnt := i.statusTable.Count(nil)
 	if cnt <= 0 {
 		return nil

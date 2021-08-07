@@ -50,24 +50,26 @@ func Test_logRecords(t *testing.T) {
 	checkScore := func(lr *logRecords, tableName string, score float64, want int) error {
 		scoreIdx := getColIdx("logRecords", "score")
 		var cnt int
+		g, err := lr.GetGroup("logRecords")
+		if err != nil {
+			return nil
+		}
+		t, err := g.GetTable(tableName)
+		if err != nil {
+			return nil
+		}
 		if score >= 0 {
-			cnt = lr.count(tableName, func(v []string) bool {
+			cnt = t.Count(func(v []string) bool {
 				_score, _ := strconv.ParseFloat(v[scoreIdx], 64)
 				return score == _score
 			})
 		} else {
-			cnt = lr.count(tableName, nil)
+			cnt = t.Count(nil)
 		}
 		return getGotExpErr(fmt.Sprintf("score %f count", score), cnt, want)
 	}
 
-	dataDir, err := ensureTestDir("logRecords")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	err = dropCsvDB(dataDir, "logRecords")
+	dataDir, err := ensureTestDir("logrecTest")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -75,12 +77,21 @@ func Test_logRecords(t *testing.T) {
 
 	maxBlocks := 3
 	maxRowsInBlock := 5
+	useGzipInCircuitTables = false
 	//tl, err := newTableLogRecords(dataDir, maxBlocks, maxRowsInBlock)
 	lr, err := newLogRecords(dataDir, maxBlocks, maxRowsInBlock)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
+	lr.DropAll()
+
+	lr, err = newLogRecords(dataDir, maxBlocks, maxRowsInBlock)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 	inRows := []colLogRecords{
 		{1, 1.5, "test1"},
 		{2, 1.5, "test1"},
@@ -214,10 +225,14 @@ func Test_logRecords(t *testing.T) {
 		return
 	}
 
-	lr.close()
+	lr = nil
 
 	lr, err = newLogRecords(dataDir, maxBlocks, maxRowsInBlock)
 	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := lr.load(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -248,5 +263,5 @@ func Test_logRecords(t *testing.T) {
 		return
 	}
 
-	lr.close()
+	lr = nil
 }

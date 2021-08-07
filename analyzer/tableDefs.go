@@ -8,7 +8,7 @@ var (
 		"items":      {"item", "itemCount"},
 		"logRecords": {"rowID", "score", "record"},
 		"scores":     {"seqNo", "blockNo", "rowCount", "scoreSum", "scoreSqrSum", "completed"},
-		"statistics": {"lastRowID", "lastFileEpoch", "lastFileRow"},
+		"statistics": {"seqNo", "blockNo", "scoreStage", "itemCount"},
 		"blockInfo": {"lastIndex", "blockNo", "blockID",
 			"rowNo", "lastEpoch", "completed"},
 		"circuitDBStatus": {"lastIndex", "blockNo", "blockID", "rowNo", "lastEpoch", "completed"},

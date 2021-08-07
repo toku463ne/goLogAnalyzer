@@ -4,13 +4,26 @@ import "github.com/pkg/errors"
 
 func newLogRecords(dataDir string,
 	maxBlocks, maxRowsInBlock int) (*logRecords, error) {
-	cdb, err := newCircuitDB(dataDir, "logRecords", maxBlocks, maxRowsInBlock)
+	cdb, err := newCircuitDB(dataDir, "logRecords",
+		tableDefs["logRecords"], maxBlocks, maxRowsInBlock)
 	if err != nil {
 		return nil, err
 	}
 	lr := new(logRecords)
 	lr.circuitDB = cdb
 	return lr, nil
+}
+
+func (lr *logRecords) load() error {
+	cnt := lr.statusTable.Count(nil)
+	if cnt <= 0 {
+		return nil
+	}
+
+	if err := lr.loadCircuitDBStatus(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (lr *logRecords) insert(rowID int64, score float64, record string, lastEpoch int64) error {

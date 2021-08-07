@@ -40,13 +40,13 @@ func TestCsvDb(t *testing.T) {
 		return
 	}
 
-	err = db.DropAllTables()
+	err = db.DropAll()
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	tb, err := db.CreateCsvTable(name,
+	tb, err := db.CreateTable(name,
 		[]string{"id", "name", "class"}, false, bufferSize)
 	if err != nil {
 		t.Errorf("%v", err)

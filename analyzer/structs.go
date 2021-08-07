@@ -1,25 +1,12 @@
 package analyzer
 
 import (
-	"database/sql"
 	"regexp"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	csvdb "github.com/toku463ne/goCsvDb"
 )
-
-type csvdbObj struct {
-	dataDir string
-	dbName  string
-	*csvdb.CsvDB
-}
-
-type sqliteObj struct {
-	dataDir string
-	dbName  string
-	conn    *sql.DB
-}
 
 type colStats struct {
 	scoreSum    float64
@@ -28,8 +15,10 @@ type colStats struct {
 }
 
 type stats struct {
-	*sqliteObj
+	*csvdb.CsvDB
 	*colStats
+	statsTable     *csvdb.CsvTable
+	scoresTable    *csvdb.CsvTable
 	rootDir        string
 	currBlock      *colStats
 	countPerScore  []int
@@ -44,9 +33,9 @@ type stats struct {
 }
 
 type circuitDB struct {
-	*csvdbObj
-	name           string
+	*csvdb.CsvDB
 	dataDir        string
+	name           string
 	maxBlocks      int
 	maxRowsInBlock int
 	blockNo        int
@@ -59,11 +48,12 @@ type circuitDB struct {
 }
 
 type circuitRows struct {
+	groupName  string
 	tableNames []string
 	rows       *csvdb.CsvRows
 	pos        int
 	err        error
-	*csvdbObj
+	*csvdb.CsvDB
 	columns            []string
 	conditionCheckFunc func([]string) bool
 	blockCompleted     bool
@@ -107,20 +97,22 @@ type items struct {
 }
 
 type rarityAnalyzer struct {
-	*sqliteObj
-	rootDir        string
-	trans          *trans
-	stats          *stats
-	logRecs        *logRecords
-	fp             *filePointer
-	logPathRegex   string
-	filterRe       *regexp.Regexp
-	xFilterRe      *regexp.Regexp
-	minGapToRecord float64
-	lastFileEpoch  int64
-	lastFileRow    int
-	rowID          int64
-	linesInBlock   int
-	maxBlocks      int
-	maxItemBlocks  int
+	*csvdb.CsvDB
+	configTable     *csvdb.CsvTable
+	lastStatusTable *csvdb.CsvTable
+	rootDir         string
+	trans           *trans
+	stats           *stats
+	logRecs         *logRecords
+	fp              *filePointer
+	logPathRegex    string
+	filterRe        *regexp.Regexp
+	xFilterRe       *regexp.Regexp
+	minGapToRecord  float64
+	lastFileEpoch   int64
+	lastFileRow     int
+	rowID           int64
+	linesInBlock    int
+	maxBlocks       int
+	maxItemBlocks   int
 }

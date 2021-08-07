@@ -1,10 +1,11 @@
 package analyzer
 
 import (
-	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/pkg/errors"
+	csvdb "github.com/toku463ne/goCsvDb"
 )
 
 func newColStats() *colStats {
@@ -24,12 +25,15 @@ func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s.seqNo = 0
 	s.rootDir = rootDir
 	if s.rootDir != "" {
-		d, err := newSqliteObj(s.rootDir, "stats")
+		db, err := csvdb.NewCsvDB(rootDir)
 		if err != nil {
 			return nil, err
 		}
-		s.sqliteObj = d
+		s.CsvDB = db
 		if err := s.prepareTables(); err != nil {
+			return nil, err
+		}
+		if err := s.load(); err != nil {
 			return nil, err
 		}
 	}
@@ -85,9 +89,7 @@ func (s *stats) registerScore(score float64) error {
 }
 
 func (s *stats) close() {
-	if s.sqliteObj != nil {
-		s.sqliteObj.close()
-	}
+	s.CsvDB = nil
 }
 
 func (s *stats) nextBlock() error {
@@ -109,11 +111,17 @@ func (s *stats) nextBlock() error {
 }
 
 func (s *stats) prepareTables() error {
-	if err := s.createTable("statistics"); err != nil {
+	if t, err := s.CreateTableIfNotExists("statistics",
+		tableDefs["statistics"], false, s.maxBlocks); err != nil {
 		return err
+	} else {
+		s.statsTable = t
 	}
-	if err := s.createTable("scores"); err != nil {
+	if t, err := s.CreateTableIfNotExists("scores",
+		tableDefs["scores"], false, cDefaultBuffSize); err != nil {
 		return err
+	} else {
+		s.scoresTable = t
 	}
 	return nil
 }
@@ -124,47 +132,46 @@ func (s *stats) commit(completed bool) error {
 	}
 
 	cb := s.currBlock
-
-	stmt, err := s.conn.Prepare(`REPLACE INTO scores(
-seqNo, blockNo, rowCount, scoreSum, scoreSqrSum, completed) 
-VALUES(?,?,?,?,?,?);`)
-	if err != nil {
+	blockIdx := s.scoresTable.GetColIdx("blockNo")
+	if err := s.scoresTable.Upsert(func(v []string) bool {
+		return v[blockIdx] == strconv.Itoa(s.blockNo)
+	}, map[string]interface{}{
+		"seqNo":       s.seqNo,
+		"blockNo":     s.blockNo,
+		"rowCount":    s.rowNo,
+		"scoreSum":    cb.scoreSum,
+		"scoreSqrSum": cb.scoreSqrSum,
+		"completed":   completed,
+	}); err != nil {
 		return errors.WithStack(err)
 	}
-	_, err = stmt.Exec(s.seqNo, s.blockNo, s.rowNo,
-		cb.scoreSum, cb.scoreSqrSum, completed)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	_, err = s.exec(fmt.Sprintf(`DELETE FROM statistics WHERE seqNo=%d AND blockNo=%d`,
-		s.seqNo, s.blockNo))
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	stmt, err = s.conn.Prepare(`INSERT INTO statistics(
-		seqNo, blockNo, scoreStage, itemCount) VALUES(?,?,?,?);`)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
 	for i, cnt := range s.countPerScore {
 		if cnt == 0 {
 			continue
 		}
-		_, err = stmt.Exec(s.seqNo, s.blockNo, i, cnt)
-		if err != nil {
+		if err := s.statsTable.Upsert(func(v []string) bool {
+			i := s.statsTable.GetColIdx("blockNo")
+			return v[i] == strconv.Itoa(s.blockNo)
+		}, map[string]interface{}{
+			"seqNo":      s.seqNo,
+			"blockNo":    s.blockNo,
+			"scoreStage": i,
+			"itemCount":  cnt,
+		}); err != nil {
 			return errors.WithStack(err)
 		}
 	}
+
 	s.seqNo++
 
 	return nil
 }
 
 func (s *stats) blockExists(blockNo int) bool {
-	cnt := s.count("scores", fmt.Sprintf("blockNo = %d", blockNo))
+	cnt := s.scoresTable.Count(func(v []string) bool {
+		i := s.scoresTable.GetColIdx("blockNo")
+		return v[i] == strconv.Itoa(s.blockNo)
+	})
 	return cnt > 0
 }
 
@@ -172,20 +179,27 @@ func (s *stats) load() error {
 	cb := s.currBlock
 	var completed bool
 
-	if cnt := s.count("scores", ""); cnt == 0 {
+	if cnt := s.scoresTable.Count(nil); cnt == 0 {
 		return nil
 	}
 
-	if err := s.select1rec(`SELECT 
-seqNo, blockNo, rowCount, scoreSum, scoreSqrSum, completed 
-FROM scores 
-WHERE seqNo = (SELECT MAX(seqNo) FROM scores);`,
+	ma := 0.0
+	if err := s.scoresTable.Max(nil, "seqNo", &ma); err != nil {
+		return errors.WithStack(err)
+	}
+
+	seqIdx := s.scoresTable.GetColIdx("seqNo")
+	maxStr := strconv.Itoa(int(ma))
+	if err := s.scoresTable.Select1Row(func(v []string) bool {
+		return v[seqIdx] == maxStr
+	}, []string{"seqNo", "blockNo", "rowCount", "scoreSum", "scoreSqrSum", "completed"},
 		&s.seqNo, &s.blockNo, &s.rowNo, &cb.scoreSum, &cb.scoreSqrSum, &completed); err != nil {
 		return err
 	}
+
 	s.currBlock.scoreCount = int64(s.rowNo)
 
-	rows, err := s.query(`SELECT rowCount, scoreSum, scoreSqrSum FROM scores;)`)
+	rows, err := s.scoresTable.SelectRows(nil, []string{"rowCount", "scoreSum", "scoreSqrSum"})
 	if err != nil {
 		return err
 	}
@@ -205,11 +219,15 @@ WHERE seqNo = (SELECT MAX(seqNo) FROM scores);`,
 		return nil
 	}
 
+	seqIdx = s.statsTable.GetColIdx("seqNo")
+	blockNoIdx := s.statsTable.GetColIdx("blockNo")
 	var scoreStage int
 	var itemCount int
-	rows, err = s.query(fmt.Sprintf(`SELECT scoreStage, itemCount 
-FROM statistics
-WHERE seqNo=%d AND blockNo=%d;)`, s.seqNo, s.blockNo))
+	seqNoStr := strconv.Itoa(int(s.seqNo))
+	blockNoStr := strconv.Itoa(s.blockNo)
+	rows, err = s.statsTable.SelectRows(func(v []string) bool {
+		return v[seqIdx] == seqNoStr && v[blockNoIdx] == blockNoStr
+	}, []string{"scoreStage", "itemCount"})
 	if err != nil {
 		return err
 	}
@@ -226,11 +244,11 @@ WHERE seqNo=%d AND blockNo=%d;)`, s.seqNo, s.blockNo))
 func (s *stats) getAllScorePerCount() (map[int]int, error) {
 	var scoreStage int
 	var itemCount int
-	rows, err := s.query(`SELECT scoreStage, itemCount 
-FROM statistics;)`)
+	rows, err := s.statsTable.SelectRows(nil, []string{"scoreStage", "itemCount"})
 	if err != nil {
 		return nil, err
 	}
+
 	countPerScore := make(map[int]int)
 	for rows.Next() {
 		if err := rows.Scan(&scoreStage, &itemCount); err != nil {
