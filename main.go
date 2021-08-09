@@ -60,7 +60,7 @@ var (
 	topnStartDate     = topNFlag.String("start", "", startDateDesc)
 
 	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
-	stsRecordsToShow = stsFlag.Int("n", 0, recordsToShowDesc)
+	stsRecordsToShow = stsFlag.Int("n", 5, recordsToShowDesc)
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -180,7 +180,7 @@ func stats() error {
 		return fmt.Errorf("%s does not exist", *stsRootDir)
 	}
 
-	err := analyzer.RarStats(*stsRootDir)
+	err := analyzer.RarStats(*stsRootDir, *stsRecordsToShow)
 	return err
 }
 

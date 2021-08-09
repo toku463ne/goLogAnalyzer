@@ -48,9 +48,6 @@ func newFilePointer(pathRegex string,
 	return fp
 }
 
-func (fp *filePointer) currFile() string {
-	return fp.files[fp.pos]
-}
 func (fp *filePointer) currFileEpoch() int64 {
 	return fp.epochs[fp.pos]
 }

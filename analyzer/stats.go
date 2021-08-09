@@ -24,6 +24,7 @@ func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s.rowNo = 0
 	s.seqNo = 0
 	s.rootDir = rootDir
+	s.scoreMax = -1
 	if s.rootDir != "" {
 		db, err := csvdb.NewCsvDB(rootDir)
 		if err != nil {
@@ -52,7 +53,7 @@ func (s *stats) getScoreStage(score float64) int {
 	return scoreStage
 }
 
-func (s *stats) registerScore(score float64) error {
+func (s *stats) registerScore(score float64, fileEpoch int64) error {
 	scoreSqr := score * score
 	scoreStage := s.getScoreStage(score)
 
@@ -60,6 +61,7 @@ func (s *stats) registerScore(score float64) error {
 	s.scoreSum += score
 	s.scoreSqrSum += scoreSqr
 	s.countPerScore[scoreStage]++
+	s.lastFileEpoch = fileEpoch
 
 	cnt := float64(s.scoreCount)
 	//score avg
@@ -74,6 +76,10 @@ func (s *stats) registerScore(score float64) error {
 	}
 	s.lastAverage = sa
 	s.lastStd = ss
+
+	if s.scoreMax == -1 || s.scoreMax < score {
+		s.scoreMax = score
+	}
 
 	s.currBlock.scoreCount++
 	s.currBlock.scoreSum += score
@@ -102,6 +108,7 @@ func (s *stats) nextBlock() error {
 
 	s.currBlock = newColStats()
 	s.countPerScore = make([]int, cCountbyScoreLen)
+	s.scoreMax = 0
 	s.blockNo++
 	s.rowNo = 0
 	if s.blockNo >= s.maxBlocks {
@@ -123,6 +130,12 @@ func (s *stats) prepareTables() error {
 	} else {
 		s.scoresTable = t
 	}
+	if t, err := s.CreateTableIfNotExists("scoresHist",
+		tableDefs["scoresHist"], false, s.maxBlocks); err != nil {
+		return err
+	} else {
+		s.scoresHistTable = t
+	}
 	return nil
 }
 
@@ -140,6 +153,7 @@ func (s *stats) commit(completed bool) error {
 		"blockNo":     s.blockNo,
 		"rowCount":    s.rowNo,
 		"scoreSum":    cb.scoreSum,
+		"scoreMax":    s.scoreMax,
 		"scoreSqrSum": cb.scoreSqrSum,
 		"completed":   completed,
 	}); err != nil {
@@ -163,17 +177,28 @@ func (s *stats) commit(completed bool) error {
 		}
 	}
 
+	scoreMax := 0.0
+	if err := s.scoresTable.Max(nil, "scoreMax", &scoreMax); err != nil {
+		return errors.WithStack(err)
+	}
+
+	blockNoidx = s.scoresHistTable.GetColIdx("blockNo")
+	if err := s.scoresHistTable.Upsert(func(v []string) bool {
+		return v[blockNoidx] == strconv.Itoa(int(s.blockNo))
+	}, map[string]interface{}{
+		"seqNo":         s.seqNo,
+		"blockNo":       s.blockNo,
+		"avg":           s.lastAverage,
+		"std":           s.lastStd,
+		"max":           s.scoreMax,
+		"lastFileEpoch": s.lastFileEpoch,
+	}); err != nil {
+		return errors.WithStack(err)
+	}
+
 	s.seqNo++
 
 	return nil
-}
-
-func (s *stats) blockExists(blockNo int) bool {
-	cnt := s.scoresTable.Count(func(v []string) bool {
-		i := s.scoresTable.GetColIdx("blockNo")
-		return v[i] == strconv.Itoa(s.blockNo)
-	})
-	return cnt > 0
 }
 
 func (s *stats) load() error {
@@ -258,4 +283,39 @@ func (s *stats) getAllScorePerCount() (map[int]int, error) {
 		countPerScore[scoreStage] += itemCount
 	}
 	return countPerScore, nil
+}
+
+func (s *stats) getRecentStats(showCounts int) ([]colScoreshist, error) {
+	var lastFileEpoch int64
+	var avg float64
+	var std float64
+	var max float64
+	rows, err := s.scoresHistTable.SelectRows(nil,
+		[]string{"lastFileEpoch", "avg", "std", "max"})
+	if err != nil {
+		return nil, err
+	}
+
+	err = rows.OrderBy([]string{"seqNo"}, []string{"int"}, csvdb.CorderByDesc)
+	if err != nil {
+		return nil, err
+	}
+
+	scoresHists := make([]colScoreshist, showCounts)
+	oldScore := new(colScoreshist)
+	i := 0
+	for rows.Next() {
+		if err := rows.Scan(&lastFileEpoch, &avg, &std, &max); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if oldScore.lastFileEpoch == 0 || oldScore.lastFileEpoch != lastFileEpoch {
+			scoresHists[i] = colScoreshist{lastFileEpoch, avg, std, max}
+			oldScore = &scoresHists[i]
+			i++
+		}
+		if i >= showCounts {
+			break
+		}
+	}
+	return scoresHists, nil
 }

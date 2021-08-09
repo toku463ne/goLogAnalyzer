@@ -75,34 +75,12 @@ func (i *items) getCount(itemID int) int {
 	return i.counts[itemID]
 }
 
-func (i *items) addCount(itemID, cnt int) {
-	i.counts[itemID] += cnt
-}
-
-func (i *items) subCount(item string, cnt int) {
-	itemID := i.getItemID(item)
-	currCnt := i.counts[itemID]
-	currCnt -= cnt
-	if currCnt == 0 {
-		delete(i.counts, itemID)
-		delete(i.terms, item)
-		delete(i.termMap, itemID)
-	} else {
-		i.counts[itemID] = currCnt
-	}
-	i.totalCount -= cnt
-}
-
 func (i *items) getItemID(term string) int {
 	itemID, ok := i.terms[term]
 	if !ok {
 		return -1
 	}
 	return itemID
-}
-
-func (i *items) getCurrCount(itemID int) int {
-	return i.currCounts[itemID]
 }
 
 func (i *items) clearCurrCount() {

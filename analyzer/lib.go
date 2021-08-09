@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
-	"syscall"
 	"time"
 	"unicode"
 
@@ -28,21 +26,7 @@ func InitLog(rootDir string) {
 
 func searchReg(s, reStr string) bool {
 	re := regexp.MustCompile(fmt.Sprintf(".*%s.*", reStr))
-	if re.MatchString(s) {
-		return true
-	}
-	return false
-}
-
-func getMapKeys(m map[string]interface{}) []string {
-	keys := make([]string, len(m))
-
-	i := 0
-	for k := range m {
-		keys[i] = k
-		i++
-	}
-	return keys
+	return re.MatchString(s)
 }
 
 // Round ...
@@ -76,28 +60,6 @@ func roundInt(num float64) float64 {
 func roundUpInt(num float64) float64 {
 	t := math.Trunc(num)
 	return t + math.Copysign(1, num)
-}
-
-func argParseANum(args map[string]string, key string) (int, error) {
-	v, ok := args[key]
-	if ok == false {
-		v = "0"
-	}
-	vs, err := strconv.Atoi(v)
-	if err != nil {
-		return -1, fmt.Errorf("%s must be integer", key)
-	}
-	return vs, nil
-}
-
-func timeToString(t time.Time) string {
-	str := t.Format(cTimestampLayout)
-	return str
-}
-
-func epochToString(epoch int64) string {
-	str := timeToString(time.Unix(epoch, 0).UTC())
-	return str
 }
 
 func copyFile(src, dst string) (int64, error) {
@@ -177,62 +139,6 @@ func quickSort(a []int64, s []string, i, j int) {
 	}
 }
 
-func _pivotFloatInt(a []float64, i, j int) int {
-	k := i + 1
-	for k <= j && a[i] == a[k] {
-		k++
-	}
-	if k > j {
-		return -1
-	}
-	if a[i] >= a[k] {
-		return i
-	}
-	return k
-}
-
-func _partitionFloatInt(a []float64, s []int, i, j int, x float64) int {
-	l := i
-	r := j
-
-	for l <= r {
-		for l <= j && a[l] < x {
-			l++
-		}
-		for r >= i && a[r] >= x {
-			r--
-		}
-		if l > r {
-			break
-		}
-		t := a[l]
-		s1 := s[l]
-		a[l] = a[r]
-		s[l] = s[r]
-		a[r] = t
-		s[r] = s1
-		l++
-		r--
-	}
-	return l
-}
-
-func quickSortFloatInt(a []float64, s []int, i, j int) {
-	if i == j {
-		return
-	}
-	p := _pivotFloatInt(a, i, j)
-	if p != -1 {
-		k := _partitionFloatInt(a, s, i, j, a[p])
-		quickSortFloatInt(a, s, i, k-1)
-		quickSortFloatInt(a, s, k, j)
-	}
-}
-
-func timespecToTime(ts syscall.Timespec) time.Time {
-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
-}
-
 func getSortedGlob(pathRegex string) ([]int64, []string) {
 	fileNames, _ := filepath.Glob(pathRegex)
 	if fileNames == nil {
@@ -252,19 +158,6 @@ func getSortedGlob(pathRegex string) ([]int64, []string) {
 	return filesEpoch, fileNames
 }
 
-func extError(err error, msg string) error {
-	return errors.WithStack(errors.Wrapf(err, msg))
-}
-
-func countDigits(i int) (count int) {
-	for i != 0 {
-
-		i /= 10
-		count = count + 1
-	}
-	return count
-}
-
 // PathExist ..
 func pathExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {
@@ -280,10 +173,6 @@ func ensureDir(dirPath string) error {
 		return errors.WithStack(err)
 	}
 	return nil
-}
-
-func tob(a string) byte {
-	return []byte(a)[0]
 }
 
 func isInt(s string) bool {
@@ -311,11 +200,6 @@ func re2str(re *regexp.Regexp) string {
 		return ""
 	}
 	return re.String()
-}
-
-func getCurrentEpoch() int64 {
-	now := time.Now()
-	return now.Unix()
 }
 
 func removePath(pathRegex string) error {
@@ -384,4 +268,14 @@ func getColIdx(tableName, colName string) int {
 		}
 	}
 	return -1
+}
+
+func timeToString(t time.Time) string {
+	str := t.Format(cTimestampLayout)
+	return str
+}
+
+func epochToString(epoch int64) string {
+	str := timeToString(time.Unix(epoch, 0).UTC())
+	return str
 }

@@ -48,6 +48,10 @@ func (t *trans) toTermList(line string, registerItem bool) []int {
 	words := strings.Split(line, " ")
 	result := make([]int, len(words))
 	for i, w := range words {
+		if _, ok := enStopWords[w]; ok {
+			continue
+		}
+
 		word := strings.ToLower(w)
 		if len(word) > cWordMaxLen {
 			word = word[:cWordMaxLen]

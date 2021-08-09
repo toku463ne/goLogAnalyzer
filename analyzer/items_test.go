@@ -134,6 +134,11 @@ func Test_Items(t *testing.T) {
 		return
 	}
 	it.DropAll()
+	it, err = newItems(dataDir, maxBlocks, maxRowsInBlock)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 
 	inRows := [][]string{
 		{"test100", "test200", "test301"},

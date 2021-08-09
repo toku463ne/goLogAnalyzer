@@ -65,6 +65,30 @@ func Test_stats(t *testing.T) {
 		return nil
 	}
 
+	checkScoresHistTable := func(st *stats, blockNo int,
+		expected ...interface{}) error {
+		var avg float64
+		var std float64
+		var epoch int64
+
+		blockNoIdx := st.scoresHistTable.GetColIdx("blockNo")
+		blockNoStr := strconv.Itoa(blockNo)
+		if err := st.scoresHistTable.Select1Row(func(v []string) bool {
+			return v[blockNoIdx] == blockNoStr
+		}, []string{"avg", "std", "lastFileEpoch"},
+			&avg, &std, &epoch); err != nil {
+			return err
+		}
+
+		if err := getGotExpErr("avg", avg, expected[0]); err != nil {
+			return err
+		}
+		if err := getGotExpErr("std", std, expected[1]); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	dataDir, err := ensureTestDir("statsTest")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -83,7 +107,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{1.0, 1.0, 1.0} {
-		st.registerScore(score)
+		st.registerScore(score, 1)
 	}
 
 	if err := assertScore(st, 3, 3.0, 3.0); err != nil {
@@ -96,7 +120,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{1.0, 1.0, 2.0} {
-		if err := st.registerScore(score); err != nil {
+		if err := st.registerScore(score, 2); err != nil {
 			t.Errorf("%v", err)
 			return
 		}
@@ -115,11 +139,15 @@ func Test_stats(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+	if err := checkScoresHistTable(st, 0, 1.0, 0.0); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 
 	for _, score := range []float64{2.0, 2.0, 2.0, 2.0,
 		3.0, 3.0, 3.0, 3.0, 3.0,
 		4.0} {
-		if err := st.registerScore(score); err != nil {
+		if err := st.registerScore(score, 3); err != nil {
 			t.Errorf("%v", err)
 			return
 		}
@@ -176,7 +204,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{4.0, 4.0, 4.0, 4.0, 5.0} {
-		if err := st.registerScore(score); err != nil {
+		if err := st.registerScore(score, 3); err != nil {
 			t.Errorf("%v", err)
 			return
 		}

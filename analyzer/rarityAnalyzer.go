@@ -280,7 +280,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 		}
 
 		score := a.trans.calcScore(tran)
-		err = a.stats.registerScore(score)
+		err = a.stats.registerScore(score, lastEpoch)
 		if err != nil {
 			return linesProcessed, err
 		}
@@ -379,13 +379,13 @@ func (a *rarityAnalyzer) printNTops(msg string,
 	}
 
 	fmt.Printf("%s\n", msg)
-	fmt.Print("score   rowID      text\n")
-	fmt.Print("-------+----------+-------\n")
+	fmt.Print("score     rowID      text\n")
+	fmt.Print("---------+----------+-------\n")
 	for i, logr := range nTopRareLogs {
 		if logr == nil {
 			break
 		}
-		fmt.Printf(" %5.2f   %8d   %s\n", logr.score, logr.rowid, logr.record)
+		fmt.Printf("   %5.2f   %8d   %s\n", logr.score, logr.rowid, logr.record)
 		if logr.score == 0 {
 			break
 		}

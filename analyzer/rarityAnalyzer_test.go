@@ -162,7 +162,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 	itemIdx := getColIdx("items", "item")
 	it := "test100"
 	fu := func(v []string) bool {
-		return strings.Index(v[itemIdx], it) >= 0
+		return strings.Contains(v[itemIdx], it)
 	}
 
 	if err := getGotExpErr("items count test100",
@@ -312,7 +312,7 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 	itemIdx := getColIdx("items", "item")
 	it := "test3"
 	fu := func(v []string) bool {
-		return strings.Index(v[itemIdx], it) >= 0
+		return strings.Contains(v[itemIdx], it)
 	}
 	if err := getGotExpErr("items count test3*",
 		a.trans.items.countAll(fu), 6); err != nil {

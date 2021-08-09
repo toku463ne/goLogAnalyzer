@@ -13,22 +13,32 @@ type colStats struct {
 	scoreCount  int64
 }
 
+type colScoreshist struct {
+	lastFileEpoch int64
+	avg           float64
+	std           float64
+	max           float64
+}
+
 type stats struct {
 	*csvdb.CsvDB
 	*colStats
-	statsTable     *csvdb.CsvTable
-	scoresTable    *csvdb.CsvTable
-	rootDir        string
-	currBlock      *colStats
-	countPerScore  []int
-	maxBlocks      int
-	maxRowsInBlock int
-	blockNo        int
-	rowNo          int
-	seqNo          int64
-	lastAverage    float64
-	lastStd        float64
-	lastGap        float64
+	statsTable      *csvdb.CsvTable
+	scoresTable     *csvdb.CsvTable
+	scoresHistTable *csvdb.CsvTable
+	rootDir         string
+	currBlock       *colStats
+	countPerScore   []int
+	maxBlocks       int
+	maxRowsInBlock  int
+	blockNo         int
+	rowNo           int
+	seqNo           int64
+	lastAverage     float64
+	lastStd         float64
+	lastGap         float64
+	lastFileEpoch   int64
+	scoreMax        float64
 }
 
 type circuitDB struct {
@@ -61,11 +71,6 @@ type circuitRows struct {
 	statusTable        *csvdb.CsvTable
 }
 
-type colItems struct {
-	item      string
-	itemCount int
-}
-
 type colLogRecords struct {
 	rowid  int64
 	score  float64
@@ -90,7 +95,6 @@ type items struct {
 	terms              map[string]int
 	termMap            map[int]string
 	counts             map[int]int
-	scores             map[int]float64
 	currCounts         map[int]int
 	totalCount         int
 }

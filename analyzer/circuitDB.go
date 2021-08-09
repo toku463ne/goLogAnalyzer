@@ -120,42 +120,6 @@ func (cdb *circuitDB) getBlockTableName(blockNo int) string {
 	return fmt.Sprintf("BLK%s", cdb.getBlockID(blockNo))
 }
 
-func (cdb *circuitDB) dropBlock(blockNo int) error {
-	t, err := cdb.getBlockTable(cdb.blockNo)
-	if err != nil {
-		return err
-	}
-
-	if err := t.Delete(nil); err != nil {
-		return errors.WithStack(err)
-	}
-	return nil
-}
-
-func (cdb *circuitDB) dropBlockIfCompeted(blockNo int) error {
-	//fmt.Sprintf("blockNo = %d", blockNo)
-	idx := getColIdx("circuitDBStatus", "blockNo")
-	cnt := cdb.statusTable.Count(func(v []string) bool {
-		return v[idx] == strconv.Itoa(blockNo)
-	})
-	if cnt <= 0 {
-		return nil
-	}
-
-	var completed bool
-	if err := cdb.statusTable.Select1Row(func(v []string) bool {
-		return v[idx] == strconv.Itoa(blockNo)
-	}, []string{"completed"}, completed); err != nil {
-		return err
-	}
-	if completed {
-		if err := cdb.dropBlock(cdb.blockNo); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (cdb *circuitDB) insertRow(columns []string, row ...interface{}) error {
 	if cdb.writeMode == csvdb.CWriteModeWrite {
 		if err := cdb.currTable.Delete(nil); err != nil {
