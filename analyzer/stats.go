@@ -17,6 +17,7 @@ func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s := new(stats)
 	s.colStats = newColStats()
 	s.currBlock = newColStats()
+	s.currCountPerScore = make([]int, cCountbyScoreLen)
 	s.countPerScore = make([]int, cCountbyScoreLen)
 	s.maxBlocks = maxBlocks
 	s.maxRowsInBlock = maxRowsInBlock
@@ -60,6 +61,7 @@ func (s *stats) registerScore(score float64, fileEpoch int64) error {
 	s.scoreCount++
 	s.scoreSum += score
 	s.scoreSqrSum += scoreSqr
+	s.currCountPerScore[scoreStage]++
 	s.countPerScore[scoreStage]++
 	s.lastFileEpoch = fileEpoch
 
@@ -107,8 +109,10 @@ func (s *stats) nextBlock() error {
 	}
 
 	s.currBlock = newColStats()
-	s.countPerScore = make([]int, cCountbyScoreLen)
-	s.scoreMax = 0
+	s.currCountPerScore = make([]int, cCountbyScoreLen)
+	if s.rootDir != "" {
+		s.scoreMax = 0
+	}
 	s.blockNo++
 	s.rowNo = 0
 	if s.blockNo >= s.maxBlocks {
@@ -140,6 +144,9 @@ func (s *stats) prepareTables() error {
 }
 
 func (s *stats) commit(completed bool) error {
+	if s.rootDir == "" {
+		return nil
+	}
 	if s.rowNo == 0 {
 		return nil
 	}
@@ -161,7 +168,7 @@ func (s *stats) commit(completed bool) error {
 	}
 	blockNoidx := s.statsTable.GetColIdx("blockNo")
 	scoreStageIdx := s.statsTable.GetColIdx("scoreStage")
-	for i, cnt := range s.countPerScore {
+	for i, cnt := range s.currCountPerScore {
 		if cnt == 0 {
 			continue
 		}
@@ -202,6 +209,9 @@ func (s *stats) commit(completed bool) error {
 }
 
 func (s *stats) load() error {
+	if s.rootDir == "" {
+		return nil
+	}
 	cb := s.currBlock
 	var completed bool
 
@@ -261,13 +271,14 @@ func (s *stats) load() error {
 		if err := rows.Scan(&scoreStage, &itemCount); err != nil {
 			return errors.WithStack(err)
 		}
+		s.currCountPerScore[scoreStage] += itemCount
 		s.countPerScore[scoreStage] += itemCount
 	}
 
 	return nil
 }
 
-func (s *stats) getAllScorePerCount() (map[int]int, error) {
+func (s *stats) loadAllScorePerCount() ([]int, error) {
 	var scoreStage int
 	var itemCount int
 	rows, err := s.statsTable.SelectRows(nil, []string{"scoreStage", "itemCount"})
@@ -275,17 +286,18 @@ func (s *stats) getAllScorePerCount() (map[int]int, error) {
 		return nil, err
 	}
 
-	countPerScore := make(map[int]int)
+	countPerScore := make([]int, cCountbyScoreLen)
 	for rows.Next() {
 		if err := rows.Scan(&scoreStage, &itemCount); err != nil {
 			return nil, errors.WithStack(err)
 		}
 		countPerScore[scoreStage] += itemCount
+
 	}
 	return countPerScore, nil
 }
 
-func (s *stats) getRecentStats(showCounts int) ([]colScoreshist, error) {
+func (s *stats) loadRecentStats(showCounts int) ([]colScoresHist, error) {
 	var lastFileEpoch int64
 	var avg float64
 	var std float64
@@ -301,15 +313,15 @@ func (s *stats) getRecentStats(showCounts int) ([]colScoreshist, error) {
 		return nil, err
 	}
 
-	scoresHists := make([]colScoreshist, showCounts)
-	oldScore := new(colScoreshist)
+	scoresHists := make([]colScoresHist, showCounts)
+	oldScore := new(colScoresHist)
 	i := 0
 	for rows.Next() {
 		if err := rows.Scan(&lastFileEpoch, &avg, &std, &max); err != nil {
 			return nil, errors.WithStack(err)
 		}
 		if oldScore.lastFileEpoch == 0 || oldScore.lastFileEpoch != lastFileEpoch {
-			scoresHists[i] = colScoreshist{lastFileEpoch, avg, std, max}
+			scoresHists[i] = colScoresHist{lastFileEpoch, avg, std, max}
 			oldScore = &scoresHists[i]
 			i++
 		}

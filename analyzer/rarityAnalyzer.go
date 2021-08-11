@@ -28,6 +28,7 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	a.logPathRegex = logPathRegex
 	a.filterRe = getRegex(filterStr)
 	a.xFilterRe = getRegex(xFilterStr)
+	a.nTopRareLogs = make([]*colLogRecords, 0)
 
 	if a.rootDir != "" {
 		if err := ensureDir(a.rootDir); err != nil {
@@ -206,6 +207,10 @@ func (a *rarityAnalyzer) saveLastStatus() error {
 		rowNo = 0
 	}
 
+	if a.rootDir == "" {
+		return nil
+	}
+
 	if err := a.lastStatusTable.Upsert(nil, map[string]interface{}{
 		"lastRowID":     a.rowID,
 		"lastFileEpoch": epoch,
@@ -232,6 +237,9 @@ func (a *rarityAnalyzer) close() {
 }
 
 func (a *rarityAnalyzer) commit(completed bool) error {
+	if a.rootDir == "" {
+		return nil
+	}
 	if err := a.trans.commit(completed); err != nil {
 		return err
 	}
@@ -364,6 +372,56 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch int64,
 		nTopRareLogs, m = registerNTopRareRec(nTopRareLogs, m, rowID, score, record)
 	}
 	return nTopRareLogs, nil
+}
+
+func (a *rarityAnalyzer) showRarStats(rootDir string, histSize int) error {
+	var g []int
+	var err error
+	if a.rootDir == "" {
+		g = a.stats.countPerScore
+	} else {
+		g, err = a.stats.loadAllScorePerCount()
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("\n")
+	fmt.Printf("Counts per score\n")
+	fmt.Printf(" score | count\n")
+	fmt.Printf(" ------+--------------\n")
+	for i := 0; i < cCountbyScoreLen; i++ {
+		if g[i] > 0 {
+			fmt.Printf("   %2.1f | %d\n", float64(i), g[i])
+		}
+	}
+	fmt.Println("")
+	fmt.Println("")
+
+	if a.rootDir == "" {
+		fmt.Printf("statistics\n")
+		fmt.Printf("average= %f\n", a.stats.lastAverage)
+		fmt.Printf("std=     %f\n", a.stats.lastStd)
+		fmt.Printf("max=     %f\n", a.stats.scoreMax)
+		fmt.Printf("\n")
+		return nil
+	}
+
+	s, err := a.stats.loadRecentStats(histSize)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("score history\n")
+	fmt.Printf(" last date           | average |     std |     max \n")
+	fmt.Printf(" --------------------+---------+---------+---------\n")
+	for _, rec := range s {
+		if rec.lastFileEpoch == 0 {
+			break
+		}
+		fmt.Printf(" %s |     %3.1f |     %3.1f |     %3.1f \n",
+			epochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
+	}
+	return nil
 }
 
 func (a *rarityAnalyzer) printNTops(msg string,

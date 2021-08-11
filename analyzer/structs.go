@@ -13,7 +13,7 @@ type colStats struct {
 	scoreCount  int64
 }
 
-type colScoreshist struct {
+type colScoresHist struct {
 	lastFileEpoch int64
 	avg           float64
 	std           float64
@@ -23,22 +23,23 @@ type colScoreshist struct {
 type stats struct {
 	*csvdb.CsvDB
 	*colStats
-	statsTable      *csvdb.CsvTable
-	scoresTable     *csvdb.CsvTable
-	scoresHistTable *csvdb.CsvTable
-	rootDir         string
-	currBlock       *colStats
-	countPerScore   []int
-	maxBlocks       int
-	maxRowsInBlock  int
-	blockNo         int
-	rowNo           int
-	seqNo           int64
-	lastAverage     float64
-	lastStd         float64
-	lastGap         float64
-	lastFileEpoch   int64
-	scoreMax        float64
+	statsTable        *csvdb.CsvTable
+	scoresTable       *csvdb.CsvTable
+	scoresHistTable   *csvdb.CsvTable
+	rootDir           string
+	currBlock         *colStats
+	currCountPerScore []int
+	countPerScore     []int
+	maxBlocks         int
+	maxRowsInBlock    int
+	blockNo           int
+	rowNo             int
+	seqNo             int64
+	lastAverage       float64
+	lastStd           float64
+	lastGap           float64
+	lastFileEpoch     int64
+	scoreMax          float64
 }
 
 type circuitDB struct {
@@ -84,7 +85,6 @@ type logRecords struct {
 type trans struct {
 	items          *items
 	maxRowsInBlock int
-	maxTranID      int
 	replacer       *strings.Replacer
 }
 
@@ -118,4 +118,5 @@ type rarityAnalyzer struct {
 	linesInBlock    int
 	maxBlocks       int
 	maxItemBlocks   int
+	nTopRareLogs    []*colLogRecords
 }

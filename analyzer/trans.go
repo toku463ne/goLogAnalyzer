@@ -13,7 +13,6 @@ func newTrans(dataDir string, maxBlocks, maxRowsInBlock int) (*trans, error) {
 	}
 	t.items = i
 	t.items.register("", 1, true)
-	t.maxTranID = -1
 	t.replacer = getDelimReplacer()
 	t.maxRowsInBlock = maxRowsInBlock
 	return t, nil

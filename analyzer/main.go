@@ -1,7 +1,6 @@
 package analyzer
 
 import (
-	"fmt"
 	"log"
 	"os"
 )
@@ -35,7 +34,16 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 			return 0, err
 		}
 	}
-	return a.analyze(linesToProcess)
+	linesProcessed, err := a.analyze(linesToProcess)
+	if err != nil {
+		return linesProcessed, err
+	}
+	if rootDir == "" {
+		if err := a.showRarStats("", cDefaultHistSize); err != nil {
+			return linesProcessed, err
+		}
+	}
+	return linesProcessed, nil
 }
 
 func PrintRarTopN(rootDir, msg string,
@@ -57,36 +65,5 @@ func RarStats(rootDir string, histSize int) error {
 		return err
 	}
 
-	g, err := a.stats.getAllScorePerCount()
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("\n")
-	fmt.Printf("Counts per score\n")
-	fmt.Printf(" score | count\n")
-	fmt.Printf(" ------+--------------\n")
-	for i := 0; i < cCountbyScoreLen; i++ {
-		if g[i] > 0 {
-			fmt.Printf("   %2.1f | %d\n", float64(i), g[i])
-		}
-	}
-	fmt.Println("")
-	fmt.Println("")
-	s, err := a.stats.getRecentStats(histSize)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("score history\n")
-	fmt.Printf(" last date           | average |     std |     max \n")
-	fmt.Printf(" --------------------+---------+---------+---------\n")
-	for _, rec := range s {
-		if rec.lastFileEpoch == 0 {
-			break
-		}
-		fmt.Printf(" %s |     %3.1f |     %3.1f |     %3.1f \n",
-			epochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
-	}
-
-	return nil
+	return a.showRarStats(rootDir, histSize)
 }

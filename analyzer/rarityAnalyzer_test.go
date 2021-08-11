@@ -381,3 +381,59 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 	a.close()
 
 }
+
+func Test_rarityAnalyzerNodb(t *testing.T) {
+	testDir, err := ensureTestDir("rarityAnalyzerRun2")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	logPathRegex := fmt.Sprintf("%s/sample.log*", testDir)
+	filterStr := ""
+	xFilterStr := ""
+	minGapToRecord := 0.0
+	maxBlocks := 3
+	maxItemBlocks := 6
+	linesInBlock := 5
+	useGzipInCircuitTables = false
+
+	if err := removePath(fmt.Sprintf("%s/sample.log*", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log.1",
+		fmt.Sprintf("%s/sample.log.1", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a := newRarityAnalyzer("")
+	if err := a.init(logPathRegex,
+		filterStr, xFilterStr,
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if lines, err := a.analyze(0); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if err := getGotExpErr("lines processed", lines, 31); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	if err := getGotExpErr("rowID", a.rowID, int64(31)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("items.totalCount", a.trans.items.totalCount, 93); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+}

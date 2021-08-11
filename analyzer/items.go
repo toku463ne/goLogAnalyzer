@@ -7,12 +7,13 @@ import (
 )
 
 func newItems(dataDir string, maxBlocks, maxRowsInBlock int) (*items, error) {
+	i := new(items)
 	d, err := newCircuitDB(dataDir, "items", tableDefs["items"], maxBlocks, 0)
 	if err != nil {
 		return nil, err
 	}
-	i := new(items)
 	i.circuitDB = d
+
 	i.maxRowsInItemBlock = maxRowsInBlock
 	i.termMap = make(map[int]string, 10000)
 	i.counts = make(map[int]int, 10000)
@@ -88,6 +89,9 @@ func (i *items) clearCurrCount() {
 }
 
 func (i *items) loadDB() error {
+	if i.dataDir == "" {
+		return nil
+	}
 	cnt := i.statusTable.Count(nil)
 	if cnt <= 0 {
 		return nil
@@ -132,6 +136,9 @@ func (i *items) next() error {
 }
 
 func (i *items) commit(completed bool) error {
+	if i.dataDir == "" {
+		return nil
+	}
 	if err := i.flush(); err != nil {
 		return err
 	}
@@ -142,6 +149,9 @@ func (i *items) commit(completed bool) error {
 }
 
 func (i *items) flush() error {
+	if i.dataDir == "" {
+		return nil
+	}
 	for itemID, cnt := range i.currCounts {
 		term := i.getWord(itemID)
 		if err := i.insertRow([]string{"item", "itemCount"}, term, cnt); err != nil {

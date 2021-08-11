@@ -19,4 +19,5 @@ const (
 	cNTopRareRecords = 5
 	cLogPerLines     = 1000000
 	cDefaultBuffSize = 10000
+	cDefaultHistSize = 5
 )

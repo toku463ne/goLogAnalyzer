@@ -11,10 +11,14 @@ import (
 func newCircuitDB(rootDir, name string, columns []string,
 	maxBlocks, maxRowsInBlock int) (*circuitDB, error) {
 	cdb := new(circuitDB)
-	cdb.dataDir = fmt.Sprintf("%s/%s", rootDir, name)
 	cdb.name = name
 	cdb.maxRowsInBlock = maxRowsInBlock
 	cdb.maxBlocks = maxBlocks
+
+	if rootDir == "" {
+		return cdb, nil
+	}
+	cdb.dataDir = fmt.Sprintf("%s/%s", rootDir, name)
 
 	db, err := csvdb.NewCsvDB(cdb.dataDir)
 	if err != nil {
@@ -51,6 +55,10 @@ func (cdb *circuitDB) getBlockTable(blockNo int) (*csvdb.CsvTable, error) {
 }
 
 func (cdb *circuitDB) loadCircuitDBStatus() error {
+	if cdb.dataDir == "" {
+		return nil
+	}
+
 	var lastIndex, lastEpoch int64
 	var blockNo, rowNo int
 	var completed bool
@@ -101,6 +109,12 @@ func (cdb *circuitDB) nextBlock() error {
 		cdb.blockNo = 0
 	}
 	cdb.lastIndex++
+
+	// if don't save to file
+	if cdb.dataDir == "" {
+		return nil
+	}
+
 	cdb.writeMode = "w"
 
 	t, err := cdb.getBlockTable(cdb.blockNo)
@@ -121,6 +135,9 @@ func (cdb *circuitDB) getBlockTableName(blockNo int) string {
 }
 
 func (cdb *circuitDB) insertRow(columns []string, row ...interface{}) error {
+	if cdb.dataDir == "" {
+		return nil
+	}
 	if cdb.writeMode == csvdb.CWriteModeWrite {
 		if err := cdb.currTable.Delete(nil); err != nil {
 			return errors.WithStack(err)
@@ -136,6 +153,9 @@ func (cdb *circuitDB) insertRow(columns []string, row ...interface{}) error {
 }
 
 func (cdb *circuitDB) updateBlockStatus(completed bool) error {
+	if cdb.dataDir == "" {
+		return nil
+	}
 	idx := getColIdx("circuitDBStatus", "blockNo")
 	blockID := cdb.getBlockTableName(cdb.blockNo)
 
@@ -156,6 +176,9 @@ func (cdb *circuitDB) updateBlockStatus(completed bool) error {
 }
 
 func (cdb *circuitDB) commit(completed bool) error {
+	if cdb.dataDir == "" {
+		return nil
+	}
 	if err := cdb.currTable.Flush(); err != nil {
 		return errors.WithStack(err)
 	}
