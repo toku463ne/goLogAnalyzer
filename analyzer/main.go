@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -21,7 +22,7 @@ func Clean(rootDir string) error {
 
 func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock int,
-	linesToProcess int) (int, error) {
+	linesToProcess, nTopRecords int) (int, error) {
 
 	a := newRarityAnalyzer(rootDir)
 	if pathExist(rootDir) {
@@ -30,7 +31,7 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 		}
 	} else {
 		if err := a.init(logPathRegex, filterStr, xFilterStr,
-			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock); err != nil {
+			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords); err != nil {
 			return 0, err
 		}
 	}
@@ -39,6 +40,9 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 		return linesProcessed, err
 	}
 	if rootDir == "" {
+		msg := fmt.Sprintf("%d top rare records", nTopRecords)
+		a.printNTops(msg, nTopRecords, 0, filterStr, xFilterStr)
+
 		if err := a.showRarStats("", cDefaultHistSize); err != nil {
 			return linesProcessed, err
 		}

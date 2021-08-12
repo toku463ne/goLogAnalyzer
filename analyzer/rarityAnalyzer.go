@@ -24,11 +24,11 @@ func (a *rarityAnalyzer) clean() error {
 }
 
 func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
-	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock int) error {
+	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int) error {
 	a.logPathRegex = logPathRegex
 	a.filterRe = getRegex(filterStr)
 	a.xFilterRe = getRegex(xFilterStr)
-	a.nTopRareLogs = make([]*colLogRecords, 0)
+	a.nTopRareLogs = make([]*colLogRecords, nTopRecords)
 
 	if a.rootDir != "" {
 		if err := ensureDir(a.rootDir); err != nil {
@@ -297,6 +297,12 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 				return linesProcessed, err
 			}
 		}
+		if a.rootDir == "" {
+			nTopRareLogs, m := registerNTopRareRec(a.nTopRareLogs, a.maxScore, a.rowID, score, te)
+			a.nTopRareLogs = nTopRareLogs
+			a.maxScore = m
+		}
+
 		if a.fp.isEOF && !a.fp.isLastFile() {
 			if err := a.saveLastStatus(); err != nil {
 				return linesProcessed, err
@@ -430,10 +436,14 @@ func (a *rarityAnalyzer) printNTops(msg string,
 ) error {
 	var err error
 	var nTopRareLogs []*colLogRecords
-	nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch,
-		filterReStr, xFilterReStr)
-	if err != nil {
-		return err
+	if a.rootDir == "" {
+		nTopRareLogs = a.nTopRareLogs
+	} else {
+		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch,
+			filterReStr, xFilterReStr)
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("%s\n", msg)

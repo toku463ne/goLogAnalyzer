@@ -23,23 +23,22 @@ type colScoresHist struct {
 type stats struct {
 	*csvdb.CsvDB
 	*colStats
-	statsTable        *csvdb.CsvTable
-	scoresTable       *csvdb.CsvTable
-	scoresHistTable   *csvdb.CsvTable
-	rootDir           string
-	currBlock         *colStats
-	currCountPerScore []int
-	countPerScore     []int
-	maxBlocks         int
-	maxRowsInBlock    int
-	blockNo           int
-	rowNo             int
-	seqNo             int64
-	lastAverage       float64
-	lastStd           float64
-	lastGap           float64
-	lastFileEpoch     int64
-	scoreMax          float64
+	statsTable      *csvdb.CsvTable
+	scoresTable     *csvdb.CsvTable
+	scoresHistTable *csvdb.CsvTable
+	rootDir         string
+	currBlock       *colStats
+	countPerScore   []int
+	maxBlocks       int
+	maxRowsInBlock  int
+	blockNo         int
+	rowNo           int
+	seqNo           int64
+	lastAverage     float64
+	lastStd         float64
+	lastGap         float64
+	lastFileEpoch   int64
+	scoreMax        float64
 }
 
 type circuitDB struct {
@@ -119,4 +118,5 @@ type rarityAnalyzer struct {
 	maxBlocks       int
 	maxItemBlocks   int
 	nTopRareLogs    []*colLogRecords
+	maxScore        float64
 }

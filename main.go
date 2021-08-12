@@ -35,24 +35,23 @@ var (
 	rarXFilterRe  = rarFlag.String("x", "", xfilterReDesc)
 	gapDesc       = `Gap rate from average
 		Log records with rarity score whose gap if higher that this value will be showed.`
-	rarGap           = rarFlag.Float64("g", cMinGapToRecord, gapDesc)
-	forceSaveDb      = "Update the data without asking"
-	rarForceSaveDb   = rarFlag.Bool("save", false, forceSaveDb)
-	linesInBlockDesc = "lines in block"
-	rarLinesInBlock  = rarFlag.Int("linesInBlock", cDefaultBlockSize, linesInBlockDesc)
-	maxBlockDesc     = "max blocks"
-	rarMaxBlock      = rarFlag.Int("maxBlock", cDefaultMaxBlocks, maxBlockDesc)
-	maxItemBlockDesc = "max blocks for items"
-	rarMaxItemBlock  = rarFlag.Int("maxItemBlock", cDefaultMaxItemBlocks, maxItemBlockDesc)
-	maxLinesDesc     = "max lines to process"
-	rarMaxLines      = rarFlag.Int("n", 0, maxLinesDesc)
-	silentDesc       = "Run without message"
-	rarSilent        = rarFlag.Bool("silent", false, silentDesc)
+	rarGap               = rarFlag.Float64("g", cMinGapToRecord, gapDesc)
+	forceSaveDb          = "Update the data without asking"
+	rarForceSaveDb       = rarFlag.Bool("save", false, forceSaveDb)
+	linesInBlockDesc     = "lines in block"
+	rarLinesInBlock      = rarFlag.Int("linesInBlock", cDefaultBlockSize, linesInBlockDesc)
+	maxBlockDesc         = "max blocks"
+	rarMaxBlock          = rarFlag.Int("maxBlock", cDefaultMaxBlocks, maxBlockDesc)
+	maxItemBlockDesc     = "max blocks for items"
+	rarMaxItemBlock      = rarFlag.Int("maxItemBlock", cDefaultMaxItemBlocks, maxItemBlockDesc)
+	maxLinesDesc         = "max lines to process"
+	rarMaxLines          = rarFlag.Int("n", 0, maxLinesDesc)
+	recordsToShowDesc    = "Top N rare records to show"
+	rarTopnRecordsToShow = rarFlag.Int("silent", 10, recordsToShowDesc)
 
 	clnRootDir = clnFlag.String("d", "", rootDirDesc)
 
 	topnRootDir       = topNFlag.String("d", "", rootDirDesc)
-	recordsToShowDesc = "Top N rare records to show"
 	topnRecordsToShow = topNFlag.Int("n", 10, recordsToShowDesc)
 	topnFilterRe      = topNFlag.String("s", "", filterReDesc)
 	topnXFilterRe     = topNFlag.String("x", "", xfilterReDesc)
@@ -60,7 +59,7 @@ var (
 	topnStartDate     = topNFlag.String("start", "", startDateDesc)
 
 	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
-	stsRecordsToShow = stsFlag.Int("n", 5, recordsToShowDesc)
+	stsRecordsToShow = stsFlag.Int("n", 5, "Number of history to show")
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -164,7 +163,7 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 		*rarFilterRe, *rarXFilterRe,
 		*rarGap,
 		*rarMaxBlock, *rarMaxItemBlock, *rarLinesInBlock,
-		*rarMaxLines)
+		*rarMaxLines, *rarTopnRecordsToShow)
 
 	log.Printf("%d lines processed\n", linesProcessed)
 
