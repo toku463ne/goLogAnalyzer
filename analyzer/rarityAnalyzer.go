@@ -392,13 +392,23 @@ func (a *rarityAnalyzer) showRarStats(rootDir string, histSize int) error {
 		}
 	}
 
+	s, err := a.stats.loadRecentStats(histSize)
+	if err != nil {
+		return err
+	}
+
+	if len(s) > 0 {
+		lastStat := s[0]
+		fmt.Printf("\n")
+		fmt.Printf("Recent normal score border: %2.1f\n", lastStat.avg+lastStat.std*2)
+	}
 	fmt.Printf("\n")
 	fmt.Printf("Counts per score\n")
 	fmt.Printf(" score | count\n")
 	fmt.Printf(" ------+--------------\n")
 	for i := 0; i < cCountbyScoreLen; i++ {
 		if g[i] > 0 {
-			fmt.Printf("   %2.1f | %d\n", float64(i), g[i])
+			fmt.Printf("   %-2.1f | %d\n", float64(i), g[i])
 		}
 	}
 	fmt.Println("")
@@ -413,10 +423,6 @@ func (a *rarityAnalyzer) showRarStats(rootDir string, histSize int) error {
 		return nil
 	}
 
-	s, err := a.stats.loadRecentStats(histSize)
-	if err != nil {
-		return err
-	}
 	fmt.Printf("score history\n")
 	fmt.Printf(" last date           | average |     std |     max \n")
 	fmt.Printf(" --------------------+---------+---------+---------\n")
@@ -424,7 +430,7 @@ func (a *rarityAnalyzer) showRarStats(rootDir string, histSize int) error {
 		if rec.lastFileEpoch == 0 {
 			break
 		}
-		fmt.Printf(" %s |     %3.1f |     %3.1f |     %3.1f \n",
+		fmt.Printf(" %s |     %-3.1f |     %-3.1f |     %-3.1f \n",
 			epochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
 	}
 	return nil
@@ -453,7 +459,7 @@ func (a *rarityAnalyzer) printNTops(msg string,
 		if logr == nil {
 			break
 		}
-		fmt.Printf("   %5.2f   %8d   %s\n", logr.score, logr.rowid, logr.record)
+		fmt.Printf("   %-5.2f  %8d   %s\n", logr.score, logr.rowid, logr.record)
 		if logr.score == 0 {
 			break
 		}
