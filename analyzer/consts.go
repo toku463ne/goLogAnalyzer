@@ -20,4 +20,5 @@ const (
 	cLogPerLines     = 1000000
 	cDefaultBuffSize = 10000
 	cDefaultHistSize = 5
+	cCountBorderRate = 0.01
 )

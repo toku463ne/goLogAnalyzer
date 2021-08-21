@@ -51,12 +51,16 @@ var (
 
 	clnRootDir = clnFlag.String("d", "", rootDirDesc)
 
-	topnRootDir       = topNFlag.String("d", "", rootDirDesc)
-	topnRecordsToShow = topNFlag.Int("n", 10, recordsToShowDesc)
-	topnFilterRe      = topNFlag.String("s", "", filterReDesc)
-	topnXFilterRe     = topNFlag.String("x", "", xfilterReDesc)
-	startDateDesc     = "Start date to collect stats %Y-%m-%d format"
-	topnStartDate     = topNFlag.String("start", "", startDateDesc)
+	topnRootDir           = topNFlag.String("d", "", rootDirDesc)
+	topnRecordsToShow     = topNFlag.Int("n", 10, recordsToShowDesc)
+	topnFilterRe          = topNFlag.String("s", "", filterReDesc)
+	topnXFilterRe         = topNFlag.String("x", "", xfilterReDesc)
+	startDateDesc         = "Start date to collect stats %Y-%m-%d format"
+	topnStartDate         = topNFlag.String("start", "", startDateDesc)
+	endDateDesc           = "End date to collect stats %Y-%m-%d format"
+	topnEndDate           = topNFlag.String("end", "", endDateDesc)
+	topnShowItemCountDesc = "Show score of items in the log record"
+	topnShowItemCount     = topNFlag.Bool("v", false, topnShowItemCountDesc)
 
 	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
 	stsRecordsToShow = stsFlag.Int("n", 5, "Number of history to show")
@@ -114,10 +118,16 @@ func topN() error {
 	if !pathExist(*topnRootDir) {
 		return fmt.Errorf("%s does not exist", *topnRootDir)
 	}
-	var startEpoch int64
+	var startEpoch, endEpoch int64
 	var err error
 	if *topnStartDate != "" {
 		startEpoch, err = dateStringToEpoch(*topnStartDate)
+		if err != nil {
+			return err
+		}
+	}
+	if *topnEndDate != "" {
+		endEpoch, err = dateStringToEpoch(*topnEndDate)
 		if err != nil {
 			return err
 		}
@@ -131,8 +141,8 @@ func topN() error {
 	msg := fmt.Sprintf("%d top rare records", *topnRecordsToShow)
 
 	err = analyzer.PrintRarTopN(*topnRootDir, msg,
-		*topnRecordsToShow, startEpoch,
-		*topnFilterRe, *topnXFilterRe)
+		*topnRecordsToShow, startEpoch, endEpoch,
+		*topnFilterRe, *topnXFilterRe, *topnShowItemCount)
 	return err
 }
 

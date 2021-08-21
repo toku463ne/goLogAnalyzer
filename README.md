@@ -108,6 +108,9 @@ Usage of topN:
 
   -x string
         key word to exclude
+
+  -v bool  
+        Show score of items in the log record
   ```  
   
 ## Examples

@@ -325,7 +325,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 	return linesProcessed, nil
 }
 
-func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch int64,
+func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string) ([]*colLogRecords, error) {
 	var conditionCheckFunc func(v []string) bool
 
@@ -333,7 +333,12 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch int64,
 		lastEpochIdx := getColIdx("circuitDBStatus", "lastEpoch")
 		conditionCheckFunc = func(v []string) bool {
 			lastEpoch, _ := strconv.ParseInt(v[lastEpochIdx], 10, 64)
-			return lastEpoch >= startEpoch
+			if endEpoch > 0 && endEpoch > startEpoch {
+				return lastEpoch >= startEpoch && lastEpoch <= endEpoch
+			} else {
+				return lastEpoch >= startEpoch
+			}
+			return false
 		}
 	} else {
 		conditionCheckFunc = nil
@@ -437,20 +442,23 @@ func (a *rarityAnalyzer) showRarStats(rootDir string, histSize int) error {
 }
 
 func (a *rarityAnalyzer) printNTops(msg string,
-	recordsToShow int, startEpoch int64,
-	filterReStr, xFilterReStr string,
+	recordsToShow int, startEpoch, endEpoch int64,
+	filterReStr, xFilterReStr string, showItemCount bool,
 ) error {
 	var err error
 	var nTopRareLogs []*colLogRecords
 	if a.rootDir == "" {
 		nTopRareLogs = a.nTopRareLogs
 	} else {
-		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch,
+		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch, endEpoch,
 			filterReStr, xFilterReStr)
 		if err != nil {
 			return err
 		}
 	}
+
+	println(a.trans.items.totalCount)
+	countBorder := float64(a.trans.items.totalCount) * cCountBorderRate
 
 	fmt.Printf("%s\n", msg)
 	fmt.Print("score     rowID      text\n")
@@ -463,6 +471,32 @@ func (a *rarityAnalyzer) printNTops(msg string,
 		if logr.score == 0 {
 			break
 		}
+
+		if showItemCount {
+			terms := make(map[int]int)
+			tran, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
+			if err != nil {
+				return err
+			}
+			line := ""
+			for _, itemID := range tran {
+				term := a.trans.items.getWord(itemID)
+				if _, ok := terms[itemID]; ok {
+					continue
+				}
+
+				count := a.trans.items.getCount(itemID)
+				terms[itemID] = count
+				if count == 1 || countBorder < float64(count) {
+					continue
+				}
+				line = fmt.Sprintf("%s %s(%d)", line, term, count)
+			}
+			if line != "" {
+				fmt.Printf("*** %s\n", line)
+			}
+		}
+
 		if i+1 >= recordsToShow {
 			break
 		}
