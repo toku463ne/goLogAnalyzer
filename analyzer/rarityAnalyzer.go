@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -459,15 +460,15 @@ func (a *rarityAnalyzer) printNTops(msg string,
 		}
 	}
 
-	println(a.trans.items.totalCount)
+	//println(a.trans.items.totalCount)
 	countBorder := float64(a.trans.items.totalCount) * cCountBorderRate
 
 	fmt.Printf("%s\n", msg)
 	if showItemCount {
-		fmt.Print("score     rowID        text    *** count per term\n")
-		fmt.Print("---------+------------+------- ... --------------\n")
+		fmt.Print("score    | rowID      | text        count per term\n")
+		fmt.Print("---------+------------+------- *** --------------\n")
 	} else {
-		fmt.Print("score     rowID        text\n")
+		fmt.Print("score    | rowID      | text\n")
 		fmt.Print("---------+------------+-------\n")
 	}
 	for i, logr := range nTopRareLogs {
@@ -478,7 +479,8 @@ func (a *rarityAnalyzer) printNTops(msg string,
 		//fmt.Printf("   %5.2f  %8d   %s\n", logr.score, logr.rowid, logr.record)
 
 		if showItemCount {
-			terms := make(map[int]int)
+			terms := make(map[string]int)
+			termlist := make([]string, 0)
 			tran, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
 			if err != nil {
 				return err
@@ -486,17 +488,26 @@ func (a *rarityAnalyzer) printNTops(msg string,
 			line := ""
 			for _, itemID := range tran {
 				term := a.trans.items.getWord(itemID)
-				if _, ok := terms[itemID]; ok {
+				if _, ok := terms[term]; ok {
 					continue
 				}
 
 				count := a.trans.items.getCount(itemID)
-				terms[itemID] = count
+				terms[term] = count
+				termlist = append(termlist, term)
+				//line = fmt.Sprintf("%s %s(%d)", line, term, count)
+			}
+			sort.Slice(termlist, func(i, j int) bool {
+				return terms[termlist[i]] < terms[termlist[j]]
+			})
+			for _, term := range termlist {
+				count := terms[term]
 				if count == 1 || countBorder < float64(count) {
 					continue
 				}
 				line = fmt.Sprintf("%s %s(%d)", line, term, count)
 			}
+
 			if line != "" {
 				outRec = fmt.Sprintf("%s\n  ***  %s", outRec, line)
 			}
