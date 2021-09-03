@@ -91,25 +91,34 @@ func (ls *logSetInfo) run(recentNdays int,
 			ls.HistSize = defaultHistSize
 		}
 
+		if !pathExist(l.LogPath) {
+			log.Printf("path %s does not exist", l.LogPath)
+			continue
+		}
+
 		if err := a.open(l.LogPath, l.Search, l.Exclude,
 			defaultMinGapToRecord,
 			l.MaxBlocks, l.MaxItemBlocks, l.LinesInBlock, ls.TopN); err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 		_, err := a.analyze(0)
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 
 		fw, err := os.Create(reportPath)
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 		defer fw.Close()
 
 		out, border, err := a.stats.getCountPerStatsString()
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 
 		out += fmt.Sprintf("score border %f\n", border)
@@ -120,21 +129,24 @@ func (ls *logSetInfo) run(recentNdays int,
 			ls.TopN, startEpoch, 0,
 			l.Search, l.Exclude, true)
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 		out += out2
 		out += "\n"
 		out += "\n"
 
 		if out2, err := a.stats.getRecentStatsString(ls.HistSize); err != nil {
-			return err
+			log.Println(err)
+			continue
 		} else {
 			out += out2
 		}
 
 		println(out)
 		if _, err := fw.WriteString(out); err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 	}
 	return nil
