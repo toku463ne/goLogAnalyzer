@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -91,8 +92,11 @@ func (ls *logSetInfo) run(recentNdays int,
 			ls.HistSize = defaultHistSize
 		}
 
-		if !pathExist(l.LogPath) {
-			log.Printf("path %s does not exist", l.LogPath)
+		if match, err := filepath.Glob(l.LogPath); err != nil {
+			log.Println(err)
+			continue
+		} else if match == nil {
+			log.Printf("%s does not exist", l.LogPath)
 			continue
 		}
 
