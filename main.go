@@ -17,13 +17,15 @@ const (
 	cDefaultMaxBlocks     = 100
 	cDefaultMaxItemBlocks = 1000
 	cMinGapToRecord       = 0.5
+	cDefaultHistSize      = 5
 )
 
 var (
-	clnFlag  = flag.NewFlagSet("clean", flag.ExitOnError)
-	rarFlag  = flag.NewFlagSet("rar", flag.ExitOnError)
-	topNFlag = flag.NewFlagSet("topN", flag.ExitOnError)
-	stsFlag  = flag.NewFlagSet("stats", flag.ExitOnError)
+	clnFlag    = flag.NewFlagSet("clean", flag.ExitOnError)
+	rarFlag    = flag.NewFlagSet("rar", flag.ExitOnError)
+	topNFlag   = flag.NewFlagSet("topN", flag.ExitOnError)
+	stsFlag    = flag.NewFlagSet("stats", flag.ExitOnError)
+	reportFlag = flag.NewFlagSet("report", flag.ExitOnError)
 
 	rootDirDesc   = "Directory to save the analyzation data"
 	rarRootDir    = rarFlag.String("d", "", rootDirDesc)
@@ -64,6 +66,9 @@ var (
 
 	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
 	stsRecordsToShow = stsFlag.Int("n", 5, "Number of history to show")
+
+	reportConfig      = reportFlag.String("c", "", "Path of the config file (JSON)")
+	reportRecentNdays = reportFlag.Int("n", 0, "Recent N days to show the report")
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -193,6 +198,14 @@ func stats() error {
 	return err
 }
 
+func report() error {
+	reportFlag.Parse(os.Args[2:])
+	return analyzer.Report(*reportConfig, *reportRecentNdays,
+		cMinGapToRecord,
+		cDefaultMaxBlocks, cDefaultMaxItemBlocks,
+		cDefaultBlockSize, 10, cDefaultHistSize)
+}
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
@@ -214,6 +227,8 @@ func main() {
 		err = stats()
 	case "topN":
 		err = topN()
+	case "report":
+		err = report()
 	default:
 		flag.Usage()
 	}

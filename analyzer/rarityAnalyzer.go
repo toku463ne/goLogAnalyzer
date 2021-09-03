@@ -74,6 +74,21 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	return nil
 }
 
+func (a *rarityAnalyzer) open(logPathRegex, filterStr, xFilterStr string,
+	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int) error {
+	if pathExist(a.rootDir) {
+		if err := a.load(); err != nil {
+			return err
+		}
+	} else {
+		if err := a.init(logPathRegex, filterStr, xFilterStr,
+			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *rarityAnalyzer) prepareDB() error {
 	d, err := csvdb.NewCsvDB(a.rootDir)
 	if err != nil {
@@ -157,7 +172,7 @@ func (a *rarityAnalyzer) loadObjs() error {
 	if err := a.trans.load(); err != nil {
 		return err
 	}
-	if err := a.stats.load(); err != nil {
+	if err := a.stats.load(false); err != nil {
 		return err
 	}
 	if err := a.logRecs.load(); err != nil {
@@ -339,7 +354,6 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 			} else {
 				return lastEpoch >= startEpoch
 			}
-			return false
 		}
 	} else {
 		conditionCheckFunc = nil
@@ -386,68 +400,37 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 	return nTopRareLogs, nil
 }
 
-func (a *rarityAnalyzer) showRarStats(rootDir string, histSize int) error {
-	var g []int
+func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string, error) {
 	var err error
-	if a.rootDir == "" {
-		g = a.stats.countPerScore
-	} else {
-		g, err = a.stats.loadAllScorePerCount()
-		if err != nil {
-			return err
-		}
+	out, border, err := a.stats.getCountPerStatsString()
+	if err != nil {
+		return "", err
 	}
-
-	fmt.Printf("\n")
-	fmt.Printf("Counts per score\n")
-	fmt.Printf(" score | count\n")
-	fmt.Printf(" ------+--------------\n")
-	for i := 0; i < cCountbyScoreLen; i++ {
-		if g[i] > 0 {
-			fmt.Printf(" %5.1f | %d\n", float64(i), g[i])
-		}
-	}
-	fmt.Println("")
-	fmt.Println("")
-
+	out += fmt.Sprintf("score border %f\n", border)
+	println("")
 	if a.rootDir == "" {
-		fmt.Printf("statistics\n")
-		fmt.Printf("average= %f\n", a.stats.lastAverage)
-		fmt.Printf("std=     %f\n", a.stats.lastStd)
-		fmt.Printf("max=     %f\n", a.stats.scoreMax)
-		fmt.Printf("\n")
-		return nil
+		out += "statistics\n"
+		out += fmt.Sprintf("average= %f\n", a.stats.lastAverage)
+		out += fmt.Sprintf("std=     %f\n", a.stats.lastStd)
+		out += fmt.Sprintf("max=     %f\n", a.stats.scoreMax)
+		out += "\n"
+		return "", nil
 	}
 
 	if a.rootDir != "" {
-		s, err := a.stats.loadRecentStats(histSize)
-		if err != nil {
-			return err
-		}
-
-		if len(s) > 0 {
-			lastStat := s[0]
-			fmt.Printf("\n")
-			fmt.Printf("Recent normal score border: %2.1f\n", lastStat.avg+lastStat.std*2)
-		}
-		fmt.Printf("score history\n")
-		fmt.Printf(" last date           | average |     std |     max \n")
-		fmt.Printf(" --------------------+---------+---------+---------\n")
-		for _, rec := range s {
-			if rec.lastFileEpoch == 0 {
-				break
-			}
-			fmt.Printf(" %s | %7.1f | %7.1f | %7.1f \n",
-				epochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
+		if out2, err := a.stats.getRecentStatsString(histSize); err != nil {
+			return "", err
+		} else {
+			out += out2
 		}
 	}
-	return nil
+	return out, nil
 }
 
-func (a *rarityAnalyzer) printNTops(msg string,
+func (a *rarityAnalyzer) getNTopString(msg string,
 	recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string, showItemCount bool,
-) error {
+) (string, error) {
 	var err error
 	var nTopRareLogs []*colLogRecords
 	if a.rootDir == "" {
@@ -456,20 +439,20 @@ func (a *rarityAnalyzer) printNTops(msg string,
 		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch, endEpoch,
 			filterReStr, xFilterReStr)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	//println(a.trans.items.totalCount)
 	countBorder := float64(a.trans.items.totalCount) * cCountBorderRate
 
-	fmt.Printf("%s\n", msg)
+	out := fmt.Sprintf("%s\n", msg)
 	if showItemCount {
-		fmt.Print("score    | rowID      | text        count per term\n")
-		fmt.Print("---------+------------+------- *** --------------\n")
+		out += "score    | rowID      | text        count per term\n"
+		out += "---------+------------+------- *** --------------\n"
 	} else {
-		fmt.Print("score    | rowID      | text\n")
-		fmt.Print("---------+------------+-------\n")
+		out += "score    | rowID      | text\n"
+		out += "---------+------------+-------\n"
 	}
 	for i, logr := range nTopRareLogs {
 		if logr == nil {
@@ -483,7 +466,7 @@ func (a *rarityAnalyzer) printNTops(msg string,
 			termlist := make([]string, 0)
 			tran, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
 			if err != nil {
-				return err
+				return "", err
 			}
 			line := ""
 			for _, itemID := range tran {
@@ -512,7 +495,7 @@ func (a *rarityAnalyzer) printNTops(msg string,
 				outRec = fmt.Sprintf("%s\n  ***  %s", outRec, line)
 			}
 		}
-		fmt.Println(outRec)
+		out += fmt.Sprintf("%s\n", outRec)
 
 		if logr.score == 0 {
 			break
@@ -522,5 +505,5 @@ func (a *rarityAnalyzer) printNTops(msg string,
 			break
 		}
 	}
-	return nil
+	return out, nil
 }

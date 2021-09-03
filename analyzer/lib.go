@@ -139,10 +139,13 @@ func quickSort(a []int64, s []string, i, j int) {
 	}
 }
 
-func getSortedGlob(pathRegex string) ([]int64, []string) {
-	fileNames, _ := filepath.Glob(pathRegex)
+func getSortedGlob(pathRegex string) ([]int64, []string, error) {
+	fileNames, err := filepath.Glob(pathRegex)
+	if err != nil {
+		return nil, nil, err
+	}
 	if fileNames == nil {
-		return nil, nil
+		return nil, nil, errors.New("No filed found")
 	}
 	filesEpoch := make([]int64, len(fileNames))
 
@@ -155,7 +158,7 @@ func getSortedGlob(pathRegex string) ([]int64, []string) {
 	}
 
 	quickSort(filesEpoch, fileNames, 0, len(fileNames)-1)
-	return filesEpoch, fileNames
+	return filesEpoch, fileNames, nil
 }
 
 // PathExist ..
@@ -278,4 +281,13 @@ func timeToString(t time.Time) string {
 func epochToString(epoch int64) string {
 	str := timeToString(time.Unix(epoch, 0).UTC())
 	return str
+}
+
+func getCurrentEpoch() int64 {
+	now := time.Now()
+	return now.Unix()
+}
+
+func getWeight(idx int) int {
+	return int(math.Log(float64(idx))) + 1
 }

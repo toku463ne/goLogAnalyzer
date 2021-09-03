@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 
@@ -34,9 +35,9 @@ func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 		if err := s.prepareTables(); err != nil {
 			return nil, err
 		}
-		if err := s.load(); err != nil {
-			return nil, err
-		}
+		//if err := s.load(); err != nil {
+		//	return nil, err
+		//}
 	}
 
 	return s, nil
@@ -154,13 +155,14 @@ func (s *stats) commit(completed bool) error {
 	if err := s.scoresTable.Upsert(func(v []string) bool {
 		return v[blockIdx] == strconv.Itoa(s.blockNo)
 	}, map[string]interface{}{
-		"seqNo":       s.seqNo,
-		"blockNo":     s.blockNo,
-		"rowCount":    s.rowNo,
-		"scoreSum":    cb.scoreSum,
-		"scoreMax":    s.scoreMax,
-		"scoreSqrSum": cb.scoreSqrSum,
-		"completed":   completed,
+		"seqNo":         s.seqNo,
+		"blockNo":       s.blockNo,
+		"rowCount":      s.rowNo,
+		"scoreSum":      cb.scoreSum,
+		"scoreMax":      s.scoreMax,
+		"scoreSqrSum":   cb.scoreSqrSum,
+		"completed":     completed,
+		"lastFileEpoch": s.lastFileEpoch,
 	}); err != nil {
 		return errors.WithStack(err)
 	}
@@ -173,10 +175,11 @@ func (s *stats) commit(completed bool) error {
 		if err := s.statsTable.Upsert(func(v []string) bool {
 			return v[blockNoidx] == strconv.Itoa(s.blockNo) && v[scoreStageIdx] == strconv.Itoa(i)
 		}, map[string]interface{}{
-			"seqNo":      s.seqNo,
-			"blockNo":    s.blockNo,
-			"scoreStage": i,
-			"itemCount":  cnt,
+			"seqNo":         s.seqNo,
+			"blockNo":       s.blockNo,
+			"scoreStage":    i,
+			"itemCount":     cnt,
+			"lastFileEpoch": s.lastFileEpoch,
 		}); err != nil {
 			return errors.WithStack(err)
 		}
@@ -206,7 +209,7 @@ func (s *stats) commit(completed bool) error {
 	return nil
 }
 
-func (s *stats) load() error {
+func (s *stats) load(use_weigth bool) error {
 	if s.rootDir == "" {
 		return nil
 	}
@@ -233,20 +236,35 @@ func (s *stats) load() error {
 
 	s.currBlock.scoreCount = int64(s.rowNo)
 
-	rows, err := s.scoresTable.SelectRows(nil, []string{"rowCount", "scoreSum", "scoreSqrSum"})
+	rows, err := s.scoresTable.SelectRows(nil, []string{"seqNo", "rowCount", "scoreSum", "scoreSqrSum"})
 	if err != nil {
 		return err
 	}
+	if err := rows.OrderBy([]string{"seqNo"}, []string{"int"},
+		csvdb.CorderByAsc); err != nil {
+		return err
+	}
+
+	var seqNo int
 	var scoreCount int64
 	var scoreSum float64
 	var scoreSqrSum float64
+	idx := 0
+	w := 1
+	oldSeqNo := -1
 	for rows.Next() {
-		if err := rows.Scan(&scoreCount, &scoreSum, &scoreSqrSum); err != nil {
+		if use_weigth {
+			if oldSeqNo == -1 || oldSeqNo != seqNo {
+				idx++
+				w = getWeight(idx)
+			}
+		}
+		if err := rows.Scan(&seqNo, &scoreCount, &scoreSum, &scoreSqrSum); err != nil {
 			return errors.WithStack(err)
 		}
-		s.scoreCount += scoreCount
-		s.scoreSum += scoreSum
-		s.scoreSqrSum += scoreSqrSum
+		s.scoreCount += scoreCount * int64(w)
+		s.scoreSum += scoreSum * float64(w)
+		s.scoreSqrSum += scoreSqrSum * float64(w)
 	}
 
 	if completed {
@@ -275,20 +293,37 @@ func (s *stats) load() error {
 	return nil
 }
 
-func (s *stats) loadAllScorePerCount() ([]int, error) {
+func (s *stats) loadAllScorePerCount(use_weigth bool) ([]int, error) {
 	var scoreStage int
 	var itemCount int
-	rows, err := s.statsTable.SelectRows(nil, []string{"scoreStage", "itemCount"})
+	var seqNo int
+	rows, err := s.statsTable.SelectRows(nil, []string{"seqNo", "scoreStage", "itemCount"})
 	if err != nil {
 		return nil, err
 	}
 
+	if err := rows.OrderBy([]string{"seqNo"}, []string{"int"},
+		csvdb.CorderByAsc); err != nil {
+		return nil, err
+	}
+
 	countPerScore := make([]int, cCountbyScoreLen)
+	idx := 0
+	w := 0
+	oldSeqNo := -1
 	for rows.Next() {
-		if err := rows.Scan(&scoreStage, &itemCount); err != nil {
+		if oldSeqNo == -1 || oldSeqNo != seqNo {
+			idx++
+			w = getWeight(idx)
+		}
+		if err := rows.Scan(&seqNo, &scoreStage, &itemCount); err != nil {
 			return nil, errors.WithStack(err)
 		}
-		countPerScore[scoreStage] += itemCount
+		if use_weigth {
+			countPerScore[scoreStage] += itemCount * w
+		} else {
+			countPerScore[scoreStage] += itemCount
+		}
 
 	}
 	return countPerScore, nil
@@ -299,6 +334,9 @@ func (s *stats) loadRecentStats(showCounts int) ([]colScoresHist, error) {
 	var avg float64
 	var std float64
 	var max float64
+	if showCounts == 0 {
+		return nil, nil
+	}
 	rows, err := s.scoresHistTable.SelectRows(nil,
 		[]string{"lastFileEpoch", "avg", "std", "max"})
 	if err != nil {
@@ -310,9 +348,6 @@ func (s *stats) loadRecentStats(showCounts int) ([]colScoresHist, error) {
 		return nil, err
 	}
 
-	if showCounts == 0 {
-		return nil, nil
-	}
 	scoresHists := make([]colScoresHist, showCounts)
 	oldScore := new(colScoresHist)
 	i := 0
@@ -330,4 +365,73 @@ func (s *stats) loadRecentStats(showCounts int) ([]colScoresHist, error) {
 		}
 	}
 	return scoresHists, nil
+}
+
+func (s *stats) getCountPerStatsString() (string, float64, error) {
+	var g []int
+	var gw []int
+	var err error
+	if s.rootDir == "" {
+		g = s.countPerScore
+	} else {
+		g, err = s.loadAllScorePerCount(false)
+		if err != nil {
+			return "", -1, err
+		}
+		gw, err = s.loadAllScorePerCount(true)
+		if err != nil {
+			return "", -1, err
+		}
+
+	}
+
+	out := "\n"
+	out += "Counts per score\n"
+	out += " score | count        | count(weight)\n"
+
+	out += " ------+--------------+--------------\n"
+	for i := 0; i < cCountbyScoreLen; i++ {
+		if g[i] > 0 {
+			out += fmt.Sprintf(" %5.1f | %12d | %12d\n", float64(i), g[i], gw[i])
+		}
+	}
+	out += "\n"
+	out += "\n"
+
+	sweighted, err := newStats(s.rootDir, s.maxBlocks, s.maxRowsInBlock)
+	if err != nil {
+		return "", -1, err
+	}
+
+	if err := sweighted.load(true); err != nil {
+		return "", -1, err
+	}
+	cnt := float64(sweighted.scoreCount)
+	//score avg
+	sa := sweighted.scoreSum / cnt
+	//score std
+	ss := math.Sqrt((sweighted.scoreSqrSum - 2*sweighted.scoreSum*sa + cnt*sa*sa) / cnt)
+
+	border := sa + ss*3
+
+	return out, border, nil
+}
+
+func (s *stats) getRecentStatsString(histSize int) (string, error) {
+	h, err := s.loadRecentStats(histSize)
+	if err != nil {
+		return "", err
+	}
+	out := "\n"
+	out += "score history\n"
+	out += " last date           | average |     std |     max \n"
+	out += " --------------------+---------+---------+---------\n"
+	for _, rec := range h {
+		if rec.lastFileEpoch == 0 {
+			continue
+		}
+		out += fmt.Sprintf(" %s | %7.1f | %7.1f | %7.1f \n",
+			epochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
+	}
+	return out, nil
 }

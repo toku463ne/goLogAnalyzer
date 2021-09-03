@@ -1,0 +1,21 @@
+{
+    "dataDir": "",
+    "topN": 3,
+    "logs": {
+        "a": {
+            "path": "testdata/abnormal/samples/a/A.log*",
+            "search": "test333",
+            "linesInBlock": 5
+        },
+        "b": {
+            "path": "testdata/abnormal/samples/b/B.log*",
+            "exclude": "test333",
+            "linesInBlock": 5
+        },
+        "c": {
+            "path": "testdata/abnormal/samples/c/C.log*",
+            "linesInBlock": 2,
+            "maxBlocks": 2
+        }
+    }
+}

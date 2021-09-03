@@ -25,15 +25,9 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 	linesToProcess, nTopRecords int) (int, error) {
 
 	a := newRarityAnalyzer(rootDir)
-	if pathExist(rootDir) {
-		if err := a.load(); err != nil {
-			return 0, err
-		}
-	} else {
-		if err := a.init(logPathRegex, filterStr, xFilterStr,
-			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords); err != nil {
-			return 0, err
-		}
+	if err := a.open(logPathRegex, filterStr, xFilterStr,
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords); err != nil {
+		return 0, err
 	}
 	linesProcessed, err := a.analyze(linesToProcess)
 	if err != nil {
@@ -41,11 +35,17 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 	}
 	if rootDir == "" {
 		msg := fmt.Sprintf("%d top rare records", nTopRecords)
-		a.printNTops(msg, nTopRecords, 0, 0, filterStr, xFilterStr, false)
-
-		if err := a.showRarStats("", cDefaultHistSize); err != nil {
+		out, err := a.getNTopString(msg, nTopRecords, 0, 0, filterStr, xFilterStr, false)
+		if err != nil {
 			return linesProcessed, err
 		}
+
+		out2, err := a.getRarStatsString("", cDefaultHistSize)
+		if err != nil {
+			return linesProcessed, err
+		}
+		out += out2
+		println(out)
 	}
 	return linesProcessed, nil
 }
@@ -58,9 +58,14 @@ func PrintRarTopN(rootDir, msg string,
 		return err
 	}
 
-	return a.printNTops(msg,
+	if out, err := a.getNTopString(msg,
 		recordsToShow, startEpoch, endEpoch,
-		filterReStr, xFilterReStr, showItemScore)
+		filterReStr, xFilterReStr, showItemScore); err != nil {
+		return err
+	} else {
+		println(out)
+	}
+	return nil
 }
 
 func RarStats(rootDir string, histSize int) error {
@@ -69,5 +74,30 @@ func RarStats(rootDir string, histSize int) error {
 		return err
 	}
 
-	return a.showRarStats(rootDir, histSize)
+	out, err := a.getRarStatsString(rootDir, histSize)
+	if err != nil {
+		return err
+	}
+	println(out)
+	return nil
+}
+
+func Report(jsonFile string, recentNdays int,
+	defaultMinGapToRecord float64,
+	defaultMaxBlocks, defaultMaxItemBlocks,
+	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int) error {
+
+	ls, err := newLogSetInfo(jsonFile)
+	if err != nil {
+		return err
+	}
+
+	err = ls.run(recentNdays,
+		defaultMinGapToRecord,
+		defaultMaxBlocks, defaultMaxItemBlocks,
+		defaultLinesInBlock, defaultNTopRecords, defaultHistSize)
+	if err != nil {
+		return err
+	}
+	return nil
 }

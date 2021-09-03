@@ -6,20 +6,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type filePointer struct {
-	files    []string
-	epochs   []int64
-	r        *reader
-	lastRow  int
-	pos      int
-	e        error
-	currErr  error
-	currText string
-	currRow  int
-	currPos  int
-	isEOF    bool
-}
-
 func newFilePointer(pathRegex string,
 	lastEpoch int64, lastRow int) *filePointer {
 	fp := new(filePointer)
@@ -29,7 +15,11 @@ func newFilePointer(pathRegex string,
 		targetFiles = []string{""}
 		targetEpochs = []int64{0}
 	} else {
-		epochs, files := getSortedGlob(pathRegex)
+		epochs, files, err := getSortedGlob(pathRegex)
+		if err != nil {
+			fp.currErr = err
+			return nil
+		}
 		for i, f := range files {
 			epoch := epochs[i]
 			if (epoch == lastEpoch && lastRow != cEOF) || epoch > lastEpoch {

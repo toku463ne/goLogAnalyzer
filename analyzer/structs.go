@@ -120,3 +120,17 @@ type rarityAnalyzer struct {
 	nTopRareLogs    []*colLogRecords
 	maxScore        float64
 }
+
+type filePointer struct {
+	files    []string
+	epochs   []int64
+	r        *reader
+	lastRow  int
+	pos      int
+	e        error
+	currErr  error
+	currText string
+	currRow  int
+	currPos  int
+	isEOF    bool
+}
