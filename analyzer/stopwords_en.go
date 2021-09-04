@@ -346,6 +346,15 @@ var enStopWords = map[string]string{
 
 func getDelimReplacer() *strings.Replacer {
 	return strings.NewReplacer(
+		"\\b", " ",
+		"\\0", " ",
+		"\\r", " ",
+		"\\n", " ",
+		"\\t", " ",
+		"\b", " ",
+		"\r", " ",
+		"\n", " ",
+		"\t", " ",
 		"\"", " ",
 		"'", " ",
 		",", " ",
