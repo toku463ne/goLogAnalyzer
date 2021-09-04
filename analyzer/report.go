@@ -25,6 +25,7 @@ type logInfo struct {
 	LinesInBlock  int    `json:"linesInBlock"`
 	MaxBlocks     int    `json:"maxBlocks"`
 	MaxItemBlocks int    `json:"maxItemBlocks"`
+	TopN          int    `json:"topN"`
 }
 
 type logSetInfo struct {
@@ -60,12 +61,20 @@ func (ls *logSetInfo) run(recentNdays int,
 		return errors.New("DataDir cannot be empty")
 	}
 
+	if ls.TopN <= 0 {
+		ls.TopN = defaultNTopRecords
+	}
+
 	if err := ensureDir(ls.DataDir); err != nil {
 		return err
 	}
 
 	reportDir := fmt.Sprintf("%s/results", ls.DataDir)
 	if err := ensureDir(reportDir); err != nil {
+		return err
+	}
+	abnormalDir := fmt.Sprintf("%s/abnormals", ls.DataDir)
+	if err := ensureDir(abnormalDir); err != nil {
 		return err
 	}
 
@@ -85,8 +94,8 @@ func (ls *logSetInfo) run(recentNdays int,
 		if l.LinesInBlock <= 0 {
 			l.LinesInBlock = defaultLinesInBlock
 		}
-		if ls.TopN <= 0 {
-			ls.TopN = defaultNTopRecords
+		if l.TopN <= 0 {
+			l.TopN = ls.TopN
 		}
 		if ls.HistSize == 0 {
 			ls.HistSize = defaultHistSize
@@ -102,7 +111,7 @@ func (ls *logSetInfo) run(recentNdays int,
 
 		if err := a.open(l.LogPath, l.Search, l.Exclude,
 			defaultMinGapToRecord,
-			l.MaxBlocks, l.MaxItemBlocks, l.LinesInBlock, ls.TopN); err != nil {
+			l.MaxBlocks, l.MaxItemBlocks, l.LinesInBlock, l.TopN); err != nil {
 			log.Println(err)
 			continue
 		}
@@ -128,15 +137,40 @@ func (ls *logSetInfo) run(recentNdays int,
 		out += fmt.Sprintf("score border %f\n", border)
 
 		out += ("\n")
-		msg := fmt.Sprintf("%d top rare records", ls.TopN)
-		out2, err := a.getNTopString(msg,
-			ls.TopN, startEpoch, 0,
-			l.Search, l.Exclude, true)
+
+		msg := fmt.Sprintf("%d top rare records", l.TopN)
+		ex := ""
+		if l.Exclude == "" {
+			ex = fmt.Sprintf("(?i)(%s)", cErrorKeywords)
+		} else {
+			ex = fmt.Sprintf("(?i)(%s|%s)", l.Exclude, cErrorKeywords)
+		}
+		out2 := ""
+		topScore2 := 0.0
+		out2, topScore2, err = a.getNTopString(msg,
+			l.TopN, startEpoch, 0,
+			l.Search, ex, true)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 		out += out2
+		out += "\n"
+		out += "\n"
+
+		inc := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
+		msg = fmt.Sprintf("%d top rare %s", ls.TopN, cErrorKeywords)
+		out3 := ""
+		topScore3 := 0.0
+
+		out3, topScore3, err = a.getNTopString(msg,
+			ls.TopN, startEpoch, 0,
+			inc, l.Exclude, true)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		out += out3
 		out += "\n"
 		out += "\n"
 
@@ -151,6 +185,10 @@ func (ls *logSetInfo) run(recentNdays int,
 		if _, err := fw.WriteString(out); err != nil {
 			log.Println(err)
 			continue
+		}
+
+		if topScore2 > border || topScore3 > border {
+			copyFile(reportPath, fmt.Sprintf("%s/%s.txt", abnormalDir, name))
 		}
 	}
 	return nil

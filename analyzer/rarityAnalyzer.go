@@ -430,7 +430,7 @@ func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string
 func (a *rarityAnalyzer) getNTopString(msg string,
 	recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string, showItemCount bool,
-) (string, error) {
+) (string, float64, error) {
 	var err error
 	var nTopRareLogs []*colLogRecords
 	if a.rootDir == "" {
@@ -439,7 +439,7 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch, endEpoch,
 			filterReStr, xFilterReStr)
 		if err != nil {
-			return "", err
+			return "", -1, err
 		}
 	}
 
@@ -454,9 +454,13 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 		out += "score    | rowID      | text\n"
 		out += "---------+------------+-------\n"
 	}
+	topScore := 0.0
 	for i, logr := range nTopRareLogs {
 		if logr == nil {
 			break
+		}
+		if topScore == 0 {
+			topScore = logr.score
 		}
 		outRec := fmt.Sprintf("%8.2f | %10d | %s", logr.score, logr.rowid, logr.record)
 		//fmt.Printf("   %5.2f  %8d   %s\n", logr.score, logr.rowid, logr.record)
@@ -466,7 +470,7 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 			termlist := make([]string, 0)
 			tran, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
 			if err != nil {
-				return "", err
+				return "", -1, err
 			}
 			line := ""
 			for _, itemID := range tran {
@@ -505,5 +509,5 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 			break
 		}
 	}
-	return out, nil
+	return out, topScore, nil
 }

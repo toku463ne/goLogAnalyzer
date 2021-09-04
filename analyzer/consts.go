@@ -21,4 +21,5 @@ const (
 	cDefaultBuffSize = 10000
 	cDefaultHistSize = 5
 	cCountBorderRate = 0.01
+	cErrorKeywords   = "failure|failed|error|down|crit"
 )

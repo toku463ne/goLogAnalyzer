@@ -35,7 +35,7 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 	}
 	if rootDir == "" {
 		msg := fmt.Sprintf("%d top rare records", nTopRecords)
-		out, err := a.getNTopString(msg, nTopRecords, 0, 0, filterStr, xFilterStr, false)
+		out, _, err := a.getNTopString(msg, nTopRecords, 0, 0, filterStr, xFilterStr, false)
 		if err != nil {
 			return linesProcessed, err
 		}
@@ -58,7 +58,7 @@ func PrintRarTopN(rootDir, msg string,
 		return err
 	}
 
-	if out, err := a.getNTopString(msg,
+	if out, _, err := a.getNTopString(msg,
 		recordsToShow, startEpoch, endEpoch,
 		filterReStr, xFilterReStr, showItemScore); err != nil {
 		return err
