@@ -19,13 +19,14 @@ type scoreHistJson struct {
 }
 
 type logInfo struct {
-	LogPath       string `json:"path"`
-	Search        string `json:"search"`
-	Exclude       string `json:"exclude"`
-	LinesInBlock  int    `json:"linesInBlock"`
-	MaxBlocks     int    `json:"maxBlocks"`
-	MaxItemBlocks int    `json:"maxItemBlocks"`
-	TopN          int    `json:"topN"`
+	LogPath        string  `json:"path"`
+	Search         string  `json:"search"`
+	Exclude        string  `json:"exclude"`
+	LinesInBlock   int     `json:"linesInBlock"`
+	MaxBlocks      int     `json:"maxBlocks"`
+	MaxItemBlocks  int     `json:"maxItemBlocks"`
+	TopN           int     `json:"topN"`
+	MinGapToRecord float64 `json:"minGapToRecord"`
 }
 
 type logSetInfo struct {
@@ -79,7 +80,7 @@ func (ls *logSetInfo) run(recentNdays int,
 	}
 
 	for name, l := range ls.Logs {
-		log.Printf("Processing %s", name)
+		log.Printf("\n\nProcessing %s", name)
 		dataPath := fmt.Sprintf("%s/%s", ls.DataDir, name)
 		reportPath := fmt.Sprintf("%s/%s.txt", reportDir, name)
 
@@ -99,6 +100,9 @@ func (ls *logSetInfo) run(recentNdays int,
 		}
 		if ls.HistSize == 0 {
 			ls.HistSize = defaultHistSize
+		}
+		if l.MinGapToRecord == 0.0 {
+			l.MinGapToRecord = defaultMinGapToRecord
 		}
 
 		if match, err := filepath.Glob(l.LogPath); err != nil {

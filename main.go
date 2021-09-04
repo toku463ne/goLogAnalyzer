@@ -16,7 +16,7 @@ const (
 	cDefaultBlockSize     = 10000
 	cDefaultMaxBlocks     = 100
 	cDefaultMaxItemBlocks = 1000
-	cMinGapToRecord       = 0.5
+	cMinGapToRecord       = 1.5
 	cDefaultHistSize      = 5
 )
 
