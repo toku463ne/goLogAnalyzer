@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"os"
 	"path/filepath"
 
@@ -140,35 +139,43 @@ func (ls *logSetInfo) run(recentNdays int,
 		}
 
 		sum := 0.0
-		sqrSum := 0.0
-		cnt := len(g)
+		cnt := 0
 		for _, v := range g {
-			sum += float64(v)
-			sqrSum += float64(v * v)
+			if v > 0 {
+				sum += float64(v)
+				cnt++
+			}
 		}
-		mean := float64(sum) / float64(len(g))
-		std := math.Sqrt((sqrSum - 2*sum*mean + float64(cnt)*mean*mean) / float64(cnt))
-		defaultMin := int(mean - std*3)
-		border := mean - std*3
+		mean := float64(sum) / float64(cnt)
+		defaultMin := int(mean)
+		if defaultMin == 0 {
+			defaultMin = 1
+		}
+		border := mean
 
 		stages := make([]int, 0)
-		min := defaultMin
+		min := 0
+		mini := 0
 		passedBottom := false
-		for i := cnt - 1; i >= 0; i-- {
+		prev := 0
+		for i := len(g) - 1; i >= 0; i-- {
 			if g[i] == 0 {
 				continue
 			}
-			if min == 0 || (g[i] <= defaultMin && g[i] < min) {
+
+			if min == 0 || g[i] < min {
 				min = g[i]
-				passedBottom = false
-			}
-			if g[i] > min || len(stages) == 0 {
-				if !passedBottom {
-					stages = append(stages, i)
+				mini = i
+				if g[i] < prev {
+					passedBottom = false
 				}
+			}
+			if (!passedBottom && g[i] > min) || len(stages) == 0 {
+				stages = append(stages, mini)
 				min = defaultMin
 				passedBottom = true
 			}
+			prev = g[i]
 		}
 		//out += fmt.Sprintf("score border %f\n", border)
 		ex := ""
@@ -184,22 +191,25 @@ func (ls *logSetInfo) run(recentNdays int,
 				minStage = float64(stages[stagei+1])
 			}
 
-			msg := fmt.Sprintf("%d top rare records <= %d", l.TopN, stage+1)
+			msg := fmt.Sprintf("%d top rare records score<=%d", l.TopN, stage+1)
 
 			out2 := ""
-			out2, _, err = a.getNTopString(msg,
+			out2, border1, err := a.getNTopString(msg,
 				l.TopN, startEpoch, 0,
 				l.Search, ex, true, minStage, float64(stage+1))
 			if err != nil {
 				log.Println(err)
 				continue
 			}
+			if border1 > border {
+				border = border1
+			}
 			out += out2
 			out += "\n"
 			out += "\n"
 
 			inc := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
-			msg = fmt.Sprintf("%d top rare %s <= %d", l.TopN, cErrorKeywords, stage+1)
+			msg = fmt.Sprintf("%d top rare %s score<=%d", l.TopN, cErrorKeywords, stage+1)
 			out3 := ""
 			out3, _, err = a.getNTopString(msg,
 				ls.TopN, startEpoch, 0,
