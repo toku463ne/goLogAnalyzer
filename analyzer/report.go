@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -132,57 +133,91 @@ func (ls *logSetInfo) run(recentNdays int,
 		}
 		defer fw.Close()
 
-		out, border, err := a.stats.getCountPerStatsString()
+		out, g, err := a.stats.getCountPerStatsString()
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		out += fmt.Sprintf("score border %f\n", border)
+		sum := 0.0
+		sqrSum := 0.0
+		cnt := len(g)
+		for _, v := range g {
+			sum += float64(v)
+			sqrSum += float64(v * v)
+		}
+		mean := float64(sum) / float64(len(g))
+		std := math.Sqrt((sqrSum - 2*sum*mean + float64(cnt)*mean*mean) / float64(cnt))
+		defaultMin := int(mean - std*3)
+		border := mean - std*3
 
-		out += ("\n")
-
-		msg := fmt.Sprintf("%d top rare records", l.TopN)
+		stages := make([]int, 0)
+		min := defaultMin
+		passedBottom := false
+		for i := cnt - 1; i >= 0; i-- {
+			if g[i] == 0 {
+				continue
+			}
+			if min == 0 || (g[i] <= defaultMin && g[i] < min) {
+				min = g[i]
+				passedBottom = false
+			}
+			if g[i] > min || len(stages) == 0 {
+				if !passedBottom {
+					stages = append(stages, i)
+				}
+				min = defaultMin
+				passedBottom = true
+			}
+		}
+		//out += fmt.Sprintf("score border %f\n", border)
 		ex := ""
 		if l.Exclude == "" {
 			ex = fmt.Sprintf("(?i)(%s)", cErrorKeywords)
 		} else {
 			ex = fmt.Sprintf("(?i)(%s|%s)", l.Exclude, cErrorKeywords)
 		}
-		out2 := ""
-		topScore2 := 0.0
-		out2, topScore2, err = a.getNTopString(msg,
-			l.TopN, startEpoch, 0,
-			l.Search, ex, true)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		out += out2
-		out += "\n"
-		out += "\n"
+		for stagei, stage := range stages {
+			out += ("\n")
+			minStage := 0.0
+			if stagei+1 < len(stages) {
+				minStage = float64(stages[stagei+1])
+			}
 
-		inc := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
-		msg = fmt.Sprintf("%d top rare %s", ls.TopN, cErrorKeywords)
-		out3 := ""
-		topScore3 := 0.0
+			msg := fmt.Sprintf("%d top rare records <= %d", l.TopN, stage+1)
 
-		out3, topScore3, err = a.getNTopString(msg,
-			ls.TopN, startEpoch, 0,
-			inc, l.Exclude, true)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		out += out3
-		out += "\n"
-		out += "\n"
-
-		if out2, err := a.stats.getRecentStatsString(ls.HistSize); err != nil {
-			log.Println(err)
-			continue
-		} else {
+			out2 := ""
+			out2, _, err = a.getNTopString(msg,
+				l.TopN, startEpoch, 0,
+				l.Search, ex, true, minStage, float64(stage+1))
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 			out += out2
+			out += "\n"
+			out += "\n"
+
+			inc := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
+			msg = fmt.Sprintf("%d top rare %s <= %d", l.TopN, cErrorKeywords, stage+1)
+			out3 := ""
+			out3, _, err = a.getNTopString(msg,
+				ls.TopN, startEpoch, 0,
+				inc, l.Exclude, true, minStage, float64(stage+1))
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			out += out3
+			out += "\n"
+			out += "\n"
+
+			if out2, err := a.stats.getRecentStatsString(ls.HistSize); err != nil {
+				log.Println(err)
+				continue
+			} else {
+				out += out2
+			}
 		}
 
 		println(out)
@@ -191,7 +226,14 @@ func (ls *logSetInfo) run(recentNdays int,
 			continue
 		}
 
-		if topScore2 > border || topScore3 > border {
+		_, topScore, err := a.getNTopString("",
+			l.TopN, startEpoch, 0,
+			l.Search, ex, true, 0, 0)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		if topScore > border {
 			copyFile(reportPath, fmt.Sprintf("%s/%s.txt", abnormalDir, name))
 		}
 	}

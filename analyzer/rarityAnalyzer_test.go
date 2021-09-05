@@ -236,7 +236,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	topN, err := a.scanAndGetNTops(5, 0, 0, "", "")
+	topN, err := a.scanAndGetNTops(5, 0, 0, "", "", 0, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

@@ -367,54 +367,32 @@ func (s *stats) loadRecentStats(showCounts int) ([]colScoresHist, error) {
 	return scoresHists, nil
 }
 
-func (s *stats) getCountPerStatsString() (string, float64, error) {
+func (s *stats) getCountPerStatsString() (string, []int, error) {
 	var g []int
-	var gw []int
 	var err error
 	if s.rootDir == "" {
 		g = s.countPerScore
 	} else {
 		g, err = s.loadAllScorePerCount(false)
 		if err != nil {
-			return "", -1, err
+			return "", nil, err
 		}
-		gw, err = s.loadAllScorePerCount(true)
-		if err != nil {
-			return "", -1, err
-		}
-
 	}
 
 	out := "\n"
 	out += "Counts per score\n"
-	out += " score | count        | count(weight)\n"
+	out += " score | count\n"
 
-	out += " ------+--------------+--------------\n"
+	out += " ------+--------------\n"
 	for i := 0; i < cCountbyScoreLen; i++ {
 		if g[i] > 0 {
-			out += fmt.Sprintf(" %5.1f | %12d | %12d\n", float64(i), g[i], gw[i])
+			out += fmt.Sprintf(" %5.1f | %12d\n", float64(i), g[i])
 		}
 	}
 	out += "\n"
 	out += "\n"
 
-	sweighted, err := newStats(s.rootDir, s.maxBlocks, s.maxRowsInBlock)
-	if err != nil {
-		return "", -1, err
-	}
-
-	if err := sweighted.load(true); err != nil {
-		return "", -1, err
-	}
-	cnt := float64(sweighted.scoreCount)
-	//score avg
-	sa := sweighted.scoreSum / cnt
-	//score std
-	ss := math.Sqrt((sweighted.scoreSqrSum - 2*sweighted.scoreSum*sa + cnt*sa*sa) / cnt)
-
-	border := sa + ss*3
-
-	return out, border, nil
+	return out, g, nil
 }
 
 func (s *stats) getRecentStatsString(histSize int) (string, error) {

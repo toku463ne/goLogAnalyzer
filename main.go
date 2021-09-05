@@ -63,6 +63,8 @@ var (
 	topnEndDate           = topNFlag.String("end", "", endDateDesc)
 	topnShowItemCountDesc = "Show score of items in the log record"
 	topnShowItemCount     = topNFlag.Bool("v", false, topnShowItemCountDesc)
+	topnMinScore          = topNFlag.Float64("min", 0, "Minimum score to show")
+	topnMaxScore          = topNFlag.Float64("max", 0, "Maximum score to shoe")
 
 	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
 	stsRecordsToShow = stsFlag.Int("n", 5, "Number of history to show")
@@ -147,7 +149,8 @@ func topN() error {
 
 	err = analyzer.PrintRarTopN(*topnRootDir, msg,
 		*topnRecordsToShow, startEpoch, endEpoch,
-		*topnFilterRe, *topnXFilterRe, *topnShowItemCount)
+		*topnFilterRe, *topnXFilterRe, *topnShowItemCount,
+		*topnMinScore, *topnMaxScore)
 	return err
 }
 

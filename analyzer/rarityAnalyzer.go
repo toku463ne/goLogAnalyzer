@@ -342,7 +342,8 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 }
 
 func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch int64,
-	filterReStr, xFilterReStr string) ([]*colLogRecords, error) {
+	filterReStr, xFilterReStr string,
+	minScore float64, maxScore float64) ([]*colLogRecords, error) {
 	var conditionCheckFunc func(v []string) bool
 
 	if startEpoch > 0 {
@@ -395,6 +396,12 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 		if xFilterRe != nil && xFilterRe.Match([]byte(record)) {
 			continue
 		}
+		if minScore > 0 && score < minScore {
+			continue
+		}
+		if maxScore > 0 && score > maxScore {
+			continue
+		}
 		nTopRareLogs, m = registerNTopRareRec(nTopRareLogs, m, rowID, score, record)
 	}
 	return nTopRareLogs, nil
@@ -430,6 +437,7 @@ func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string
 func (a *rarityAnalyzer) getNTopString(msg string,
 	recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string, showItemCount bool,
+	minScore float64, maxScore float64,
 ) (string, float64, error) {
 	var err error
 	var nTopRareLogs []*colLogRecords
@@ -437,7 +445,7 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 		nTopRareLogs = a.nTopRareLogs
 	} else {
 		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow, startEpoch, endEpoch,
-			filterReStr, xFilterReStr)
+			filterReStr, xFilterReStr, minScore, maxScore)
 		if err != nil {
 			return "", -1, err
 		}
