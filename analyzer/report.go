@@ -170,20 +170,21 @@ func (ls *logSetInfo) run(recentNdays int,
 					passedBottom = false
 				}
 			}
+			if g[i] > min {
+				min = defaultMin
+			}
+
 			if (!passedBottom && g[i] > min) || len(stages) == 0 {
 				stages = append(stages, mini)
-				min = defaultMin
 				passedBottom = true
 			}
 			prev = g[i]
 		}
 		//out += fmt.Sprintf("score border %f\n", border)
 		ex := ""
-		if l.Exclude == "" {
-			ex = fmt.Sprintf("(?i)(%s)", cErrorKeywords)
-		} else {
-			ex = fmt.Sprintf("(?i)(%s|%s)", l.Exclude, cErrorKeywords)
-		}
+		ex1 := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
+		ex2 := fmt.Sprintf("(?i)(%s|%s)", l.Exclude, cErrorKeywords)
+
 		for stagei, stage := range stages {
 			out += ("\n")
 			minStage := 0.0
@@ -193,6 +194,11 @@ func (ls *logSetInfo) run(recentNdays int,
 
 			msg := fmt.Sprintf("%d top rare records score<=%d", l.TopN, stage+1)
 
+			if stagei > 0 || l.Exclude == "" {
+				ex = ex1
+			} else {
+				ex = ex2
+			}
 			out2 := ""
 			out2, border1, err := a.getNTopString(msg,
 				l.TopN, startEpoch, 0,
@@ -222,12 +228,12 @@ func (ls *logSetInfo) run(recentNdays int,
 			out += "\n"
 			out += "\n"
 
-			if out2, err := a.stats.getRecentStatsString(ls.HistSize); err != nil {
-				log.Println(err)
-				continue
-			} else {
-				out += out2
-			}
+		}
+		if out2, err := a.stats.getRecentStatsString(ls.HistSize); err != nil {
+			log.Println(err)
+			continue
+		} else {
+			out += out2
 		}
 
 		println(out)

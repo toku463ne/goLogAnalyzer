@@ -409,12 +409,12 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 
 func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string, error) {
 	var err error
-	out, border, err := a.stats.getCountPerStatsString()
+	out, _, err := a.stats.getCountPerStatsString()
 	if err != nil {
 		return "", err
 	}
-	out += fmt.Sprintf("score border %f\n", border)
-	println("")
+	//out += fmt.Sprintf("score border %f\n", border)
+	//println("")
 	if a.rootDir == "" {
 		out += "statistics\n"
 		out += fmt.Sprintf("average= %f\n", a.stats.lastAverage)
