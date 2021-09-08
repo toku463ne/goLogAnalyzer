@@ -153,33 +153,7 @@ func (ls *logSetInfo) run(recentNdays int,
 		}
 		border := mean
 
-		stages := make([]int, 0)
-		min := 0
-		mini := 0
-		passedBottom := false
-		prev := 0
-		for i := len(g) - 1; i >= 0; i-- {
-			if g[i] == 0 {
-				continue
-			}
-
-			if min == 0 || g[i] < min {
-				min = g[i]
-				mini = i
-				if g[i] < prev {
-					passedBottom = false
-				}
-			}
-			if g[i] > min {
-				min = defaultMin
-			}
-
-			if (!passedBottom && g[i] > min) || len(stages) == 0 {
-				stages = append(stages, mini)
-				passedBottom = true
-			}
-			prev = g[i]
-		}
+		stages := getBottoms(g, defaultMin)
 		//out += fmt.Sprintf("score border %f\n", border)
 		ex := ""
 		ex1 := fmt.Sprintf("(?i)(%s)", cErrorKeywords)

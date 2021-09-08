@@ -291,3 +291,47 @@ func getCurrentEpoch() int64 {
 func getWeight(idx int) int {
 	return int(math.Log(float64(idx))) + 1
 }
+
+func getBottoms(n []int, baseLine int) []int {
+	if baseLine == 0 {
+		sum := 0.0
+		cnt := 0
+		for _, v := range n {
+			if v > 0 {
+				sum += float64(v)
+				cnt++
+			}
+		}
+		mean := float64(sum) / float64(cnt)
+		baseLine = int(mean)
+	}
+
+	bottoms := make([]int, 0)
+	min := 0
+	mini := 0
+	passedBottom := false
+	prev := 0
+	for i := len(n) - 1; i >= 0; i-- {
+		if n[i] == 0 {
+			continue
+		}
+
+		if min == 0 || n[i] < min {
+			min = n[i]
+			mini = i
+			if n[i] < prev {
+				passedBottom = false
+			}
+		}
+
+		if (!passedBottom && n[i] > min) || len(bottoms) == 0 {
+			bottoms = append(bottoms, mini)
+			passedBottom = true
+		}
+		if n[i] > min {
+			min = baseLine
+		}
+		prev = n[i]
+	}
+	return bottoms
+}

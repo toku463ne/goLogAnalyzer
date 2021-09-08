@@ -96,3 +96,29 @@ func Test_registerNTopRareRec(t *testing.T) {
 	}
 
 }
+
+func Test_getBottoms(t *testing.T) {
+	n := []int{0, 0, 1, 62217, 2608, 9, 3, 0, 0, 7386, 9720, 13, 3, 0, 0, 0}
+
+	b := getBottoms(n, 0)
+	if !reflect.DeepEqual(b, []int{12, 6}) {
+		t.Errorf("does not match!")
+		return
+	}
+
+	n = []int{0, 0, 0, 0, 15790, 265776, 3362, 32, 3, 72189, 47250, 2077, 26, 3, 0, 0, 0}
+	b = getBottoms(n, 0)
+	if !reflect.DeepEqual(b, []int{13, 8}) {
+		t.Errorf("does not match!")
+		return
+	}
+
+	n = []int{0, 0, 0, 0, 6830779, 2981682, 106500, 860, 84, 28, 3458406,
+		595297, 595297, 0, 315283, 242247, 12579, 51, 0, 0, 0}
+	b = getBottoms(n, 0)
+	if !reflect.DeepEqual(b, []int{17, 9}) {
+		t.Errorf("does not match!")
+		return
+	}
+
+}
