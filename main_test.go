@@ -6,7 +6,7 @@ import (
 )
 
 func Test_main1(t *testing.T) {
-	rootDir := "c:\\Users\\kot\\loganal\\fw03\\data"
+	//rootDir := "c:\\Users\\kot\\loganal\\fw03\\data"
 	//linesInBlock := "100000"
 	//maxBlocks := "100"
 	//logPathRegex := "c:\\Users\\kot\\loganal\\fw03\\NFPFW003.log*"
@@ -20,7 +20,9 @@ func Test_main1(t *testing.T) {
 
 	//main()
 
-	os.Args = []string{"test", "topN", "-d", rootDir, "-n", "10"}
+	//os.Args = []string{"test", "topN", "-d", rootDir, "-n", "10"}
 
+	conf := "c:\\Users\\kot\\loganal\\zimconfwin.json"
+	os.Args = []string{"test", "report", "-c", conf}
 	main()
 }

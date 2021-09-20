@@ -561,7 +561,7 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 	countBorder := float64(a.trans.items.totalCount) * cCountBorderRate
 
 	out := fmt.Sprintf("<b>%s</b><br>", msg)
-	out += "<table border=1>"
+	out += "<table border=1 width=100%>"
 	if showItemCount {
 		out += "<tr><td>score</td><td>rowID</td><td>text</td><td>count per term</td></tr>"
 	} else {

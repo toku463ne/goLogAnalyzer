@@ -159,11 +159,12 @@ func (ls *logSetInfo) run(recentNdays int,
 		out += out2
 
 		if startEpoch > 0 {
-			out2, _, err = a.stats.getCountPerStats(startEpoch, outFormat)
+			out2, g2, err := a.stats.getCountPerStats(startEpoch, outFormat)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
+			g = g2
 			out += out2
 		}
 
