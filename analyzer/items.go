@@ -44,6 +44,9 @@ func (i *items) register(item string, addCount int, isNew bool) int {
 		i.terms[item] = itemID
 		i.termMap[itemID] = item
 	}
+	if addCount == 0 {
+		return itemID
+	}
 
 	i.counts[itemID] += addCount
 	if isNew {

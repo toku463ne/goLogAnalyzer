@@ -561,11 +561,11 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 	countBorder := float64(a.trans.items.totalCount) * cCountBorderRate
 
 	out := fmt.Sprintf("<b>%s</b><br>", msg)
-	out += "<table border=1 width=100%>"
+	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
 	if showItemCount {
-		out += "<tr><td>score</td><td>rowID</td><td>text</td><td>count per term</td></tr>"
+		out += "<tr><td width=6%>score</td><td width=6%>rowID</td><td>text</td><td>count per term</td></tr>"
 	} else {
-		out += "<tr><td>score</td><td>rowID</td><td>text</td></tr>"
+		out += "<tr><td width=6%>score</td><td width=6%>rowID</td><td>text</td></tr>"
 	}
 	topScore := 0.0
 	for i, logr := range nTopRareLogs {
@@ -591,6 +591,9 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 			for _, itemID := range tran {
 				term := a.trans.items.getWord(itemID)
 				if _, ok := terms[term]; ok {
+					continue
+				}
+				if itemID == 0 {
 					continue
 				}
 
