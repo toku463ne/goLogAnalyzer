@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	cDefaultBlockSize     = 10000
-	cDefaultMaxBlocks     = 100
-	cDefaultMaxItemBlocks = 1000
-	cMinGapToRecord       = 1.5
-	cDefaultHistSize      = 5
+	cDefaultBlockSize          = 10000
+	cDefaultMaxBlocks          = 100
+	cDefaultMaxItemBlocks      = 1000
+	cMinGapToRecord            = 1.5
+	cDefaultHistSize           = 5
+	cDefaultReportOutputFormat = "html"
 )
 
 var (
@@ -206,7 +207,8 @@ func report() error {
 	return analyzer.Report(*reportConfig, *reportRecentNdays,
 		cMinGapToRecord,
 		cDefaultMaxBlocks, cDefaultMaxItemBlocks,
-		cDefaultBlockSize, 10, cDefaultHistSize)
+		cDefaultBlockSize, 10, cDefaultHistSize,
+		cDefaultReportOutputFormat)
 }
 
 func main() {

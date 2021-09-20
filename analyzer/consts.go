@@ -22,4 +22,6 @@ const (
 	cDefaultHistSize = 5
 	cCountBorderRate = 0.01
 	cErrorKeywords   = "failure|failed|error|down|crit"
+	cFormatHtml      = "html"
+	cFormatText      = "txt"
 )

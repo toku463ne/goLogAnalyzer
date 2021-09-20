@@ -86,7 +86,8 @@ func RarStats(rootDir string, histSize int) error {
 func Report(jsonFile string, recentNdays int,
 	defaultMinGapToRecord float64,
 	defaultMaxBlocks, defaultMaxItemBlocks,
-	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int) error {
+	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int,
+	defaultOutFormat string) error {
 
 	ls, err := newLogSetInfo(jsonFile)
 	if err != nil {
@@ -96,7 +97,8 @@ func Report(jsonFile string, recentNdays int,
 	err = ls.run(recentNdays,
 		defaultMinGapToRecord,
 		defaultMaxBlocks, defaultMaxItemBlocks,
-		defaultLinesInBlock, defaultNTopRecords, defaultHistSize)
+		defaultLinesInBlock, defaultNTopRecords, defaultHistSize,
+		defaultOutFormat)
 	if err != nil {
 		return err
 	}

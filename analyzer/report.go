@@ -51,7 +51,8 @@ func newLogSetInfo(jsonFile string) (*logSetInfo, error) {
 func (ls *logSetInfo) run(recentNdays int,
 	defaultMinGapToRecord float64,
 	defaultMaxBlocks, defaultMaxItemBlocks,
-	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int) error {
+	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int,
+	outFormat string) error {
 
 	startEpoch := int64(0)
 	if recentNdays > 0 {
@@ -82,7 +83,7 @@ func (ls *logSetInfo) run(recentNdays int,
 	for name, l := range ls.Logs {
 		log.Printf("\n\nProcessing %s", name)
 		dataPath := fmt.Sprintf("%s/%s", ls.DataDir, name)
-		reportPath := fmt.Sprintf("%s/%s.txt", reportDir, name)
+		reportPath := fmt.Sprintf("%s/%s.%s", reportDir, name, outFormat)
 
 		a := newRarityAnalyzer(dataPath)
 
@@ -132,10 +133,38 @@ func (ls *logSetInfo) run(recentNdays int,
 		}
 		defer fw.Close()
 
-		out, g, err := a.stats.getCountPerStatsString()
+		out := ""
+		newLine := "\n"
+		switch outFormat {
+		case cFormatText:
+			out = ""
+		case cFormatHtml:
+			out = "<html>"
+			newLine = "<br>"
+		}
+
+		ephasizeLine := func(s string) string {
+			switch outFormat {
+			case cFormatHtml:
+				s = fmt.Sprintf("<b>%s<b>", s)
+			}
+			return s
+		}
+
+		out2, g, err := a.stats.getCountPerStats(0, outFormat)
 		if err != nil {
 			log.Println(err)
 			continue
+		}
+		out += out2
+
+		if startEpoch > 0 {
+			out2, _, err = a.stats.getCountPerStats(startEpoch, outFormat)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			out += out2
 		}
 
 		sum := 0.0
@@ -160,13 +189,14 @@ func (ls *logSetInfo) run(recentNdays int,
 		ex2 := fmt.Sprintf("(?i)(%s|%s)", l.Exclude, cErrorKeywords)
 
 		for stagei, stage := range stages {
-			out += ("\n")
+			out += newLine
 			minStage := 0.0
 			if stagei+1 < len(stages) {
 				minStage = float64(stages[stagei+1])
 			}
 
-			msg := fmt.Sprintf("%d top rare records score<=%d", l.TopN, stage+1)
+			msg := ephasizeLine(fmt.Sprintf("%d top rare records score<=%d", l.TopN, stage+1))
+			msg += newLine
 
 			if stagei > 0 || l.Exclude == "" {
 				ex = ex1
@@ -174,9 +204,9 @@ func (ls *logSetInfo) run(recentNdays int,
 				ex = ex2
 			}
 			out2 := ""
-			out2, border1, err := a.getNTopString(msg,
+			out2, border1, err := a.getNTop(msg,
 				l.TopN, startEpoch, 0,
-				l.Search, ex, true, minStage, float64(stage+1))
+				l.Search, ex, true, minStage, float64(stage+1), outFormat)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -185,29 +215,34 @@ func (ls *logSetInfo) run(recentNdays int,
 				border = border1
 			}
 			out += out2
-			out += "\n"
-			out += "\n"
+			out += newLine
+			out += newLine
 
 			inc := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
 			msg = fmt.Sprintf("%d top rare %s score<=%d", l.TopN, cErrorKeywords, stage+1)
 			out3 := ""
-			out3, _, err = a.getNTopString(msg,
+			out3, _, err = a.getNTop(msg,
 				ls.TopN, startEpoch, 0,
-				inc, l.Exclude, true, minStage, float64(stage+1))
+				inc, l.Exclude, true, minStage, float64(stage+1), outFormat)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 			out += out3
-			out += "\n"
-			out += "\n"
+			out += newLine
+			out += newLine
 
 		}
-		if out2, err := a.stats.getRecentStatsString(ls.HistSize); err != nil {
+		if out2, err := a.stats.getRecentStats(ls.HistSize, outFormat); err != nil {
 			log.Println(err)
 			continue
 		} else {
 			out += out2
+		}
+
+		switch outFormat {
+		case cFormatHtml:
+			out += "</html>"
 		}
 
 		println(out)
@@ -216,15 +251,15 @@ func (ls *logSetInfo) run(recentNdays int,
 			continue
 		}
 
-		_, topScore, err := a.getNTopString("",
+		_, topScore, err := a.getNTop("",
 			l.TopN, startEpoch, 0,
-			l.Search, ex, true, 0, 0)
+			l.Search, ex, true, 0, 0, outFormat)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 		if topScore > border {
-			copyFile(reportPath, fmt.Sprintf("%s/%s.txt", abnormalDir, name))
+			copyFile(reportPath, fmt.Sprintf("%s/%s.%s", abnormalDir, name, outFormat))
 		}
 	}
 	return nil

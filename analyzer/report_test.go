@@ -49,7 +49,7 @@ func TestReport_run(t *testing.T) {
 		return
 	}
 
-	err = ls.run(1000, 0.0, 3, 3, 5, 5, 5)
+	err = ls.run(1000, 0.0, 3, 3, 5, 5, 5, "txt")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -67,7 +67,7 @@ func TestReport_run2(t *testing.T) {
 	//defaultMinGapToRecord float64,
 	//defaultMaxBlocks, defaultMaxItemBlocks,
 	//defaultLinesInBlock, defaultNTopRecords, defaultHistSize int
-	err = ls.run(0, 0.0, 3, 3, 5, 5, 5)
+	err = ls.run(0, 0.0, 3, 3, 5, 5, 5, "txt")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
