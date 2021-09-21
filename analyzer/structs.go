@@ -1,6 +1,9 @@
 package analyzer
 
 import (
+	"bufio"
+	"compress/gzip"
+	"os"
 	"regexp"
 	"strings"
 
@@ -133,4 +136,15 @@ type filePointer struct {
 	currRow  int
 	currPos  int
 	isEOF    bool
+}
+
+type reader struct {
+	fd       *os.File
+	zr       *gzip.Reader
+	reader   *bufio.Reader
+	rowNum   int
+	mode     string
+	filename string
+	e        error
+	currText string
 }

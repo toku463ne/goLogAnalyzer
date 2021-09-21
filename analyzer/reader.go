@@ -10,16 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type reader struct {
-	fd       *os.File
-	zr       *gzip.Reader
-	scanner  *bufio.Scanner
-	rowNum   int
-	mode     string
-	filename string
-	e        error
-}
-
 func newReader(filename string) (*reader, error) {
 	var fd *os.File
 	var err error
@@ -47,10 +37,10 @@ func newReader(filename string) (*reader, error) {
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
-		lr.scanner = bufio.NewScanner(zr)
+		lr.reader = bufio.NewReader(zr)
 		lr.zr = zr
 	} else {
-		lr.scanner = bufio.NewScanner(fd)
+		lr.reader = bufio.NewReader(fd)
 	}
 	//lr.scanner.Split(bufio.ScanBytes)
 	lr.filename = filename
@@ -58,25 +48,39 @@ func newReader(filename string) (*reader, error) {
 }
 
 func (lr *reader) next() bool {
-	if lr.scanner.Scan() {
+	var b []byte
+	lr.e = nil
+	isEOF := false
+	for {
+		line, isPrefix, err := lr.reader.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				isEOF = true
+			} else {
+				lr.e = err
+			}
+			break
+		}
+		b = append(b, line...)
+		if !isPrefix {
+			break
+		}
+	}
+	lr.currText = string(b)
+
+	if lr.e == nil && !isEOF {
 		lr.rowNum++
 		return true
-	}
-	err := lr.scanner.Err()
-	if err == nil {
-		lr.e = io.EOF
-	} else if err != nil {
-		lr.e = err
 	}
 	return false
 }
 
 func (lr *reader) err() error {
-	return lr.scanner.Err()
+	return lr.e
 }
 
 func (lr *reader) text() string {
-	return lr.scanner.Text()
+	return lr.currText
 }
 
 func (lr *reader) close() {

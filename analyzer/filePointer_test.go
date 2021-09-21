@@ -43,4 +43,36 @@ func TestFilePointer_run1(t *testing.T) {
 		}
 		i++
 	}
+
+}
+
+func TestFilePointer_run2(t *testing.T) {
+	testName := "TestFilePointer_run2"
+	testDir, err := ensureTestDir(testName)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if _, err := copyFile("testdata/filepointer/long.txt.tar.gz",
+		fmt.Sprintf("%s/long.txt.tar.gz", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	logPathRegex := fmt.Sprintf("%s/long.txt.tar.gz", testDir)
+
+	fp := newFilePointer(logPathRegex, 0, 0)
+	if err := fp.open(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	for fp.next() {
+		te := fp.text()
+		println(te)
+	}
+	if fp.currErr != nil && !fp.isEOF {
+		t.Errorf("%+v", fp.currErr)
+		return
+	}
 }
