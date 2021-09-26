@@ -75,9 +75,10 @@ type circuitRows struct {
 }
 
 type colLogRecords struct {
-	rowid  int64
-	score  float64
-	record string
+	rowid     int64
+	score     float64
+	record    string
+	lastEpoch int64
 }
 
 type logRecords struct {

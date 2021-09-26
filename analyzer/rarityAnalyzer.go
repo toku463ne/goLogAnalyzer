@@ -359,8 +359,8 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 	minScore float64, maxScore float64) ([]*colLogRecords, error) {
 	var conditionCheckFunc func(v []string) bool
 
+	lastEpochIdx := getColIdx("circuitDBStatus", "lastEpoch")
 	if startEpoch > 0 {
-		lastEpochIdx := getColIdx("circuitDBStatus", "lastEpoch")
 		conditionCheckFunc = func(v []string) bool {
 			lastEpoch, _ := strconv.ParseInt(v[lastEpochIdx], 10, 64)
 			if endEpoch > 0 && endEpoch > startEpoch {
@@ -387,7 +387,9 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 		blockNos = append(blockNos, blockNo)
 	}
 
-	r, err := a.logRecs.selectRows(nil, blockNos, []string{"rowID", "score", "record"})
+	lastEpochIdx = getColIdx("logRecords", "epoch")
+	r, err := a.logRecs.selectRows(conditionCheckFunc,
+		blockNos, []string{"rowID", "score", "record"})
 	if err != nil {
 		return nil, err
 	}

@@ -34,8 +34,8 @@ func (lr *logRecords) insert(rowID int64, score float64, record string, lastEpoc
 	if lr.dataDir == "" {
 		return nil
 	}
-	if err := lr.insertRow([]string{"rowID", "score", "record"},
-		rowID, score, record); err != nil {
+	if err := lr.insertRow([]string{"rowID", "score", "epoch", "record"},
+		rowID, score, lastEpoch, record); err != nil {
 		return errors.WithStack(err)
 	}
 	lr.rowNo++

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 func Test_rarityAnalyzerInit(t *testing.T) {
@@ -450,9 +452,10 @@ func Test_rarityAnalyzerRunDatetime(t *testing.T) {
 	filterStr := ""
 	xFilterStr := ""
 	minGapToRecord := -100.0
-	maxBlocks := 3
+	maxBlocks := 10
 	maxItemBlocks := 6
 	linesInBlock := 5
+	useGzipInCircuitTables = false
 
 	if err := removePath(fmt.Sprintf("%s/datetime.log", testDir)); err != nil {
 		t.Errorf("%v", err)
@@ -522,6 +525,60 @@ func Test_rarityAnalyzerRunDatetime(t *testing.T) {
 		return
 	}
 	if err := assertItemCount("Saturday", 15); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	assertTop1 := func(title, start, end string, shouldExist bool, score float64) error {
+		startEpoch := int64(0)
+		endEpoch := int64(0)
+		if start != "" {
+			startdt, _ := time.Parse("2006/01/02 15:04:05", start)
+			startEpoch = startdt.Unix()
+		}
+		if end != "" {
+			enddt, _ := time.Parse("2006/01/02 15:04:05", end)
+			endEpoch = enddt.Unix()
+		}
+
+		rows, err := a.scanAndGetNTops(1, startEpoch, endEpoch,
+			"", "", -1, -1)
+		if err != nil {
+			return err
+		}
+
+		if len(rows) == 0 && shouldExist {
+			return errors.New(fmt.Sprintf("%s No data", title))
+		} else if !shouldExist {
+			return nil
+		}
+
+		if rows[0] == nil {
+			return errors.New(fmt.Sprintf("%s No data", title))
+		}
+
+		gotScore := rows[0].score
+		if score != gotScore {
+			return errors.New(fmt.Sprintf("%s score got=%f want=%f", title, gotScore, score))
+		}
+
+		return nil
+	}
+
+	if err := assertTop1("2021/09/25 17:00",
+		"2021/09/25 17:00:00", "2021/09/25 17:00:59", true, 2.945910149055313); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := assertTop1("2021/09/25 21:00:00",
+		"2021/09/25 21:00:00", "", true, 5.574710978503383); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := assertTop1("2021/12/01 00:01:00",
+		"2021/12/01 00:01:00", "2022/09/25 17:00:59", false, -1.0); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

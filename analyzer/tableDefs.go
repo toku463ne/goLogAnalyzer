@@ -8,7 +8,7 @@ var (
 			"datetimeStartPos", "datetimeLayout"},
 		"lastStatus": {"lastRowID", "lastFileEpoch", "lastFileRow"},
 		"items":      {"item", "itemCount"},
-		"logRecords": {"rowID", "score", "record"},
+		"logRecords": {"rowID", "score", "epoch", "record"},
 		"scores": {"seqNo", "blockNo", "rowCount", "scoreSum",
 			"scoreSqrSum", "scoreMax", "completed", "lastFileEpoch"},
 		"scoresHist": {"seqNo", "blockNo", "avg", "std", "max", "lastFileEpoch"},
