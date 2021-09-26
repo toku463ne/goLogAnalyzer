@@ -1,13 +1,16 @@
 package analyzer
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
+	"time"
 )
 
-func newTrans(dataDir string, maxBlocks, maxRowsInBlock int) (*trans, error) {
+func newTrans(dataDir string, maxBlocks, maxRowsInBlock int,
+	datetimeStartPos int, datetimeLayout string) (*trans, error) {
 	t := new(trans)
-	i, err := newItems(dataDir, maxBlocks, maxRowsInBlock)
+	i, err := newItems(dataDir, "items", maxBlocks, maxRowsInBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -15,6 +18,9 @@ func newTrans(dataDir string, maxBlocks, maxRowsInBlock int) (*trans, error) {
 	t.items.register("", 1, true)
 	t.replacer = getDelimReplacer()
 	t.maxRowsInBlock = maxRowsInBlock
+	t.datetimeStartPos = datetimeStartPos
+	t.datetimeLayout = datetimeLayout
+	t.datetimeEndPos = datetimeStartPos + len(datetimeLayout)
 	return t, nil
 }
 
@@ -42,7 +48,22 @@ func (t *trans) calcScore(tran []int) float64 {
 	return score
 }
 
-func (t *trans) toTermList(line string, registerItem bool) []int {
+func (t *trans) toTermList(line string, registerItem bool) ([]int, int64) {
+	var timeResult []int
+	var lastEpoch int64
+	if t.datetimeLayout != "" && len(line) > t.datetimeEndPos {
+		timeResult = make([]int, 5)
+		if dt, err := time.Parse(t.datetimeLayout, line[:t.datetimeEndPos]); err == nil {
+			line = line[t.datetimeEndPos+1:]
+			timeResult[0] = t.items.register(fmt.Sprint(dt.Month()), 1, registerItem)
+			timeResult[1] = t.items.register(fmt.Sprintf("d-%02d", dt.Day()), 1, registerItem)
+			timeResult[2] = t.items.register(fmt.Sprintf("H-%02d", dt.Hour()), 1, registerItem)
+			timeResult[3] = t.items.register(fmt.Sprintf("M-%02d", dt.Minute()), 1, registerItem)
+			timeResult[4] = t.items.register(fmt.Sprint(dt.Weekday()), 1, registerItem)
+			lastEpoch = dt.Unix()
+		}
+	}
+
 	line = t.replacer.Replace(line)
 	words := strings.Split(line, " ")
 	result := make([]int, len(words))
@@ -67,32 +88,35 @@ func (t *trans) toTermList(line string, registerItem bool) []int {
 			}
 		}
 	}
-	return result
+	if len(timeResult) > 0 {
+		result = append(timeResult, result...)
+	}
+	return result, lastEpoch
 }
 
 func (t *trans) tokenizeLine(line string,
-	filterRe, xFilterRe *regexp.Regexp, registerItem bool) ([]int, error) {
-	tran := t.toTermList(line, registerItem)
+	filterRe, xFilterRe *regexp.Regexp, registerItem bool) ([]int, int64, error) {
+	tran, lastEpoch := t.toTermList(line, registerItem)
 
 	if line == "" {
-		return nil, nil
+		return nil, -1, nil
 	}
 	b := []byte(line)
 
 	if filterRe != nil && !filterRe.Match(b) {
-		return nil, nil
+		return nil, -1, nil
 	}
 	if xFilterRe != nil && xFilterRe.Match(b) {
-		return nil, nil
+		return nil, -1, nil
 	}
 
 	if registerItem {
 		if err := t.items.next(); err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 	}
 
-	return tran, nil
+	return tran, lastEpoch, nil
 }
 
 func (t *trans) commit(completed bool) error {

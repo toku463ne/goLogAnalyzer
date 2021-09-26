@@ -3,7 +3,9 @@ package analyzer
 var (
 	tableDefs = map[string][]string{
 		"config": {"rootDir", "logPathRegex", "linesInBlock",
-			"maxBlocks", "maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord"},
+			"maxBlocks", "maxItemBlocks",
+			"filterRe", "xFilterRe", "minGapToRecord",
+			"datetimeStartPos", "datetimeLayout"},
 		"lastStatus": {"lastRowID", "lastFileEpoch", "lastFileRow"},
 		"items":      {"item", "itemCount"},
 		"logRecords": {"rowID", "score", "record"},

@@ -19,6 +19,8 @@ const (
 	cMinGapToRecord            = 1.5
 	cDefaultHistSize           = 5
 	cDefaultReportOutputFormat = "html"
+	cDefaultDatetimeStartPos   = -1
+	cDefaultDatetimeLayout     = ""
 )
 
 var (
@@ -51,6 +53,8 @@ var (
 	rarMaxLines          = rarFlag.Int("n", 0, maxLinesDesc)
 	recordsToShowDesc    = "Top N rare records to show"
 	rarTopnRecordsToShow = rarFlag.Int("silent", 10, recordsToShowDesc)
+	rarDatetimeStartPos  = rarFlag.Int("dateStart", -1, "Start position of datetime in the log starting from 0.")
+	rarDatetimeLayout    = rarFlag.String("dateLayout", "", "Layout of datetime in the log.")
 
 	clnRootDir = clnFlag.String("d", "", rootDirDesc)
 
@@ -182,7 +186,8 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 		*rarFilterRe, *rarXFilterRe,
 		*rarGap,
 		*rarMaxBlock, *rarMaxItemBlock, *rarLinesInBlock,
-		*rarMaxLines, *rarTopnRecordsToShow)
+		*rarMaxLines, *rarTopnRecordsToShow,
+		*rarDatetimeStartPos, *rarDatetimeLayout)
 
 	log.Printf("%d lines processed\n", linesProcessed)
 
@@ -208,7 +213,7 @@ func report() error {
 		cMinGapToRecord,
 		cDefaultMaxBlocks, cDefaultMaxItemBlocks,
 		cDefaultBlockSize, 10, cDefaultHistSize,
-		cDefaultReportOutputFormat)
+		cDefaultReportOutputFormat, cDefaultDatetimeStartPos, cDefaultDatetimeLayout)
 }
 
 func main() {

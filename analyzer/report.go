@@ -19,14 +19,16 @@ type scoreHistJson struct {
 }
 
 type logInfo struct {
-	LogPath        string  `json:"path"`
-	Search         string  `json:"search"`
-	Exclude        string  `json:"exclude"`
-	LinesInBlock   int     `json:"linesInBlock"`
-	MaxBlocks      int     `json:"maxBlocks"`
-	MaxItemBlocks  int     `json:"maxItemBlocks"`
-	TopN           int     `json:"topN"`
-	MinGapToRecord float64 `json:"minGapToRecord"`
+	LogPath          string  `json:"path"`
+	Search           string  `json:"search"`
+	Exclude          string  `json:"exclude"`
+	LinesInBlock     int     `json:"linesInBlock"`
+	MaxBlocks        int     `json:"maxBlocks"`
+	MaxItemBlocks    int     `json:"maxItemBlocks"`
+	TopN             int     `json:"topN"`
+	MinGapToRecord   float64 `json:"minGapToRecord"`
+	DatetimeStartPos int     `json:dateStart`
+	DatetimeLayout   string  `json:dateLayout`
 }
 
 type logSetInfo struct {
@@ -52,7 +54,8 @@ func (ls *logSetInfo) run(recentNdays int,
 	defaultMinGapToRecord float64,
 	defaultMaxBlocks, defaultMaxItemBlocks,
 	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int,
-	outFormat string) error {
+	outFormat string,
+	defaultDatetimeStartPos int, defaultDatetimeLayout string) error {
 
 	startEpoch := int64(0)
 	if recentNdays > 0 {
@@ -116,7 +119,8 @@ func (ls *logSetInfo) run(recentNdays int,
 
 		if err := a.open(l.LogPath, l.Search, l.Exclude,
 			defaultMinGapToRecord,
-			l.MaxBlocks, l.MaxItemBlocks, l.LinesInBlock, l.TopN); err != nil {
+			l.MaxBlocks, l.MaxItemBlocks, l.LinesInBlock, l.TopN,
+			l.DatetimeStartPos, l.DatetimeLayout); err != nil {
 			log.Println(err)
 			continue
 		}

@@ -22,11 +22,13 @@ func Clean(rootDir string) error {
 
 func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock int,
-	linesToProcess, nTopRecords int) (int, error) {
+	linesToProcess, nTopRecords int,
+	datetimeStartPos int, datetimeLayout string) (int, error) {
 
 	a := newRarityAnalyzer(rootDir)
 	if err := a.open(logPathRegex, filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords,
+		datetimeStartPos, datetimeLayout); err != nil {
 		return 0, err
 	}
 	linesProcessed, err := a.analyze(linesToProcess)
@@ -87,7 +89,8 @@ func Report(jsonFile string, recentNdays int,
 	defaultMinGapToRecord float64,
 	defaultMaxBlocks, defaultMaxItemBlocks,
 	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int,
-	defaultOutFormat string) error {
+	defaultOutFormat string,
+	defaultDatetimeStartPos int, defaultDatetimeLayout string) error {
 
 	ls, err := newLogSetInfo(jsonFile)
 	if err != nil {
@@ -98,7 +101,8 @@ func Report(jsonFile string, recentNdays int,
 		defaultMinGapToRecord,
 		defaultMaxBlocks, defaultMaxItemBlocks,
 		defaultLinesInBlock, defaultNTopRecords, defaultHistSize,
-		defaultOutFormat)
+		defaultOutFormat,
+		defaultDatetimeStartPos, defaultDatetimeLayout)
 	if err != nil {
 		return err
 	}

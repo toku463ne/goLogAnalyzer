@@ -128,13 +128,13 @@ func Test_Items(t *testing.T) {
 	maxRowsInBlock := 5
 	useGzipInCircuitTables = false
 	//tl, err := newTableLogRecords(dataDir, maxBlocks, maxRowsInBlock)
-	it, err := newItems(dataDir, maxBlocks, maxRowsInBlock)
+	it, err := newItems(dataDir, "items", maxBlocks, maxRowsInBlock)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	it.DropAll()
-	it, err = newItems(dataDir, maxBlocks, maxRowsInBlock)
+	it, err = newItems(dataDir, "items", maxBlocks, maxRowsInBlock)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -309,7 +309,7 @@ func Test_Items(t *testing.T) {
 
 	it = nil
 
-	it, err = newItems(dataDir, maxBlocks, maxRowsInBlock)
+	it, err = newItems(dataDir, "items", maxBlocks, maxRowsInBlock)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

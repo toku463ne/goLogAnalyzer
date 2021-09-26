@@ -32,7 +32,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0, -1, ""); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -75,7 +75,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		"", "",
-		-1.0, -1, -1, -1, 0); err != nil {
+		-1.0, -1, -1, -1, 0, -1, ""); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -130,7 +130,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0, -1, ""); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -289,7 +289,7 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0, -1, ""); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -412,7 +412,7 @@ func Test_rarityAnalyzerNodb(t *testing.T) {
 	a := newRarityAnalyzer("")
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 5); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 5, -1, ""); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -432,6 +432,96 @@ func Test_rarityAnalyzerNodb(t *testing.T) {
 		return
 	}
 	if err := getGotExpErr("items.totalCount", a.trans.items.totalCount, 93); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+}
+
+func Test_rarityAnalyzerRunDatetime(t *testing.T) {
+	testDir, err := ensureTestDir("rarityAnalyzerRunDatetime")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	rootDir := testDir + "/data"
+	logPathRegex := fmt.Sprintf("%s/datetime.log", testDir)
+	filterStr := ""
+	xFilterStr := ""
+	minGapToRecord := -100.0
+	maxBlocks := 3
+	maxItemBlocks := 6
+	linesInBlock := 5
+
+	if err := removePath(fmt.Sprintf("%s/datetime.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if _, err := copyFile("testdata/rarityAnalizer/002/datetime.log",
+		fmt.Sprintf("%s/datetime.log", testDir)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a := newRarityAnalyzer(rootDir)
+
+	if err := a.clean(); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.init(logPathRegex,
+		filterStr, xFilterStr,
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock,
+		0, 0, "2006/01/02 15:04:05"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if lines, err := a.analyze(0); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if err := getGotExpErr("lines processed", lines, 25); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	if err := getGotExpErr("rowNo", a.rowID, int64(25)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	assertItemCount := func(term string, want int) error {
+		itemID := a.trans.items.getItemID(term)
+		got := a.trans.items.getCount(itemID)
+		return getGotExpErr(fmt.Sprintf("items count %s", term), got, want)
+	}
+
+	if err := assertItemCount("September", 20); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := assertItemCount("d-25", 15); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := assertItemCount("M-00", 18); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := assertItemCount("H-17", 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := assertItemCount("test1", 23); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := assertItemCount("Saturday", 15); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

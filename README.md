@@ -42,39 +42,33 @@ logan topN:
   
 Usage of rar:
   ```
-Usage of rar:
   -d string
         Directory to save the analyzation data
-
+  -dateLayout string
+        Layout of datetime in the log.
+  -dateStart int
+        Start position of datetime in the log starting from 0. (default -1)
   -f string
         Log file(regex) to analyze. Supports data from pipe
-
   -g float
         Gap rate from average
-        Log records with rarity score whose gap if higher that this value will be showed. 
-        (default 0.5)
-
+                        Log records with rarity score whose gap if higher that this value will be showed. (default 1.5)
   -linesInBlock int
         lines in block (default 10000)
-
   -maxBlock int
         max blocks (default 100)
-
   -maxItemBlock int
         max blocks for items (default 1000)
-
   -n int
         max lines to process
-
   -s string
         key word to search
-
-  -x string
-        key word to exclude
-
   -save
         Update the data without asking
-  
+  -silent int
+        Top N rare records to show (default 10)
+  -x string
+        key word to exclude
   ```
   
 Usage of clean:

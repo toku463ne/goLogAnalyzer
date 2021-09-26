@@ -25,11 +25,14 @@ func (a *rarityAnalyzer) clean() error {
 }
 
 func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
-	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int) error {
+	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int,
+	datetimeStartPos int, datetimeLayout string) error {
 	a.logPathRegex = logPathRegex
 	a.filterRe = getRegex(filterStr)
 	a.xFilterRe = getRegex(xFilterStr)
 	a.nTopRareLogs = make([]*colLogRecords, nTopRecords)
+	a.datetimeStartPos = datetimeStartPos
+	a.datetimeLayout = datetimeLayout
 
 	if a.rootDir != "" {
 		if err := ensureDir(a.rootDir); err != nil {
@@ -75,14 +78,16 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 }
 
 func (a *rarityAnalyzer) open(logPathRegex, filterStr, xFilterStr string,
-	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int) error {
+	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int,
+	datetimeStartPos int, datetimeLayout string) error {
 	if pathExist(a.rootDir) {
 		if err := a.load(); err != nil {
 			return err
 		}
 	} else {
 		if err := a.init(logPathRegex, filterStr, xFilterStr,
-			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords); err != nil {
+			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords,
+			datetimeStartPos, datetimeLayout); err != nil {
 			return err
 		}
 	}
@@ -122,9 +127,11 @@ func (a *rarityAnalyzer) load() error {
 	xFilterReStr := ""
 	if err := a.configTable.Select1Row(nil,
 		[]string{"logPathRegex", "linesInBlock", "maxBlocks",
-			"maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord"},
+			"maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord",
+			"datetimeStartPos", "datetimeLayout"},
 		&a.logPathRegex, &a.linesInBlock, &a.maxBlocks, &a.maxItemBlocks,
-		&filterReStr, &xFilterReStr, &a.minGapToRecord); err != nil {
+		&filterReStr, &xFilterReStr, &a.minGapToRecord,
+		&a.datetimeStartPos, &a.datetimeLayout); err != nil {
 		return err
 	}
 
@@ -148,7 +155,8 @@ func (a *rarityAnalyzer) load() error {
 }
 
 func (a *rarityAnalyzer) openObjs() error {
-	trans, err := newTrans(a.rootDir, a.maxItemBlocks, a.linesInBlock)
+	trans, err := newTrans(a.rootDir, a.maxItemBlocks, a.linesInBlock,
+		a.datetimeStartPos, a.datetimeLayout)
 	if err != nil {
 		return err
 	}
@@ -199,13 +207,15 @@ func (a *rarityAnalyzer) saveConfig() error {
 	xFilterReStr := re2str(a.xFilterRe)
 
 	if err := a.configTable.Upsert(nil, map[string]interface{}{
-		"logPathRegex":   a.logPathRegex,
-		"linesInBlock":   a.linesInBlock,
-		"maxBlocks":      a.maxBlocks,
-		"maxItemBlocks":  a.maxItemBlocks,
-		"filterRe":       filterReStr,
-		"xFilterRe":      xFilterReStr,
-		"minGapToRecord": a.minGapToRecord,
+		"logPathRegex":     a.logPathRegex,
+		"linesInBlock":     a.linesInBlock,
+		"maxBlocks":        a.maxBlocks,
+		"maxItemBlocks":    a.maxItemBlocks,
+		"filterRe":         filterReStr,
+		"xFilterRe":        xFilterReStr,
+		"minGapToRecord":   a.minGapToRecord,
+		"datetimeStartPos": a.datetimeStartPos,
+		"datetimeLayout":   a.datetimeLayout,
 	}); err != nil {
 		return err
 	}
@@ -291,17 +301,20 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 			continue
 		}
 
-		lastEpoch = a.fp.currFileEpoch()
-		a.trans.items.lastEpoch = lastEpoch
-		a.logRecs.lastEpoch = lastEpoch
-
-		tran, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
+		tran, lineEpoch, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
 		if err != nil {
 			return linesProcessed, err
 		}
 		if len(tran) == 0 {
 			continue
 		}
+		if lineEpoch > 0 {
+			lastEpoch = lineEpoch
+		} else {
+			lastEpoch = a.fp.currFileEpoch()
+		}
+		a.trans.items.lastEpoch = lastEpoch
+		a.logRecs.lastEpoch = lastEpoch
 
 		score := a.trans.calcScore(tran)
 		err = a.stats.registerScore(score, lastEpoch)
@@ -309,7 +322,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 			return linesProcessed, err
 		}
 		if a.stats.lastGap >= a.minGapToRecord {
-			if err := a.logRecs.insert(a.rowID, score, te, a.lastFileEpoch); err != nil {
+			if err := a.logRecs.insert(a.rowID, score, te, lastEpoch); err != nil {
 				return linesProcessed, err
 			}
 		}
@@ -496,7 +509,16 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 		if showItemCount {
 			terms := make(map[string]int)
 			termlist := make([]string, 0)
-			tran, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
+			tran, lastEpoch, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
+
+			if lastEpoch > 0 {
+				if startEpoch > 0 && lastEpoch < startEpoch {
+					continue
+				}
+				if endEpoch > 0 && lastEpoch > endEpoch {
+					continue
+				}
+			}
 			if err != nil {
 				return "", -1, err
 			}
@@ -583,9 +605,17 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 		if showItemCount {
 			terms := make(map[string]int)
 			termlist := make([]string, 0)
-			tran, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
+			tran, lastEpoch, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
 			if err != nil {
 				return "", -1, err
+			}
+			if lastEpoch > 0 {
+				if startEpoch > 0 && lastEpoch < startEpoch {
+					continue
+				}
+				if endEpoch > 0 && lastEpoch > endEpoch {
+					continue
+				}
 			}
 			line := ""
 			for _, itemID := range tran {

@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func newItems(dataDir string, maxBlocks, maxRowsInBlock int) (*items, error) {
+func newItems(dataDir, tableName string, maxBlocks, maxRowsInBlock int) (*items, error) {
 	i := new(items)
 	d, err := newCircuitDB(dataDir, "items", tableDefs["items"], maxBlocks, 0)
 	if err != nil {
@@ -19,8 +19,7 @@ func newItems(dataDir string, maxBlocks, maxRowsInBlock int) (*items, error) {
 	i.counts = make(map[int]int, 10000)
 	i.terms = make(map[string]int, 10000)
 	i.currCounts = make(map[int]int, 10000)
-	i.maxItemID = -1
-
+	i.maxItemID = 0
 	return i, nil
 }
 

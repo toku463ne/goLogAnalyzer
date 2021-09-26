@@ -85,9 +85,12 @@ type logRecords struct {
 }
 
 type trans struct {
-	items          *items
-	maxRowsInBlock int
-	replacer       *strings.Replacer
+	items            *items
+	maxRowsInBlock   int
+	replacer         *strings.Replacer
+	datetimeStartPos int
+	datetimeEndPos   int
+	datetimeLayout   string
 }
 
 type items struct {
@@ -103,25 +106,27 @@ type items struct {
 
 type rarityAnalyzer struct {
 	*csvdb.CsvDB
-	configTable     *csvdb.CsvTable
-	lastStatusTable *csvdb.CsvTable
-	rootDir         string
-	trans           *trans
-	stats           *stats
-	logRecs         *logRecords
-	fp              *filePointer
-	logPathRegex    string
-	filterRe        *regexp.Regexp
-	xFilterRe       *regexp.Regexp
-	minGapToRecord  float64
-	lastFileEpoch   int64
-	lastFileRow     int
-	rowID           int64
-	linesInBlock    int
-	maxBlocks       int
-	maxItemBlocks   int
-	nTopRareLogs    []*colLogRecords
-	maxScore        float64
+	configTable      *csvdb.CsvTable
+	lastStatusTable  *csvdb.CsvTable
+	rootDir          string
+	trans            *trans
+	stats            *stats
+	logRecs          *logRecords
+	fp               *filePointer
+	logPathRegex     string
+	filterRe         *regexp.Regexp
+	xFilterRe        *regexp.Regexp
+	minGapToRecord   float64
+	lastFileEpoch    int64
+	lastFileRow      int
+	rowID            int64
+	linesInBlock     int
+	maxBlocks        int
+	maxItemBlocks    int
+	nTopRareLogs     []*colLogRecords
+	maxScore         float64
+	datetimeStartPos int
+	datetimeLayout   string
 }
 
 type filePointer struct {
