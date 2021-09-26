@@ -19,7 +19,7 @@ const (
 	cMinGapToRecord            = 1.5
 	cDefaultHistSize           = 5
 	cDefaultReportOutputFormat = "html"
-	cDefaultDatetimeStartPos   = -1
+	cDefaultDatetimeStartPos   = 0
 	cDefaultDatetimeLayout     = ""
 )
 
