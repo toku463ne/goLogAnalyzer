@@ -70,8 +70,7 @@ func (t *trans) calcScore(tran []int) float64 {
 				score += scores[i]
 			}
 		} else {
-			n := cScoreNSize - tranSize
-			score = scoreTotal + (float64(n*(n+1))/2.0/float64(n))*minScore
+			score = scoreTotal + minScore*float64(cScoreNSize-tranSize)/2.0
 		}
 		score /= float64(cScoreNSize)
 	}
