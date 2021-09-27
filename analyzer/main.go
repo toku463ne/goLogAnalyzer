@@ -23,12 +23,12 @@ func Clean(rootDir string) error {
 func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock int,
 	linesToProcess, nTopRecords int,
-	datetimeStartPos int, datetimeLayout string) (int, error) {
+	datetimeStartPos int, datetimeLayout string, scoreLayout int) (int, error) {
 
 	a := newRarityAnalyzer(rootDir)
 	if err := a.open(logPathRegex, filterStr, xFilterStr,
 		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords,
-		datetimeStartPos, datetimeLayout); err != nil {
+		datetimeStartPos, datetimeLayout, scoreLayout); err != nil {
 		return 0, err
 	}
 	linesProcessed, err := a.analyze(linesToProcess)

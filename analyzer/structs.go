@@ -92,6 +92,7 @@ type trans struct {
 	datetimeStartPos int
 	datetimeEndPos   int
 	datetimeLayout   string
+	scoreStyle       int
 }
 
 type items struct {
@@ -128,6 +129,7 @@ type rarityAnalyzer struct {
 	maxScore         float64
 	datetimeStartPos int
 	datetimeLayout   string
+	scoreStyle       int
 }
 
 type filePointer struct {

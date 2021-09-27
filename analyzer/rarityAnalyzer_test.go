@@ -34,7 +34,8 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0, -1, ""); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock,
+		0, -1, "", cScoreSimpleAvg); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -77,7 +78,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		"", "",
-		-1.0, -1, -1, -1, 0, -1, ""); err != nil {
+		-1.0, -1, -1, -1, 0, -1, "", cScoreSimpleAvg); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -132,7 +133,8 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0, -1, ""); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock,
+		0, -1, "", cScoreSimpleAvg); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -291,7 +293,8 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 0, -1, ""); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock,
+		0, -1, "", cScoreSimpleAvg); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -414,7 +417,8 @@ func Test_rarityAnalyzerNodb(t *testing.T) {
 	a := newRarityAnalyzer("")
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, 5, -1, ""); err != nil {
+		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock,
+		5, -1, "", cScoreSimpleAvg); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -478,7 +482,7 @@ func Test_rarityAnalyzerRunDatetime(t *testing.T) {
 	if err := a.init(logPathRegex,
 		filterStr, xFilterStr,
 		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock,
-		0, 0, "2006/01/02 15:04:05"); err != nil {
+		0, 0, "2006/01/02 15:04:05", cScoreSimpleAvg); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -529,7 +533,8 @@ func Test_rarityAnalyzerRunDatetime(t *testing.T) {
 		return
 	}
 
-	assertTop1 := func(title, start, end string, shouldExist bool, score float64) error {
+	assertTop1 := func(title, start, end string, shouldExist bool,
+		score float64) error {
 		startEpoch := int64(0)
 		endEpoch := int64(0)
 		if start != "" {

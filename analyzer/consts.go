@@ -24,4 +24,7 @@ const (
 	cErrorKeywords   = "failure|failed|error|down|crit"
 	cFormatHtml      = "html"
 	cFormatText      = "txt"
+	cScoreSimpleAvg  = 1
+	cScoreNAvg       = 2
+	cScoreNSize      = 20
 )

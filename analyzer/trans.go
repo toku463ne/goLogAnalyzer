@@ -3,12 +3,13 @@ package analyzer
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
 
 func newTrans(dataDir string, maxBlocks, maxRowsInBlock int,
-	datetimeStartPos int, datetimeLayout string) (*trans, error) {
+	datetimeStartPos int, datetimeLayout string, scoreStyle int) (*trans, error) {
 	t := new(trans)
 	i, err := newItems(dataDir, "items", maxBlocks, maxRowsInBlock)
 	if err != nil {
@@ -21,6 +22,7 @@ func newTrans(dataDir string, maxBlocks, maxRowsInBlock int,
 	t.datetimeStartPos = datetimeStartPos
 	t.datetimeLayout = datetimeLayout
 	t.datetimeEndPos = datetimeStartPos + len(datetimeLayout)
+	t.scoreStyle = scoreStyle
 	return t, nil
 }
 
@@ -40,11 +42,40 @@ func (t *trans) calcScore(tran []int) float64 {
 		return 0.0
 	}
 	score := 0.0
-	for _, itemID := range tran {
-		s := t.items.getScore(itemID)
-		score += s
+
+	switch t.scoreStyle {
+	case cScoreSimpleAvg:
+		for _, itemID := range tran {
+			s := t.items.getScore(itemID)
+			score += s
+		}
+		score /= float64(l)
+
+	case cScoreNAvg:
+		tranSize := len(tran)
+		scores := make([]float64, tranSize)
+		minScore := 0.0
+		scoreTotal := 0.0
+		for i, itemID := range tran {
+			s := t.items.getScore(itemID)
+			scores[i] = s
+			if minScore == 0 || s < minScore {
+				minScore = s
+			}
+			scoreTotal += s
+		}
+		if tranSize >= cScoreNSize {
+			sort.Slice(scores, func(i, j int) bool { return scores[i] > scores[j] })
+			for i := 0; i < cScoreNSize; i++ {
+				score += scores[i]
+			}
+		} else {
+			n := cScoreNSize - tranSize
+			score = scoreTotal + (float64(n*(n+1))/2.0/float64(n))*minScore
+		}
+		score /= float64(cScoreNSize)
 	}
-	score /= float64(l)
+
 	return score
 }
 

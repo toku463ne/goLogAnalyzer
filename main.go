@@ -21,6 +21,7 @@ const (
 	cDefaultReportOutputFormat = "html"
 	cDefaultDatetimeStartPos   = 0
 	cDefaultDatetimeLayout     = ""
+	cDefaultScoreStyle         = 2
 )
 
 var (
@@ -55,6 +56,7 @@ var (
 	rarTopnRecordsToShow = rarFlag.Int("silent", 10, recordsToShowDesc)
 	rarDatetimeStartPos  = rarFlag.Int("dateStart", -1, "Start position of datetime in the log starting from 0.")
 	rarDatetimeLayout    = rarFlag.String("dateLayout", "", "Layout of datetime in the log.")
+	rarScoreLayout       = rarFlag.Int("scoreLayout", 2, "How to calculate the score.\n 1=simple average 2=average of top 20")
 
 	clnRootDir = clnFlag.String("d", "", rootDirDesc)
 
@@ -187,7 +189,8 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 		*rarGap,
 		*rarMaxBlock, *rarMaxItemBlock, *rarLinesInBlock,
 		*rarMaxLines, *rarTopnRecordsToShow,
-		*rarDatetimeStartPos, *rarDatetimeLayout)
+		*rarDatetimeStartPos, *rarDatetimeLayout,
+		*rarScoreLayout)
 
 	log.Printf("%d lines processed\n", linesProcessed)
 

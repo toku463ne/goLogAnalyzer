@@ -26,13 +26,14 @@ func (a *rarityAnalyzer) clean() error {
 
 func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int,
-	datetimeStartPos int, datetimeLayout string) error {
+	datetimeStartPos int, datetimeLayout string, scoreStyle int) error {
 	a.logPathRegex = logPathRegex
 	a.filterRe = getRegex(filterStr)
 	a.xFilterRe = getRegex(xFilterStr)
 	a.nTopRareLogs = make([]*colLogRecords, nTopRecords)
 	a.datetimeStartPos = datetimeStartPos
 	a.datetimeLayout = datetimeLayout
+	a.scoreStyle = scoreStyle
 
 	if a.rootDir != "" {
 		if err := ensureDir(a.rootDir); err != nil {
@@ -79,7 +80,7 @@ func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
 
 func (a *rarityAnalyzer) open(logPathRegex, filterStr, xFilterStr string,
 	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords int,
-	datetimeStartPos int, datetimeLayout string) error {
+	datetimeStartPos int, datetimeLayout string, scoreStyle int) error {
 	if pathExist(a.rootDir) {
 		if err := a.load(); err != nil {
 			return err
@@ -87,7 +88,7 @@ func (a *rarityAnalyzer) open(logPathRegex, filterStr, xFilterStr string,
 	} else {
 		if err := a.init(logPathRegex, filterStr, xFilterStr,
 			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords,
-			datetimeStartPos, datetimeLayout); err != nil {
+			datetimeStartPos, datetimeLayout, scoreStyle); err != nil {
 			return err
 		}
 	}
@@ -128,10 +129,10 @@ func (a *rarityAnalyzer) load() error {
 	if err := a.configTable.Select1Row(nil,
 		[]string{"logPathRegex", "linesInBlock", "maxBlocks",
 			"maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord",
-			"datetimeStartPos", "datetimeLayout"},
+			"datetimeStartPos", "datetimeLayout", "scoreStyle"},
 		&a.logPathRegex, &a.linesInBlock, &a.maxBlocks, &a.maxItemBlocks,
 		&filterReStr, &xFilterReStr, &a.minGapToRecord,
-		&a.datetimeStartPos, &a.datetimeLayout); err != nil {
+		&a.datetimeStartPos, &a.datetimeLayout, &a.scoreStyle); err != nil {
 		return err
 	}
 
@@ -156,7 +157,7 @@ func (a *rarityAnalyzer) load() error {
 
 func (a *rarityAnalyzer) openObjs() error {
 	trans, err := newTrans(a.rootDir, a.maxItemBlocks, a.linesInBlock,
-		a.datetimeStartPos, a.datetimeLayout)
+		a.datetimeStartPos, a.datetimeLayout, a.scoreStyle)
 	if err != nil {
 		return err
 	}
@@ -216,6 +217,7 @@ func (a *rarityAnalyzer) saveConfig() error {
 		"minGapToRecord":   a.minGapToRecord,
 		"datetimeStartPos": a.datetimeStartPos,
 		"datetimeLayout":   a.datetimeLayout,
+		"scoreStyle":       a.scoreStyle,
 	}); err != nil {
 		return err
 	}
@@ -358,6 +360,7 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 	filterReStr, xFilterReStr string,
 	minScore float64, maxScore float64) ([]*colLogRecords, error) {
 	var conditionCheckFunc func(v []string) bool
+	var statusLastEpoch int64
 
 	lastEpochIdx := getColIdx("circuitDBStatus", "lastEpoch")
 	if startEpoch > 0 {
@@ -373,19 +376,30 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 		conditionCheckFunc = nil
 	}
 
-	rows, err := a.logRecs.statusTable.SelectRows(conditionCheckFunc, []string{"blockNo"})
+	rows, err := a.logRecs.statusTable.SelectRows(conditionCheckFunc,
+		[]string{"blockNo", "lastEpoch"})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	blockNos := make([]int, 0)
+	minEpoch := int64(-1)
+	maxEpoch := int64(0)
 	for rows.Next() {
 		blockNo := 0
-		if err := rows.Scan(&blockNo); err != nil {
+		if err := rows.Scan(&blockNo, &statusLastEpoch); err != nil {
 			return nil, err
+		}
+		if minEpoch < 0 || statusLastEpoch < minEpoch {
+			minEpoch = statusLastEpoch
+		}
+		if statusLastEpoch > maxEpoch {
+			maxEpoch = statusLastEpoch
 		}
 		blockNos = append(blockNos, blockNo)
 	}
+	startEpoch = minEpoch
+	endEpoch = maxEpoch
 
 	lastEpochIdx = getColIdx("logRecords", "epoch")
 	r, err := a.logRecs.selectRows(conditionCheckFunc,
@@ -511,16 +525,7 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 		if showItemCount {
 			terms := make(map[string]int)
 			termlist := make([]string, 0)
-			tran, lastEpoch, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
-
-			if lastEpoch > 0 {
-				if startEpoch > 0 && lastEpoch < startEpoch {
-					continue
-				}
-				if endEpoch > 0 && lastEpoch > endEpoch {
-					continue
-				}
-			}
+			tran, _, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
 			if err != nil {
 				return "", -1, err
 			}
@@ -607,18 +612,11 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 		if showItemCount {
 			terms := make(map[string]int)
 			termlist := make([]string, 0)
-			tran, lastEpoch, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
+			tran, _, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
 			if err != nil {
 				return "", -1, err
 			}
-			if lastEpoch > 0 {
-				if startEpoch > 0 && lastEpoch < startEpoch {
-					continue
-				}
-				if endEpoch > 0 && lastEpoch > endEpoch {
-					continue
-				}
-			}
+
 			line := ""
 			for _, itemID := range tran {
 				term := a.trans.items.getWord(itemID)

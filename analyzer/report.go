@@ -27,15 +27,17 @@ type logInfo struct {
 	MaxItemBlocks    int     `json:"maxItemBlocks"`
 	TopN             int     `json:"topN"`
 	MinGapToRecord   float64 `json:"minGapToRecord"`
-	DatetimeStartPos int     `json:dateStart`
-	DatetimeLayout   string  `json:dateLayout`
+	DatetimeStartPos int     `json:"dateStart"`
+	DatetimeLayout   string  `json:"dateLayout"`
+	ScoreStyle       int     `json:"scoreStyle"`
 }
 
 type logSetInfo struct {
-	DataDir  string             `json:"dataDir"`
-	TopN     int                `json:"topN"`
-	HistSize int                `json:"histSize"`
-	Logs     map[string]logInfo `json:"logs"`
+	DataDir    string             `json:"dataDir"`
+	TopN       int                `json:"topN"`
+	HistSize   int                `json:"histSize"`
+	Logs       map[string]logInfo `json:"logs"`
+	ScoreStyle int                `json:"scoreStyle"`
 }
 
 func newLogSetInfo(jsonFile string) (*logSetInfo, error) {
@@ -68,6 +70,10 @@ func (ls *logSetInfo) run(recentNdays int,
 
 	if ls.TopN <= 0 {
 		ls.TopN = defaultNTopRecords
+	}
+
+	if ls.ScoreStyle == 0 {
+		ls.ScoreStyle = cScoreNAvg
 	}
 
 	if err := ensureDir(ls.DataDir); err != nil {
@@ -108,6 +114,9 @@ func (ls *logSetInfo) run(recentNdays int,
 		if l.MinGapToRecord == 0.0 {
 			l.MinGapToRecord = defaultMinGapToRecord
 		}
+		if l.ScoreStyle == 0 {
+			l.ScoreStyle = ls.ScoreStyle
+		}
 
 		if match, err := filepath.Glob(l.LogPath); err != nil {
 			log.Println(err)
@@ -120,7 +129,7 @@ func (ls *logSetInfo) run(recentNdays int,
 		if err := a.open(l.LogPath, l.Search, l.Exclude,
 			defaultMinGapToRecord,
 			l.MaxBlocks, l.MaxItemBlocks, l.LinesInBlock, l.TopN,
-			l.DatetimeStartPos, l.DatetimeLayout); err != nil {
+			l.DatetimeStartPos, l.DatetimeLayout, l.ScoreStyle); err != nil {
 			log.Println(err)
 			continue
 		}

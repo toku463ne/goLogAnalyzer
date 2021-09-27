@@ -5,7 +5,7 @@ var (
 		"config": {"rootDir", "logPathRegex", "linesInBlock",
 			"maxBlocks", "maxItemBlocks",
 			"filterRe", "xFilterRe", "minGapToRecord",
-			"datetimeStartPos", "datetimeLayout"},
+			"datetimeStartPos", "datetimeLayout", "scoreStyle"},
 		"lastStatus": {"lastRowID", "lastFileEpoch", "lastFileRow"},
 		"items":      {"item", "itemCount"},
 		"logRecords": {"rowID", "score", "epoch", "record"},
