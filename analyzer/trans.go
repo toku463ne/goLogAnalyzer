@@ -72,7 +72,7 @@ func (t *trans) calcScore(tran []int) float64 {
 		} else {
 			score = scoreTotal + minScore*float64(cScoreNSize-tranSize)/2.0
 		}
-		score /= float64(cScoreNSize)
+		score /= float64(cScoreNSize) * 2.0
 	}
 
 	return score
