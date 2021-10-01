@@ -196,57 +196,45 @@ func (ls *logSetInfo) run(recentNdays int,
 		}
 		border := mean
 
-		stages := getBottoms(g, defaultMin)
 		//out += fmt.Sprintf("score border %f\n", border)
 		ex := ""
 		ex1 := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
 		ex2 := fmt.Sprintf("(?i)(%s|%s)", l.Exclude, cErrorKeywords)
 
-		for stagei, stage := range stages {
-			out += newLine
-			minStage := 0.0
-			if stagei+1 < len(stages) {
-				minStage = float64(stages[stagei+1])
-			}
+		msg := ephasizeLine(fmt.Sprintf("%d top rare records", l.TopN))
+		msg += newLine
 
-			msg := ephasizeLine(fmt.Sprintf("%d top rare records score<=%d", l.TopN, stage+1))
-			msg += newLine
-
-			if stagei > 0 || l.Exclude == "" {
-				ex = ex1
-			} else {
-				ex = ex2
-			}
-			out2 := ""
-			out2, border1, err := a.getNTop(msg,
-				l.TopN, startEpoch, 0,
-				l.Search, ex, true, minStage, float64(stage+1), outFormat)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			if border1 > border {
-				border = border1
-			}
-			out += out2
-			out += newLine
-			out += newLine
-
-			inc := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
-			msg = fmt.Sprintf("%d top rare %s score<=%d", l.TopN, cErrorKeywords, stage+1)
-			out3 := ""
-			out3, _, err = a.getNTop(msg,
-				ls.TopN, startEpoch, 0,
-				inc, l.Exclude, true, minStage, float64(stage+1), outFormat)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			out += out3
-			out += newLine
-			out += newLine
-
+		if l.Exclude == "" {
+			ex = ex1
+		} else {
+			ex = ex2
 		}
+		out2, border1, err := a.getNTop(msg,
+			l.TopN, startEpoch, 0,
+			l.Search, ex, true, 0, 0, outFormat)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		if border1 > border {
+			border = border1
+		}
+		out += out2
+		out += newLine
+		out += newLine
+
+		inc := fmt.Sprintf("(?i)(%s)", cErrorKeywords)
+		msg = fmt.Sprintf("%d top rare %s", l.TopN, cErrorKeywords)
+		out3, _, err := a.getNTop(msg,
+			ls.TopN, startEpoch, 0,
+			inc, l.Exclude, true, 0, 0, outFormat)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		out += out3
+		out += newLine
+		out += newLine
 		if out2, err := a.stats.getRecentStats(ls.HistSize, outFormat); err != nil {
 			log.Println(err)
 			continue
