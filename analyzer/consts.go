@@ -26,5 +26,6 @@ const (
 	cFormatText      = "txt"
 	cScoreSimpleAvg  = 1
 	cScoreNAvg       = 2
+	cScoreNDistAvg   = 3
 	cScoreNSize      = 20
 )

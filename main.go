@@ -21,7 +21,7 @@ const (
 	cDefaultReportOutputFormat = "html"
 	cDefaultDatetimeStartPos   = 0
 	cDefaultDatetimeLayout     = ""
-	cDefaultScoreStyle         = 2
+	cDefaultScoreStyle         = 3
 )
 
 var (

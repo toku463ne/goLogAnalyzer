@@ -3,7 +3,6 @@ package analyzer
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
@@ -51,28 +50,14 @@ func (t *trans) calcScore(tran []int) float64 {
 		}
 		score /= float64(l)
 
-	case cScoreNAvg:
+	case cScoreNAvg, cScoreNDistAvg:
 		tranSize := len(tran)
 		scores := make([]float64, tranSize)
-		minScore := 0.0
-		scoreTotal := 0.0
 		for i, itemID := range tran {
 			s := t.items.getScore(itemID)
 			scores[i] = s
-			if minScore == 0 || s < minScore {
-				minScore = s
-			}
-			scoreTotal += s
 		}
-		if tranSize >= cScoreNSize {
-			sort.Slice(scores, func(i, j int) bool { return scores[i] > scores[j] })
-			for i := 0; i < cScoreNSize; i++ {
-				score += scores[i]
-			}
-		} else {
-			score = scoreTotal + minScore*float64(cScoreNSize-tranSize)/2.0
-		}
-		score /= float64(cScoreNSize) * 2.0
+		score = calcNAvgScore(scores, t.scoreStyle)
 	}
 
 	return score

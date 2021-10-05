@@ -11,13 +11,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type scoreHistJson struct {
-	Date string  `json:"date"`
-	Avg  float64 `json:"avg"`
-	Std  float64 `json:"std"`
-	Max  float64 `json:"max"`
-}
-
 type logInfo struct {
 	LogPath          string  `json:"path"`
 	Search           string  `json:"search"`
