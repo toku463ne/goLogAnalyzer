@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -63,7 +64,7 @@ func (t *trans) calcScore(tran []int) float64 {
 	return score
 }
 
-func (t *trans) toTermList(line string, registerItem bool) ([]int, int64) {
+func (t *trans) toTermList(line string, registerItem bool) ([]int, int64, error) {
 	var timeResult []int
 	var lastEpoch int64
 	if t.datetimeLayout != "" && len(line) > t.datetimeEndPos {
@@ -76,13 +77,21 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, int64) {
 			timeResult[3] = t.items.register(fmt.Sprintf("M-%02d", dt.Minute()), 1, registerItem)
 			timeResult[4] = t.items.register(fmt.Sprint(dt.Weekday()), 1, registerItem)
 			lastEpoch = dt.Unix()
+			t.lastTimeResult = timeResult
+		} else {
+			if len(t.lastTimeResult) == 0 {
+				return nil, -1, err
+			}
+			log.Printf("%v\n", err)
+			log.Println("Applying the last parsed time for this line")
+			timeResult = t.lastTimeResult
 		}
 	}
 
 	line = t.replacer.Replace(line)
 	words := strings.Split(line, " ")
-	result := make([]int, len(words))
-	for i, w := range words {
+	result := make([]int, 0)
+	for _, w := range words {
 		if _, ok := enStopWords[w]; ok {
 			continue
 		}
@@ -91,27 +100,29 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, int64) {
 		if len(word) > cWordMaxLen {
 			word = word[:cWordMaxLen]
 		}
-		result[i] = 0
 		if len(word) > 2 {
 			if isInt(word) && len(word) > cNumMaxDigits {
 				continue
 			}
 			if registerItem {
-				result[i] = t.items.register(word, 1, true)
+				result = append(result, t.items.register(word, 1, true))
 			} else {
-				result[i] = t.items.register(word, 0, false)
+				result = append(result, t.items.register(word, 0, false))
 			}
 		}
 	}
 	if len(timeResult) > 0 {
 		result = append(timeResult, result...)
 	}
-	return result, lastEpoch
+	return result, lastEpoch, nil
 }
 
 func (t *trans) tokenizeLine(line string,
 	filterRe, xFilterRe *regexp.Regexp, registerItem bool) ([]int, int64, error) {
-	tran, lastEpoch := t.toTermList(line, registerItem)
+	tran, lastEpoch, err := t.toTermList(line, registerItem)
+	if err != nil {
+		return nil, -1, err
+	}
 
 	if line == "" {
 		return nil, -1, nil

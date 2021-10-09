@@ -202,9 +202,15 @@ func (ls *logSetInfo) run(recentNdays int,
 		} else {
 			ex = ex2
 		}
+
+		minScore, err := a.stats.getMinScoreInTopN(l.TopN*cNTopMultiplier, startEpoch)
+		if err != nil {
+			return err
+		}
+
 		out2, border1, err := a.getNTop(msg,
 			l.TopN, startEpoch, 0,
-			l.Search, ex, true, 0, 0, outFormat)
+			l.Search, ex, true, minScore, 0, outFormat)
 		if err != nil {
 			log.Println(err)
 			continue

@@ -92,10 +92,10 @@ func Test_logRecords(t *testing.T) {
 		return
 	}
 
-	inRows := []colLogRecords{
-		{1, 1.5, "test1", 0},
-		{2, 1.5, "test1", 0},
-		{3, 1.5, "test1", 0},
+	inRows := []colLogRecord{
+		{1, 1.5, "test1", nil, 0},
+		{2, 1.5, "test1", nil, 0},
+		{3, 1.5, "test1", nil, 0},
 	}
 
 	for _, row := range inRows {
@@ -112,10 +112,10 @@ func Test_logRecords(t *testing.T) {
 		return
 	}
 
-	inRows = []colLogRecords{
-		{4, 2.5, "test1", 0},
-		{5, 2.5, "test1", 0},
-		{6, 2.5, "test2", 0},
+	inRows = []colLogRecord{
+		{4, 2.5, "test1", nil, 0},
+		{5, 2.5, "test1", nil, 0},
+		{6, 2.5, "test2", nil, 0},
 	}
 
 	for _, row := range inRows {
@@ -147,17 +147,17 @@ func Test_logRecords(t *testing.T) {
 		return
 	}
 
-	inRows = []colLogRecords{
-		{7, 3.5, "test2", 0},
-		{8, 3.5, "test2", 0},
-		{9, 3.5, "test2", 0},
-		{10, 3.5, "test2", 0},
-		{11, 3.5, "test3", 0},
-		{12, 3.5, "test3", 0},
-		{13, 3.5, "test3", 0},
-		{14, 3.5, "test3", 0},
-		{15, 3.5, "test3", 0},
-		{16, 3.5, "test4", 0},
+	inRows = []colLogRecord{
+		{7, 3.5, "test2", nil, 0},
+		{8, 3.5, "test2", nil, 0},
+		{9, 3.5, "test2", nil, 0},
+		{10, 3.5, "test2", nil, 0},
+		{11, 3.5, "test3", nil, 0},
+		{12, 3.5, "test3", nil, 0},
+		{13, 3.5, "test3", nil, 0},
+		{14, 3.5, "test3", nil, 0},
+		{15, 3.5, "test3", nil, 0},
+		{16, 3.5, "test4", nil, 0},
 	}
 
 	for _, row := range inRows {
@@ -237,12 +237,12 @@ func Test_logRecords(t *testing.T) {
 		return
 	}
 
-	inRows = []colLogRecords{
-		{17, 4.5, "test4", 0},
-		{18, 4.5, "test4", 0},
-		{19, 4.5, "test4", 0},
-		{20, 4.5, "test4", 0},
-		{21, 5.5, "test5", 0},
+	inRows = []colLogRecord{
+		{17, 4.5, "test4", nil, 0},
+		{18, 4.5, "test4", nil, 0},
+		{19, 4.5, "test4", nil, 0},
+		{20, 4.5, "test4", nil, 0},
+		{21, 5.5, "test5", nil, 0},
 	}
 
 	for _, row := range inRows {

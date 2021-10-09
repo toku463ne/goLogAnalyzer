@@ -216,49 +216,27 @@ func removePath(pathRegex string) error {
 	return nil
 }
 
-func registerNTopRareRec(
-	nTopRareLogs []*colLogRecords,
-	minTopRareScore float64,
-	rowID int64,
-	score float64, text string) ([]*colLogRecords, float64) {
-	if minTopRareScore > 0 && score <= minTopRareScore {
-		return nTopRareLogs, minTopRareScore
-	}
-	newTopN := make([]*colLogRecords, len(nTopRareLogs))
-	logr2 := new(colLogRecords)
-	logr2.rowid = rowID
-	logr2.score = score
-	logr2.record = text
-	for i, logr := range nTopRareLogs {
-		if logr == nil {
-			newTopN[i] = logr2
+func checkMatchRate(s1, s2 []int) float64 {
+	i := 0
+	j := 0
+	cnt := 0
+	base := math.Max(float64(len(s1)), float64(len(s2)))
+	for {
+		if i >= len(s1) || j >= len(s2) {
 			break
-		} else if score == logr.score && rowID == logr.rowid {
-			return nTopRareLogs, minTopRareScore
-		} else if score > logr.score {
-			newTopN[i] = logr2
-			oldScore2 := 0.0
-			for j := i + 1; j < len(nTopRareLogs); j++ {
-				if nTopRareLogs[j-1] == nil {
-					break
-				}
-				score2 := nTopRareLogs[j-1].score
-				if nTopRareLogs[j-1].record == "" {
-					minTopRareScore = oldScore2
-					break
-				}
-				if j >= cNTopRareRecords-1 {
-					minTopRareScore = score2
-				}
-				newTopN[j] = nTopRareLogs[j-1]
-				oldScore2 = score2
-			}
-			break
+		}
+
+		if s1[i] < s2[j] {
+			i++
+		} else if s1[i] > s2[j] {
+			j++
 		} else {
-			newTopN[i] = logr
+			cnt++
+			i++
+			j++
 		}
 	}
-	return newTopN, minTopRareScore
+	return float64(cnt) / base
 }
 
 func getColIdx(tableName, colName string) int {

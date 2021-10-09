@@ -74,11 +74,21 @@ type circuitRows struct {
 	statusTable        *csvdb.CsvTable
 }
 
-type colLogRecords struct {
-	rowid     int64
-	score     float64
-	record    string
-	lastEpoch int64
+type colLogRecord struct {
+	rowid  int64
+	score  float64
+	record string
+	tran   []int
+	count  int
+}
+
+type nTopRecords struct {
+	n          int
+	minScore   float64
+	isUniqMode bool
+	records    []*colLogRecord
+	t          *trans
+	memberCnt  int
 }
 
 type logRecords struct {
@@ -93,6 +103,7 @@ type trans struct {
 	datetimeEndPos   int
 	datetimeLayout   string
 	scoreStyle       int
+	lastTimeResult   []int
 }
 
 type items struct {
@@ -125,8 +136,9 @@ type rarityAnalyzer struct {
 	linesInBlock     int
 	maxBlocks        int
 	maxItemBlocks    int
-	nTopRareLogs     []*colLogRecords
-	maxScore         float64
+	nTopRecordsCount int
+	nTopRareLogs     *nTopRecords
+	nTopUniqRareLogs *nTopRecords
 	datetimeStartPos int
 	datetimeLayout   string
 	scoreStyle       int

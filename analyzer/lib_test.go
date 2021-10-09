@@ -62,43 +62,6 @@ func Test_searchReg(t *testing.T) {
 	}
 }
 
-func Test_registerNTopRareRec(t *testing.T) {
-	ntr := make([]*colLogRecords, 3)
-	m := 0.0
-	for i := 0; i < 3; i++ {
-		rowID := int64(i)
-		score := float64(i) * 2.0
-		text := fmt.Sprintf("%03d", i)
-		ntr, m = registerNTopRareRec(ntr, m, rowID, score, text)
-	}
-
-	if ntr[0].rowid != 2 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-	if ntr[2].rowid != 0 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-
-	for i := 3; i < 5; i++ {
-		rowID := int64(i)
-		score := float64(i) * 2.0
-		text := fmt.Sprintf("%03d", i)
-		ntr, m = registerNTopRareRec(ntr, m, rowID, score, text)
-	}
-
-	if ntr[0].rowid != 4 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-	if ntr[2].rowid != 2 {
-		t.Errorf("rowID does not match!")
-		return
-	}
-
-}
-
 func Test_getBottoms(t *testing.T) {
 	n := []int{0, 0, 1, 62217, 2608, 9, 3, 0, 0, 7386, 9720, 13, 3, 0, 0, 0}
 
@@ -159,6 +122,36 @@ func Test_calcNAvgScore(t *testing.T) {
 	scores = []float64{10.0, 10.0, 10.0, 10.0, 1.0}
 	if err := assertScore("4 scores", scores, cScoreNDistAvg, 2.425); err != nil {
 		t.Errorf("%+v", err)
+		return
+	}
+}
+
+func Test_checkMatchRate(t *testing.T) {
+	assertRate := func(title string, s1 []int, s2 []int, want float64) error {
+		got := checkMatchRate(s1, s2)
+		if got != want {
+			return errors.New(fmt.Sprintf("%s got=%f want=%f", title, got, want))
+		}
+		return nil
+	}
+
+	if err := assertRate("#1", []int{1, 2, 3}, []int{4, 5, 6}, 0.0); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := assertRate("#3", []int{1, 2, 3, 4}, []int{1, 2}, 0.5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := assertRate("#4", []int{1, 2}, []int{1, 2, 3, 4}, 0.5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := assertRate("#5", []int{1, 2, 3, 4, 5}, []int{2, 3, 4, 5, 6}, 0.8); err != nil {
+		t.Errorf("%v", err)
 		return
 	}
 }

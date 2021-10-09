@@ -381,6 +381,29 @@ func (s *stats) getCountPerStats(lastFileEpoch int64,
 	return "", nil, nil
 }
 
+func (s *stats) getMinScoreInTopN(topN int, lastFileEpoch int64) (float64, error) {
+	var g []int
+	var err error
+	if s.rootDir == "" {
+		g = s.countPerScore
+	} else {
+		g, err = s.loadAllScorePerCount(lastFileEpoch)
+		if err != nil {
+			return -1, err
+		}
+	}
+	cnt := 0
+	stage := 0
+	for i := cCountbyScoreLen - 1; i >= 0; i-- {
+		cnt += g[i]
+		if cnt >= topN {
+			stage = i
+			break
+		}
+	}
+	return float64(stage), nil
+}
+
 func (s *stats) getCountPerStatsHtml(lastFileEpoch int64) (string, []int, error) {
 	var g []int
 	var err error
