@@ -568,9 +568,9 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 		out += fmt.Sprintf("<b>%s %s</b><br>", msg, titles[i])
 		out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
 		if showItemCount {
-			out += "<tr><td width=6%>score</td><td width=6%>rowID</td><td>text</td><td>count per term</td></tr>"
+			out += "<tr><td width=3%>count</td><td width=6%>score</td><td width=6%>rowID</td><td>text</td><td>count per term</td></tr>"
 		} else {
-			out += "<tr><td width=6%>score</td><td width=6%>rowID</td><td>text</td></tr>"
+			out += "<tr><td width=3%>count</td><td width=6%>score</td><td width=6%>rowID</td><td>text</td></tr>"
 		}
 		for i, logr := range ntop {
 			if logr == nil {
@@ -585,8 +585,8 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 			} else {
 				te = logr.record
 			}
-			outRec := fmt.Sprintf("<td>%8.2f</td><td>%10d</td><td>%s</td>",
-				logr.score, logr.rowid, te)
+			outRec := fmt.Sprintf("<td>%d</td><td>%8.2f</td><td>%10d</td><td>%s</td>",
+				logr.count, logr.score, logr.rowid, te)
 			//outRec := fmt.Sprintf("%8.2f | %10d | %s", logr.score, logr.rowid, logr.record)
 			//fmt.Printf("   %5.2f  %8d   %s\n", logr.score, logr.rowid, logr.record)
 
