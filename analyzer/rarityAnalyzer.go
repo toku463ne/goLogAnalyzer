@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	csvdb "github.com/toku463ne/goCsvDb"
@@ -305,10 +305,12 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 			continue
 		}
 
-		tran, lineEpoch, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
+		timeTran, tran, dt, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
 		if err != nil {
 			return linesProcessed, err
 		}
+		lineEpoch := dt.Unix()
+		tran = append(tran, timeTran...)
 		if len(tran) == 0 {
 			continue
 		}
@@ -359,7 +361,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 
 func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string,
-	minScore float64, maxScore float64) ([]*colLogRecord, []*colLogRecord, error) {
+	minScore float64, maxScore float64) ([]*colLogRecord, error) {
 	var conditionCheckFunc func(v []string) bool
 	var statusLastEpoch int64
 
@@ -380,7 +382,7 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 	rows, err := a.logRecs.statusTable.SelectRows(conditionCheckFunc,
 		[]string{"blockNo", "lastEpoch"})
 	if err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	blockNos := make([]int, 0)
@@ -389,7 +391,7 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 	for rows.Next() {
 		blockNo := 0
 		if err := rows.Scan(&blockNo, &statusLastEpoch); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if minEpoch < 0 || statusLastEpoch < minEpoch {
 			minEpoch = statusLastEpoch
@@ -406,10 +408,9 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 	r, err := a.logRecs.selectRows(conditionCheckFunc,
 		blockNos, []string{"rowID", "score", "record"})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	ntop := newNTopRecords(recordsToShow, minScore, nil, false)
 	ntopUniq := newNTopRecords(recordsToShow, minScore, a.trans, true)
 
 	filterRe := getRegex(filterReStr)
@@ -419,7 +420,7 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 	var record string
 	for r.next() {
 		if err := r.scan(&rowID, &score, &record); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if filterRe != nil && !filterRe.Match([]byte(record)) {
 			continue
@@ -434,11 +435,10 @@ func (a *rarityAnalyzer) scanAndGetNTops(recordsToShow int, startEpoch, endEpoch
 			continue
 		}
 
-		ntop.register(rowID, score, record, false)
 		ntopUniq.register(rowID, score, record, false)
 	}
 
-	return ntop.getRecords(), ntopUniq.getRecords(), nil
+	return ntopUniq.getRecords(), nil
 }
 
 func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string, error) {
@@ -470,7 +470,7 @@ func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string
 
 func (a *rarityAnalyzer) getNTop(msg string,
 	recordsToShow int, startEpoch, endEpoch int64,
-	filterReStr, xFilterReStr string, showItemCount bool,
+	filterReStr, xFilterReStr string,
 	minScore float64, maxScore float64,
 	outFormat string) (string, float64, error) {
 	switch outFormat {
@@ -482,7 +482,7 @@ func (a *rarityAnalyzer) getNTop(msg string,
 	case cFormatHtml:
 		return a.getNTopHtml(msg,
 			recordsToShow, startEpoch, endEpoch,
-			filterReStr, xFilterReStr, showItemCount,
+			filterReStr, xFilterReStr,
 			minScore, maxScore)
 	}
 	return "", -1, nil
@@ -498,7 +498,7 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 	if a.rootDir == "" {
 		nTopRareLogs = a.nTopUniqRareLogs.records
 	} else {
-		_, nTopRareLogs, err = a.scanAndGetNTops(recordsToShow,
+		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow,
 			startEpoch, endEpoch, filterReStr, xFilterReStr, minScore, maxScore)
 		if err != nil {
 			return "", -1, err
@@ -540,18 +540,15 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 
 func (a *rarityAnalyzer) getNTopHtml(msg string,
 	recordsToShow int, startEpoch, endEpoch int64,
-	filterReStr, xFilterReStr string, showItemCount bool,
+	filterReStr, xFilterReStr string,
 	minScore float64, maxScore float64,
 ) (string, float64, error) {
 	var err error
-	var nTopRareLogs []*colLogRecord
-	var nTopUniqRareLogs []*colLogRecord
+	var ntop []*colLogRecord
 	if a.rootDir == "" {
-		nTopRareLogs = a.nTopRareLogs.records
-		nTopUniqRareLogs = a.nTopUniqRareLogs.records
+		ntop = a.nTopUniqRareLogs.records
 	} else {
-
-		nTopRareLogs, nTopUniqRareLogs, err = a.scanAndGetNTops(recordsToShow,
+		ntop, err = a.scanAndGetNTops(recordsToShow,
 			startEpoch, endEpoch,
 			filterReStr, xFilterReStr, minScore, maxScore)
 		if err != nil {
@@ -560,87 +557,47 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 	}
 
 	//println(a.trans.items.totalCount)
-	countBorder := float64(a.trans.items.totalCount) * cCountBorderRate
 	out := ""
 	topScore := 0.0
-	titles := []string{"summary", ""}
-	for i, ntop := range [][]*colLogRecord{nTopUniqRareLogs, nTopRareLogs} {
-		out += fmt.Sprintf("<b>%s %s</b><br>", msg, titles[i])
-		out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
-		if showItemCount {
-			out += "<tr><td width=3%>count</td><td width=6%>score</td><td width=6%>rowID</td><td>text</td><td>count per term</td></tr>"
+	out += fmt.Sprintf("<b>%s</b><br>", msg)
+	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
+	out += "<tr><td width=4%>count</td><td width=10%>dates</td><td width=6%>score</td><td width=6%>rowID</td><td>text</td></tr>"
+	for i, logr := range ntop {
+		if logr == nil {
+			break
+		}
+		if topScore == 0 {
+			topScore = logr.score
+		}
+		te := ""
+		if len(logr.record) > cMaxCharsToShowInTopN {
+			te = string([]rune(logr.record)[:cMaxCharsToShowInTopN])
 		} else {
-			out += "<tr><td width=3%>count</td><td width=6%>score</td><td width=6%>rowID</td><td>text</td></tr>"
+			te = logr.record
 		}
-		for i, logr := range ntop {
-			if logr == nil {
-				break
-			}
-			if topScore == 0 {
-				topScore = logr.score
-			}
-			te := ""
-			if len(logr.record) > cMaxCharsToShowInTopN {
-				te = string([]rune(logr.record)[:cMaxCharsToShowInTopN])
-			} else {
-				te = logr.record
-			}
-			outRec := fmt.Sprintf("<td>%d</td><td>%8.2f</td><td>%10d</td><td>%s</td>",
-				logr.count, logr.score, logr.rowid, te)
-			//outRec := fmt.Sprintf("%8.2f | %10d | %s", logr.score, logr.rowid, logr.record)
-			//fmt.Printf("   %5.2f  %8d   %s\n", logr.score, logr.rowid, logr.record)
-
-			if showItemCount {
-				terms := make(map[string]int)
-				termlist := make([]string, 0)
-				tran, _, err := a.trans.tokenizeLine(logr.record, a.filterRe, a.xFilterRe, false)
-				if err != nil {
-					return "", -1, err
-				}
-
-				line := ""
-				for _, itemID := range tran {
-					term := a.trans.items.getWord(itemID)
-					if _, ok := terms[term]; ok {
-						continue
-					}
-					if itemID == 0 {
-						continue
-					}
-
-					count := a.trans.items.getCount(itemID)
-					terms[term] = count
-					termlist = append(termlist, term)
-					//line = fmt.Sprintf("%s %s(%d)", line, term, count)
-				}
-				sort.Slice(termlist, func(i, j int) bool {
-					return terms[termlist[i]] < terms[termlist[j]]
-				})
-				for _, term := range termlist {
-					count := terms[term]
-					if count == 1 || countBorder < float64(count) {
-						continue
-					}
-					line = fmt.Sprintf("%s %s(%d)", line, term, count)
-				}
-
-				if line != "" {
-					outRec += fmt.Sprintf("<td>%s</td>", line)
-				}
-			}
-			//out += fmt.Sprintf("%s\n", outRec)
-			out += fmt.Sprintf("<tr>%s</tr>\n", outRec)
-
-			if logr.score == 0 {
-				break
-			}
-
-			if i+1 >= recordsToShow {
-				break
-			}
+		dates := logr.dates
+		if len(dates) > 10 {
+			dates = dates[len(dates)-10:]
 		}
-		out += "</table><br>\n"
+		dates2 := make([]string, len(dates))
+		k := 0
+		for j := len(dates) - 1; j >= 0; j-- {
+			dates2[k] = dates[j]
+			k++
+		}
+
+		out += fmt.Sprintf("<tr><td>%d</td><td>%s</td><td>%8.2f</td><td>%10d</td><td>%s</td></tr>",
+			logr.count, strings.Join(dates2, ", "), logr.score, logr.rowid, te)
+
+		if logr.score == 0 {
+			break
+		}
+
+		if i+1 >= recordsToShow {
+			break
+		}
 	}
+	out += "</table><br>\n"
 
 	return out, topScore, nil
 }

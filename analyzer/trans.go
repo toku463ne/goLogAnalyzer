@@ -64,23 +64,25 @@ func (t *trans) calcScore(tran []int) float64 {
 	return score
 }
 
-func (t *trans) toTermList(line string, registerItem bool) ([]int, int64, error) {
+func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.Time, error) {
 	var timeResult []int
-	var lastEpoch int64
+	var dt time.Time
+	var err error
 	if t.datetimeLayout != "" && len(line) > t.datetimeEndPos {
 		timeResult = make([]int, 5)
-		if dt, err := time.Parse(t.datetimeLayout, line[:t.datetimeEndPos]); err == nil {
+		dt, err = time.Parse(t.datetimeLayout, line[:t.datetimeEndPos])
+		if err == nil {
 			line = line[t.datetimeEndPos+1:]
 			timeResult[0] = t.items.register(fmt.Sprint(dt.Month()), 1, registerItem)
 			timeResult[1] = t.items.register(fmt.Sprintf("d-%02d", dt.Day()), 1, registerItem)
 			timeResult[2] = t.items.register(fmt.Sprintf("H-%02d", dt.Hour()), 1, registerItem)
 			timeResult[3] = t.items.register(fmt.Sprintf("M-%02d", dt.Minute()), 1, registerItem)
 			timeResult[4] = t.items.register(fmt.Sprint(dt.Weekday()), 1, registerItem)
-			lastEpoch = dt.Unix()
+			//dtstr = dt.Format("2006-01-02T15:04:05")
 			t.lastTimeResult = timeResult
 		} else {
 			if len(t.lastTimeResult) == 0 {
-				return nil, -1, err
+				return nil, nil, dt, err
 			}
 			log.Printf("%v\n", err)
 			log.Println("Applying the last parsed time for this line")
@@ -111,38 +113,35 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, int64, error)
 			}
 		}
 	}
-	if len(timeResult) > 0 {
-		result = append(timeResult, result...)
-	}
-	return result, lastEpoch, nil
+	return timeResult, result, dt, nil
 }
 
 func (t *trans) tokenizeLine(line string,
-	filterRe, xFilterRe *regexp.Regexp, registerItem bool) ([]int, int64, error) {
-	tran, lastEpoch, err := t.toTermList(line, registerItem)
+	filterRe, xFilterRe *regexp.Regexp, registerItem bool) ([]int, []int, time.Time, error) {
+	timeTran, tran, dt, err := t.toTermList(line, registerItem)
 	if err != nil {
-		return nil, -1, err
+		return nil, nil, dt, err
 	}
 
 	if line == "" {
-		return nil, -1, nil
+		return nil, nil, dt, err
 	}
 	b := []byte(line)
 
 	if filterRe != nil && !filterRe.Match(b) {
-		return nil, -1, nil
+		return nil, nil, dt, err
 	}
 	if xFilterRe != nil && xFilterRe.Match(b) {
-		return nil, -1, nil
+		return nil, nil, dt, err
 	}
 
 	if registerItem {
 		if err := t.items.next(); err != nil {
-			return nil, -1, err
+			return nil, nil, dt, err
 		}
 	}
 
-	return tran, lastEpoch, nil
+	return timeTran, tran, dt, nil
 }
 
 func (t *trans) commit(completed bool) error {

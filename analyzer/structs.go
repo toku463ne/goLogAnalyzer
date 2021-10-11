@@ -80,6 +80,7 @@ type colLogRecord struct {
 	record string
 	tran   []int
 	count  int
+	dates  []string
 }
 
 type nTopRecords struct {

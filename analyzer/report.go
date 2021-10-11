@@ -164,16 +164,6 @@ func (ls *logSetInfo) run(recentNdays int,
 		}
 		out += out2
 
-		if startEpoch > 0 {
-			out2, g2, err := a.stats.getCountPerStats(startEpoch, outFormat)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			g = g2
-			out += out2
-		}
-
 		sum := 0.0
 		cnt := 0
 		for _, v := range g {
@@ -210,7 +200,7 @@ func (ls *logSetInfo) run(recentNdays int,
 
 		out2, border1, err := a.getNTop(msg,
 			l.TopN, startEpoch, 0,
-			l.Search, ex, true, minScore, 0, outFormat)
+			l.Search, ex, minScore, 0, outFormat)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -226,7 +216,7 @@ func (ls *logSetInfo) run(recentNdays int,
 		msg = fmt.Sprintf("%d top rare %s", l.TopN, cErrorKeywords)
 		out3, _, err := a.getNTop(msg,
 			ls.TopN, startEpoch, 0,
-			inc, l.Exclude, true, 0, 0, outFormat)
+			inc, l.Exclude, 0, 0, outFormat)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -254,7 +244,7 @@ func (ls *logSetInfo) run(recentNdays int,
 
 		_, topScore, err := a.getNTop("",
 			l.TopN, startEpoch, 0,
-			l.Search, ex, true, 0, 0, outFormat)
+			l.Search, ex, 0, 0, outFormat)
 		if err != nil {
 			log.Println(err)
 			continue

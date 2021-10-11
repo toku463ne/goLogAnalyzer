@@ -1,6 +1,12 @@
 package analyzer
 
-import "sort"
+import (
+	"sort"
+	"time"
+
+	"github.com/pkg/errors"
+	csvdb "github.com/toku463ne/goCsvDb"
+)
 
 func newNTopRecords(n int,
 	minScore float64, t *trans,
@@ -33,12 +39,28 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string,
 	logr2.score = score
 	logr2.record = text
 	logr2.count = 1
+	logr2.dates = make([]string, 0)
 	maxMatchRate := 0.0
 	maxMatchIdx := -1
 	maxGreaterMatchIdx := -1
 
 	if ntop.isUniqMode {
-		tran, _, _ := ntop.t.tokenizeLine(text, nil, nil, isTest)
+		_, tran, dt, _ := ntop.t.tokenizeLine(text, nil, nil, isTest)
+		if dt.Year() == 0 {
+			y := time.Now().Year()
+			m := dt.Month()
+			d := dt.Day()
+			if m == 0 {
+				m = time.Now().Month()
+			}
+			if d == 0 {
+				d = time.Now().Day()
+			}
+			dt = time.Date(y, m, d, dt.Hour(), dt.Minute(), dt.Second(), 0, dt.Location())
+		}
+		if dt.Unix() > 0 {
+			logr2.dates = append(logr2.dates, dt.Format("01-02T15:04:05"))
+		}
 		sort.Slice(tran, func(i, j int) bool { return tran[i] < tran[j] })
 		logr2.tran = tran
 		tranlen := len(logr2.tran)
@@ -69,11 +91,13 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string,
 	// no change to ranking but increment the count
 	if maxGreaterMatchIdx == -1 && maxMatchIdx >= 0 {
 		ntop.records[maxMatchIdx].count++
+		ntop.records[maxMatchIdx].dates = append(ntop.records[maxMatchIdx].dates, logr2.dates...)
 		return
 	}
 
 	if maxMatchIdx >= 0 {
 		logr2.count += ntop.records[maxMatchIdx].count
+		logr2.dates = append(logr2.dates, ntop.records[maxMatchIdx].dates...)
 	}
 
 	newi := 0
@@ -131,4 +155,71 @@ func (ntop *nTopRecords) getRecords() []*colLogRecord {
 		return ntop.records[i].count < ntop.records[j].count
 	})
 	return ntop.records[0:ntop.n]
+}
+
+func (ntop *nTopRecords) save(rootDir string) error {
+	db, err := csvdb.NewCsvDB(rootDir)
+	if err != nil {
+		return err
+	}
+	if err := db.DropTable("lastTopN"); err != nil {
+		return err
+	}
+
+	ntopTable, err := db.CreateTableIfNotExists("lastTopN",
+		tableDefs["lastTopN"], false, cDefaultBuffSize)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range ntop.records {
+		terms := make([]string, len(r.tran))
+		for i, t := range r.tran {
+			terms[i] = ntop.t.items.getWord(t)
+		}
+		if err := ntopTable.InsertRow([]string{"rowid", "score", "record", "terms", "count"},
+			r.rowid, r.score, r.record, terms, r.count); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ntop *nTopRecords) load(rootDir string) error {
+	db, err := csvdb.NewCsvDB(rootDir)
+	if err != nil {
+		return err
+	}
+	if !db.TaleExists("lastTopN") {
+		return nil
+	}
+
+	ntopTable, err := db.GetTable("lastTopN")
+	if err != nil {
+		return err
+	}
+
+	rows, err := ntopTable.SelectRows(nil,
+		[]string{"rowid", "score", "record", "terms", "count"})
+	if err != nil {
+		return err
+	}
+	records := make([]*colLogRecord, 0)
+	for rows.Next() {
+		r := new(colLogRecord)
+		terms := make([]string, 0)
+		if err := rows.Scan(&r.rowid, &r.score, &r.record, &terms, &r.count); err != nil {
+			return errors.WithStack(err)
+		}
+		tran := make([]int, len(terms))
+		for i, t := range terms {
+			tran[i] = ntop.t.items.getItemID(t)
+		}
+		r.tran = tran
+		records = append(records, r)
+	}
+	ntop.records = records
+
+	return nil
 }

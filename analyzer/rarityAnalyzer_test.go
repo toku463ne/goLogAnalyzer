@@ -240,7 +240,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	topN, _, err := a.scanAndGetNTops(5, 0, 0, "", "", 0, 0)
+	topN, err := a.scanAndGetNTops(5, 0, 0, "", "", 0, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -546,7 +546,7 @@ func Test_rarityAnalyzerRunDatetime(t *testing.T) {
 			endEpoch = enddt.Unix()
 		}
 
-		rows, _, err := a.scanAndGetNTops(1, startEpoch, endEpoch,
+		rows, err := a.scanAndGetNTops(1, startEpoch, endEpoch,
 			"", "", -1, -1)
 		if err != nil {
 			return err
