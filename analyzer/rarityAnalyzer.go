@@ -162,8 +162,7 @@ func (a *rarityAnalyzer) openObjs() error {
 		return err
 	}
 	a.trans = trans
-	a.nTopRareLogs = newNTopRecords(a.nTopRecordsCount, 0.0, trans, false)
-	a.nTopUniqRareLogs = newNTopRecords(a.nTopRecordsCount, 0.0, trans, true)
+	a.nTopRareLogs = newNTopRecords(a.nTopRecordsCount, 0.0, trans, true)
 
 	stats, err := newStats(a.rootDir, a.maxBlocks, a.linesInBlock)
 	if err != nil {
@@ -334,7 +333,6 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 		}
 		if a.rootDir == "" {
 			a.nTopRareLogs.register(a.rowID, score, te, false)
-			a.nTopUniqRareLogs.register(a.rowID, score, te, false)
 		}
 
 		if a.fp.isEOF && !a.fp.isLastFile() {
@@ -496,7 +494,7 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 	var err error
 	var nTopRareLogs []*colLogRecord
 	if a.rootDir == "" {
-		nTopRareLogs = a.nTopUniqRareLogs.records
+		nTopRareLogs = a.nTopRareLogs.getRecords()
 	} else {
 		nTopRareLogs, err = a.scanAndGetNTops(recordsToShow,
 			startEpoch, endEpoch, filterReStr, xFilterReStr, minScore, maxScore)
@@ -506,8 +504,8 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 	}
 
 	out := fmt.Sprintf("%s\n", msg)
-	out += "score    | count | rowID      | text\n"
-	out += "---------+-------+------------+-------\n"
+	out += " count | score   | rowID      | text\n"
+	out += "-------+---------+------------+-------\n"
 	topScore := 0.0
 	for i, logr := range nTopRareLogs {
 		if logr == nil {
@@ -522,7 +520,7 @@ func (a *rarityAnalyzer) getNTopString(msg string,
 		} else {
 			te = logr.record
 		}
-		outRec := fmt.Sprintf("%8.2f | %5d | %10d | %s", logr.score, logr.count,
+		outRec := fmt.Sprintf(" %5d |%8.2f | %10d | %s", logr.count, logr.score,
 			logr.rowid, te)
 
 		out += fmt.Sprintf("%s\n", outRec)
@@ -546,7 +544,7 @@ func (a *rarityAnalyzer) getNTopHtml(msg string,
 	var err error
 	var ntop []*colLogRecord
 	if a.rootDir == "" {
-		ntop = a.nTopUniqRareLogs.records
+		ntop = a.nTopRareLogs.getRecords()
 	} else {
 		ntop, err = a.scanAndGetNTops(recordsToShow,
 			startEpoch, endEpoch,

@@ -139,7 +139,6 @@ type rarityAnalyzer struct {
 	maxItemBlocks    int
 	nTopRecordsCount int
 	nTopRareLogs     *nTopRecords
-	nTopUniqRareLogs *nTopRecords
 	datetimeStartPos int
 	datetimeLayout   string
 	scoreStyle       int
