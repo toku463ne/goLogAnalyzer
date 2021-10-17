@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	csvdb "github.com/toku463ne/goLogAnalyzer/analyzer/csvdb"
+	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 )
 
 func Test_stats(t *testing.T) {

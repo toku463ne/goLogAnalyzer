@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	csvdb "github.com/toku463ne/goLogAnalyzer/analyzer/csvdb"
+	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 )
 
 type colStats struct {

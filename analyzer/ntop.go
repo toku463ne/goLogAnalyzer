@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	csvdb "github.com/toku463ne/goLogAnalyzer/analyzer/csvdb"
+	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 )
 
 func newNTopRecords(n int,

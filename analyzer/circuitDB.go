@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	csvdb "github.com/toku463ne/goLogAnalyzer/analyzer/csvdb"
+	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 
 	"github.com/pkg/errors"
 )
