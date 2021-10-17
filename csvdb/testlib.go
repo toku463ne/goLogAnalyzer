@@ -1,4 +1,4 @@
-package analyzer
+package csvdb
 
 import (
 	"fmt"
@@ -12,22 +12,16 @@ func ensureTestDir(testname string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	rootDir := fmt.Sprintf("%s/loganal/%s", userDir, testname)
+
+	rootDir := fmt.Sprintf("%s/goCsvDb/%s", userDir, testname)
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
-		os.Mkdir(rootDir, 0755)
-	}
-	return rootDir, nil
-}
-func removeTestDir(testname string) error {
-	userDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	rootDir := fmt.Sprintf("%s/loganal/%s", userDir, testname)
-	if _, err := os.Stat(rootDir); err == nil {
+		os.MkdirAll(rootDir, 0755)
+	} else if os.IsExist(err) {
 		os.RemoveAll(rootDir)
+		os.MkdirAll(rootDir, 0755)
 	}
-	return nil
+
+	return rootDir, nil
 }
 
 func getGotExpErr(title string, got interface{}, exp interface{}) error {
