@@ -218,7 +218,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	if r[7].rowid != 6 {
+	if r[7].rowid != 8 {
 		t.Errorf("rowID does not match!")
 		return
 	}
@@ -264,7 +264,7 @@ func Test_nTop2(t *testing.T) {
 		ntr.register(rowID, score, text, true)
 	}
 	r = ntr.getRecords()
-	if len(r) != 10 {
+	if len(r) != 2 {
 		t.Errorf("length does not match!")
 		return
 	}
@@ -272,8 +272,206 @@ func Test_nTop2(t *testing.T) {
 		t.Errorf("Must not be nil!")
 		return
 	}
-	if r[2] != nil {
-		t.Errorf("Must be nil!")
+}
+
+func Test_nTopDiff(t *testing.T) {
+	err := removeTestDir("Test_nTopDiff")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	dataDir, err := ensureTestDir("Test_nTopDiff")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	tran, _ := newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1)
+	ntr := newNTopRecords(10, 0.0, tran, true)
+	ntr.register(1, 1.0, "Oct 11 01:18:14 te101 te102 te103 te104 te105", true)
+	ntr.register(2, 1.1, "Oct 11 02:19:14 ty101 ty102 ty103 te104 te105", true)
+	ntr.register(3, 1.2, "Oct 11 02:20:14 ty101 ty102 ty103 te104 te105", true)
+	ntr.register(4, 1.0, "Oct 11 03:21:14 wk101 wk102 wk103 wk104 wk105", true)
+	ntr.register(5, 1.1, "Oct 11 03:22:14 wk101 wk102 wk103 wk104 wk105", true)
+	ntr.register(6, 1.2, "Oct 11 03:23:14 wk101 wk102 wk103 wk104 wk105", true)
+	ntr.register(7, 1.3, "Oct 11 03:24:14 wk101 wk102 wk103 wk104 wk105", true)
+
+	rs := ntr.getRecords()
+	if rs[0].rowid != 7 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[1].rowid != 3 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[2].rowid != 1 {
+		t.Errorf("row id incorrect")
+		return
+	}
+
+	if ntr.diff != nil {
+		t.Errorf("diff must be empty")
+		return
+	}
+
+	if err := ntr.save(dataDir); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	ntr = newNTopRecords(10, 0.0, tran, true)
+	if err := ntr.load(dataDir, 12, 10, true); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	rs = ntr.getRecords()
+	if rs[0].rowid != 7 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[1].rowid != 3 {
+		t.Errorf("row id incorrect")
+		return
+	}
+
+	ntr.register(12, 1.0, "Oct 12 01:18:14 te101 te102 te103 te104 te105", true)
+	rs = ntr.getRecords()
+	if rs[0].rowid != 7 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[1].rowid != 3 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[2].rowid != 12 {
+		t.Errorf("row id incorrect")
+		return
+	}
+
+	ntr.register(13, 1.3, "Oct 12 02:19:14 ty101 ty102 ty103 te104 te105", true)
+	ntr.register(14, 1.4, "Oct 12 02:20:14 ty101 ty102 ty103 te104 te105", true)
+	ntr.register(15, 1.0, "Oct 12 03:21:14 wk101 wk102 wk103 wk104 wk105", true)
+
+	rs = ntr.getRecords()
+	if rs[0].rowid != 14 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[1].rowid != 7 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[2].rowid != 12 {
+		t.Errorf("row id incorrect")
+		return
+	}
+
+	rd := ntr.getDiffRecords()
+	if rd[0].rowid != 14 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rd[1].rowid != 12 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if rd[2].rowid != 15 {
+		t.Errorf("row id incorrect")
+		return
+	}
+
+}
+
+func Test_nTopDiff2(t *testing.T) {
+	err := removeTestDir("Test_nTopDiff2")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	dataDir, err := ensureTestDir("Test_nTopDiff2")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	tran, _ := newTrans("", 0, 0, 0, "", 1)
+	ntr := newNTopRecords(10, 0.0, tran, true)
+	for i := 0; i < 200; i++ {
+		rowID := int64(i)
+		score := float64(i)
+		text := fmt.Sprintf("i%03d", i)
+		ntr.register(rowID, score, text, true)
+	}
+	if ntr.records[0].rowid != 199 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if ntr.records[99].rowid != 100 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	recs := ntr.getRecords()
+	if recs[9].rowid != 190 {
+		t.Errorf("row id incorrect")
+		return
+	}
+
+	if err := ntr.save(dataDir); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	ntr = newNTopRecords(10, 0.0, tran, true)
+	if err := ntr.load(dataDir, 200, 1000, true); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	ntr.register(201, 99.0, "i201", true)
+	for _, rec := range ntr.records {
+		if rec.rowid == 201 {
+			t.Errorf("Must not include this rowid")
+			return
+		}
+	}
+
+	ntr.register(202, 189.0, "i202", true)
+	if ntr.records[11].rowid != 202 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if len(ntr.getDiffRecords()) != 0 {
+		t.Errorf("must not be any diff")
+		return
+	}
+	ntr.register(203, 203.0, "i203", true)
+	if len(ntr.getDiffRecords()) != 1 {
+		t.Errorf("diff is incorrect")
+		return
+	}
+
+	for i := 204; i < 220; i++ {
+		rowID := int64(i)
+		score := float64(i)
+		text := fmt.Sprintf("i%03d", i)
+		ntr.register(rowID, score, text, true)
+	}
+	recs = ntr.getDiffRecords()
+	if len(recs) != 10 {
+		t.Errorf("diff len incorrect")
+		return
+	}
+	if recs[0].rowid != 219 {
+		t.Errorf("row id incorrect")
+		return
+	}
+	if recs[9].rowid != 210 {
+		t.Errorf("row id incorrect")
 		return
 	}
 }

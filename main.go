@@ -76,8 +76,9 @@ var (
 	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
 	stsRecordsToShow = stsFlag.Int("n", 5, "Number of history to show")
 
-	reportConfig      = reportFlag.String("c", "", "Path of the config file (JSON)")
-	reportRecentNdays = reportFlag.Int("n", 0, "Recent N days to show the report")
+	reportConfig       = reportFlag.String("c", "", "Path of the config file (JSON)")
+	reportRecentNdays  = reportFlag.Int("n", 0, "Recent N days to show the report")
+	reportOutputFormat = reportFlag.String("o", cDefaultReportOutputFormat, "Output format [html|json|text]")
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -212,7 +213,7 @@ func stats() error {
 
 func report() error {
 	reportFlag.Parse(os.Args[2:])
-	return analyzer.Report(*reportConfig, *reportRecentNdays,
+	return analyzer.Report(*reportConfig, *reportRecentNdays, *reportOutputFormat,
 		cMinGapToRecord,
 		cDefaultMaxBlocks, cDefaultMaxItemBlocks,
 		cDefaultBlockSize, 10, cDefaultHistSize,

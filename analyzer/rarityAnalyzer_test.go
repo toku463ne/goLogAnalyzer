@@ -240,16 +240,16 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	topN, err := a.scanAndGetNTops(5, 0, 0, "", "", 0, 0)
+	topN, err := a.scanAndGetNTop(5, 0, 0, "", "", 0, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := getGotExpErr("topN len", len(topN), 5); err != nil {
+	if err := getGotExpErr("topN len", len(topN.records), 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := getGotExpErr("topN top1", topN[0].rowid, int64(30)); err != nil {
+	if err := getGotExpErr("topN top1", topN.records[0].rowid, int64(30)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -546,23 +546,23 @@ func Test_rarityAnalyzerRunDatetime(t *testing.T) {
 			endEpoch = enddt.Unix()
 		}
 
-		rows, err := a.scanAndGetNTops(1, startEpoch, endEpoch,
+		rows, err := a.scanAndGetNTop(1, startEpoch, endEpoch,
 			"", "", -1, -1)
 		if err != nil {
 			return err
 		}
 
-		if len(rows) == 0 && shouldExist {
+		if len(rows.records) == 0 && shouldExist {
 			return errors.New(fmt.Sprintf("%s No data", title))
 		} else if !shouldExist {
 			return nil
 		}
 
-		if rows[0] == nil {
+		if rows.records[0] == nil {
 			return errors.New(fmt.Sprintf("%s No data", title))
 		}
 
-		gotScore := rows[0].score
+		gotScore := rows.records[0].score
 		if score != gotScore {
 			return errors.New(fmt.Sprintf("%s score got=%f want=%f", title, gotScore, score))
 		}

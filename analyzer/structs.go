@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	csvdb "github.com/toku463ne/goCsvDb"
+	csvdb "github.com/toku463ne/goLogAnalyzer/analyzer/csvdb"
 )
 
 type colStats struct {
@@ -85,11 +85,22 @@ type colLogRecord struct {
 
 type nTopRecords struct {
 	n          int
+	subN       int
 	minScore   float64
 	isUniqMode bool
 	records    []*colLogRecord
 	t          *trans
 	memberCnt  int
+	withDiff   bool
+	diff       *nTopRecords
+}
+
+type nTopOutRec struct {
+	rowid  int64
+	score  float64
+	record string
+	count  int
+	dates  []string
 }
 
 type logRecords struct {
@@ -142,6 +153,7 @@ type rarityAnalyzer struct {
 	datetimeStartPos int
 	datetimeLayout   string
 	scoreStyle       int
+	oldestEpoch      int64
 }
 
 type filePointer struct {
@@ -167,4 +179,44 @@ type reader struct {
 	filename string
 	e        error
 	currText string
+}
+
+type countPerScore struct {
+	score float64
+	count int
+}
+
+type reports struct {
+	dataDir string
+	rep     map[string]*report
+}
+
+type report struct {
+	name          string
+	nTopNorm      *nTopRecords
+	nTopErr       *nTopRecords
+	includePhrase string
+	st            *stats
+	info          LogInfo
+}
+
+type LogInfo struct {
+	DataDir          string  `json:"dataDir"`
+	TopN             int     `json:"topN"`
+	HistSize         int     `json:"histSize"`
+	ScoreStyle       int     `json:"scoreStyle"`
+	LogPath          string  `json:"path"`
+	Search           string  `json:"search"`
+	Exclude          string  `json:"exclude"`
+	LinesInBlock     int     `json:"linesInBlock"`
+	MaxBlocks        int     `json:"maxBlocks"`
+	MaxItemBlocks    int     `json:"maxItemBlocks"`
+	MinGapToRecord   float64 `json:"minGapToRecord"`
+	DatetimeStartPos int     `json:"dateStart"`
+	DatetimeLayout   string  `json:"dateLayout"`
+}
+
+type logInfoMap struct {
+	*LogInfo
+	Logs map[string]LogInfo `json:"logs"`
 }

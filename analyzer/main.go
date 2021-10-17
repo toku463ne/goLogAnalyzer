@@ -36,8 +36,13 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 		return linesProcessed, err
 	}
 	if rootDir == "" {
+		ntop, err := a.getNTop(nTopRecords, 0, 0,
+			filterStr, filterStr, 0, 0)
+		if err != nil {
+			return linesProcessed, err
+		}
 		msg := fmt.Sprintf("%d top rare records", nTopRecords)
-		out, _, err := a.getNTopString(msg, nTopRecords, 0, 0, filterStr, xFilterStr, 0, 0)
+		out, _, err := a.getNTopString(msg, nTopRecords, "", ntop)
 		if err != nil {
 			return linesProcessed, err
 		}
@@ -61,9 +66,15 @@ func PrintRarTopN(rootDir, msg string,
 		return err
 	}
 
-	if out, _, err := a.getNTopString(msg,
+	ntop, err := a.getNTop(
 		recordsToShow, startEpoch, endEpoch,
-		filterReStr, xFilterReStr, minScore, maxScore); err != nil {
+		filterReStr, xFilterReStr, minScore, maxScore)
+	if err != nil {
+		return err
+	}
+
+	if out, _, err := a.getNTopString(msg,
+		recordsToShow, cFormatText, ntop); err != nil {
 		return err
 	} else {
 		println(out)
@@ -85,23 +96,19 @@ func RarStats(rootDir string, histSize int) error {
 	return nil
 }
 
-func Report(jsonFile string, recentNdays int,
+func Report(jsonFile string, recentNdays int, outFormat string,
 	defaultMinGapToRecord float64,
 	defaultMaxBlocks, defaultMaxItemBlocks,
 	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int,
 	defaultOutFormat string,
 	defaultDatetimeStartPos int, defaultDatetimeLayout string) error {
 
-	ls, err := newLogSetInfo(jsonFile)
-	if err != nil {
-		return err
-	}
+	rs := newReports()
 
-	err = ls.run(recentNdays,
+	err := rs.run(jsonFile, recentNdays, outFormat,
 		defaultMinGapToRecord,
 		defaultMaxBlocks, defaultMaxItemBlocks,
 		defaultLinesInBlock, defaultNTopRecords, defaultHistSize,
-		defaultOutFormat,
 		defaultDatetimeStartPos, defaultDatetimeLayout)
 	if err != nil {
 		return err

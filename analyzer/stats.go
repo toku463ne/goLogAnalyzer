@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	csvdb "github.com/toku463ne/goCsvDb"
+	csvdb "github.com/toku463ne/goLogAnalyzer/analyzer/csvdb"
 )
 
 func newColStats() *colStats {
@@ -370,15 +370,27 @@ func (s *stats) loadRecentStats(showCounts int) ([]colScoresHist, error) {
 	return scoresHists, nil
 }
 
-func (s *stats) getCountPerStats(lastFileEpoch int64,
-	outFormat string) (string, []int, error) {
-	switch outFormat {
-	case cFormatText:
-		return s.getCountPerStatsString(lastFileEpoch)
-	case cFormatHtml:
-		return s.getCountPerStatsHtml(lastFileEpoch)
+func (s *stats) getCountPerStats(lastFileEpoch int64) ([]*countPerScore, error) {
+	var g []int
+	var err error
+	scoreCounts := make([]*countPerScore, 0)
+	if s.rootDir == "" {
+		g = s.countPerScore
+	} else {
+		g, err = s.loadAllScorePerCount(lastFileEpoch)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return "", nil, nil
+	for i := 0; i < cCountbyScoreLen; i++ {
+		if g[i] > 0 {
+			scoreCount := new(countPerScore)
+			scoreCount.score = float64(i)
+			scoreCount.count = g[i]
+			scoreCounts = append(scoreCounts, scoreCount)
+		}
+	}
+	return scoreCounts, nil
 }
 
 func (s *stats) getMinScoreInTopN(topN int, lastFileEpoch int64) (float64, error) {

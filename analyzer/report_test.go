@@ -4,7 +4,7 @@ import "testing"
 
 func TestReport_json(t *testing.T) {
 
-	ls, err := newLogSetInfo("testdata/abnormal/config_test.json")
+	ls, err := newLogInfoMap("testdata/abnormal/config_test.json")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -38,38 +38,57 @@ func TestReport_json(t *testing.T) {
 }
 
 func TestReport_run(t *testing.T) {
-	ls, err := newLogSetInfo("testdata/abnormal/config_test.json")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	ls.DataDir, err = ensureTestDir("TestReport_run")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	err = ls.run(1000, 0.0, 3, 3, 5, 5, 5, "txt", -1, "")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-}
-
-func TestReport_run2(t *testing.T) {
-	ls, err := newLogSetInfo("c:/Users/kot/loganal/zimconfwin.json")
+	jsonFile := "testdata/abnormal/config_test.json"
+	err := removeTestDir("TestReport_run")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	//recentNdays int,
-	//defaultMinGapToRecord float64,
-	//defaultMaxBlocks, defaultMaxItemBlocks,
-	//defaultLinesInBlock, defaultNTopRecords, defaultHistSize int
-	err = ls.run(0, 0.0, 3, 3, 5, 5, 5, "txt", -1, "")
+	dataDir, err := ensureTestDir("TestReport_run")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
+	rs := newReports()
+	rs.dataDir = dataDir
+	err = rs.run(jsonFile, 0, "",
+		0,
+		3, 3,
+		4, 3, 3,
+		0, "Jan _2 15:04:05")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if len(rs.rep) != 3 {
+		t.Errorf("Unexpected item count")
+		return
+	}
+
+	if len(rs.rep["a"].nTopNorm.getRecords()) != 1 {
+		t.Errorf("Unexpected nTopNorm record count")
+		return
+	}
+	if len(rs.rep["a"].nTopErr.getRecords()) != 1 {
+		t.Errorf("Unexpected nTopErr record count")
+		return
+	}
+	if len(rs.rep["b"].nTopNorm.getRecords()) != 2 {
+		t.Errorf("Unexpected nTopNorm record count")
+		return
+	}
+	if len(rs.rep["b"].nTopErr.getRecords()) != 1 {
+		t.Errorf("Unexpected nTopErr record count")
+		return
+	}
+	if len(rs.rep["c"].nTopNorm.getRecords()) != 3 {
+		t.Errorf("Unexpected nTopNorm record count")
+		return
+	}
+	if len(rs.rep["c"].nTopErr.getRecords()) != 1 {
+		t.Errorf("Unexpected nTopErr record count")
+		return
+	}
+
 }

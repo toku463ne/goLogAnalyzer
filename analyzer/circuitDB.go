@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	csvdb "github.com/toku463ne/goLogAnalyzer/analyzer/csvdb"
+
 	"github.com/pkg/errors"
-	csvdb "github.com/toku463ne/goCsvDb"
 )
 
 func newCircuitDB(rootDir, name string, columns []string,
