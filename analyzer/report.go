@@ -155,9 +155,12 @@ func (rs *reports) runAnalyzer(name string, startEpoch int64, l LogInfo) (*repor
 		return nil, err
 	}
 
-	ntopNorm, err := a.getNTop(l.TopN, startEpoch, 0,
+	ntopNorm, err := a.getNTop(name, l.TopN, startEpoch, 0,
 		l.Search, ex, minScore, 0)
 	if err != nil {
+		return nil, err
+	}
+	if err := ntopNorm.save(); err != nil {
 		return nil, err
 	}
 
@@ -167,9 +170,12 @@ func (rs *reports) runAnalyzer(name string, startEpoch int64, l LogInfo) (*repor
 
 	r.includePhrase = l.Search
 
-	nTopErr, err := a.getNTop(l.TopN, startEpoch, 0,
+	nTopErr, err := a.getNTop(fmt.Sprintf("%s_errors", name), l.TopN, startEpoch, 0,
 		inc, l.Exclude, minScore, 0)
 	if err != nil {
+		return nil, err
+	}
+	if err := nTopErr.save(); err != nil {
 		return nil, err
 	}
 	r.nTopErr = nTopErr

@@ -36,7 +36,7 @@ func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
 		return linesProcessed, err
 	}
 	if rootDir == "" {
-		ntop, err := a.getNTop(nTopRecords, 0, 0,
+		ntop, err := a.getNTop("ntop", nTopRecords, 0, 0,
 			filterStr, filterStr, 0, 0)
 		if err != nil {
 			return linesProcessed, err
@@ -66,7 +66,7 @@ func PrintRarTopN(rootDir, msg string,
 		return err
 	}
 
-	ntop, err := a.getNTop(
+	ntop, err := a.getNTop("ntop",
 		recordsToShow, startEpoch, endEpoch,
 		filterReStr, xFilterReStr, minScore, maxScore)
 	if err != nil {

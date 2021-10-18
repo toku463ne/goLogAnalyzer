@@ -15,7 +15,7 @@ var (
 		"statistics": {"seqNo", "blockNo", "scoreStage", "itemCount", "lastFileEpoch"},
 		"blockInfo": {"lastIndex", "blockNo", "blockID",
 			"rowNo", "lastEpoch", "completed"},
-		"lastTopN":        {"rowid", "score", "record", "terms", "count", "lastNdates"},
+		"lastTopN":        {"rowid", "score", "terms", "count", "lastNdates", "record"},
 		"circuitDBStatus": {"lastIndex", "blockNo", "blockID", "rowNo", "lastEpoch", "completed"},
 	}
 )

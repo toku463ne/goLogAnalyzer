@@ -10,17 +10,35 @@ import (
 	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 )
 
-func newNTopRecords(n int,
-	minScore float64, t *trans,
-	isUniqMode bool) *nTopRecords {
+func newNTopRecords(name string,
+	n int, minScore float64, t *trans,
+	isUniqMode bool, rootDir string) (*nTopRecords, error) {
 	ntop := new(nTopRecords)
 	ntop.n = n
 	ntop.isUniqMode = isUniqMode
 	ntop.minScore = minScore
 	ntop.withDiff = false
+	ntop.rootDir = rootDir
+	ntop.name = name
 	ntop.t = t
 	ntop.initRecords()
-	return ntop
+	if rootDir != "" {
+		if err := ensureDir(rootDir); err != nil {
+			return nil, err
+		}
+		db, err := csvdb.NewCsvDB(rootDir)
+		if err != nil {
+			return nil, err
+		}
+		ntop.CsvDB = db
+		if err := ntop.prepareTables(); err != nil {
+			return nil, err
+		}
+		//if err := s.load(); err != nil {
+		//	return nil, err
+		//}
+	}
+	return ntop, nil
 }
 
 func (ntop *nTopRecords) initRecords() {
@@ -205,19 +223,18 @@ func (ntop *nTopRecords) getDiffRecords() []*colLogRecord {
 	return ntop.diff.records[0:cnt]
 }
 
-func (ntop *nTopRecords) save(rootDir string) error {
-	db, err := csvdb.NewCsvDB(rootDir)
+func (ntop *nTopRecords) prepareTables() error {
+	ntopTable, err := ntop.CreateTableIfNotExists(fmt.Sprintf("topn_%s", ntop.name),
+		tableDefs["lastTopN"], false, cDefaultBuffSize)
 	if err != nil {
 		return err
 	}
-	if db.TableExists("lastTopN") {
-		if err := db.DropTable("lastTopN"); err != nil {
-			return err
-		}
-	}
-	ntopTable, err := db.CreateTableIfNotExists("lastTopN",
-		tableDefs["lastTopN"], false, cDefaultBuffSize)
-	if err != nil {
+	ntop.ntopTable = ntopTable
+	return nil
+}
+
+func (ntop *nTopRecords) save() error {
+	if err := ntop.ntopTable.Drop(); err != nil {
 		return err
 	}
 
@@ -229,14 +246,14 @@ func (ntop *nTopRecords) save(rootDir string) error {
 		for i, t := range r.tran {
 			terms[i] = ntop.t.items.getWord(t)
 		}
-		if err := ntopTable.InsertRow([]string{"rowid", "score",
+		if err := ntop.ntopTable.InsertRow([]string{"rowid", "score",
 			"record", "terms", "count", "lastNdates"},
 			r.rowid, r.score, r.record, terms, r.count,
 			strings.Join(r.dates, ";")); err != nil {
 			return err
 		}
 	}
-	if err := ntopTable.Flush(); err != nil {
+	if err := ntop.ntopTable.Flush(); err != nil {
 		return err
 	}
 
@@ -245,15 +262,11 @@ func (ntop *nTopRecords) save(rootDir string) error {
 
 func (ntop *nTopRecords) load(rootDir string, lastRowID int64,
 	maxRowIDs int, registerItems bool) error {
-	db, err := csvdb.NewCsvDB(rootDir)
-	if err != nil {
-		return err
-	}
-	if !db.TableExists("lastTopN") {
+	if !ntop.TableExists("lastTopN") {
 		return nil
 	}
 
-	ntopTable, err := db.GetTable("lastTopN")
+	ntopTable, err := ntop.GetTable("lastTopN")
 	if err != nil {
 		return err
 	}
@@ -293,7 +306,11 @@ func (ntop *nTopRecords) load(rootDir string, lastRowID int64,
 
 	if ntopIdx >= 0 {
 		ntop.withDiff = true
-		ntop.diff = newNTopRecords(ntop.n, ntop.minScore, ntop.t, ntop.isUniqMode)
+		ntop.diff, err = newNTopRecords("diff_"+ntop.name,
+			ntop.n, ntop.minScore, ntop.t, ntop.isUniqMode, ntop.rootDir)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

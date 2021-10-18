@@ -6,7 +6,11 @@ import (
 )
 
 func Test_nTop(t *testing.T) {
-	ntr := newNTopRecords(3, 0.0, nil, false)
+	ntr, err := newNTopRecords("test", 3, 0.0, nil, false, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	for i := 0; i < 3; i++ {
 		rowID := int64(i)
 		score := float64(i) * 2.0
@@ -23,7 +27,11 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	ntr = newNTopRecords(3, 0.0, nil, false)
+	ntr, err = newNTopRecords("test", 3, 0.0, nil, false, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	for i := 3; i < 5; i++ {
 		rowID := int64(i)
 		score := float64(i) * 2.0
@@ -40,7 +48,11 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	ntr = newNTopRecords(3, 0.0, nil, false)
+	ntr, err = newNTopRecords("test", 3, 0.0, nil, false, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	for i := 1; i <= 9; i++ {
 		rowID := int64(i)
 		score := float64(i) * 2.0
@@ -57,7 +69,11 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ := newTrans("", 0, 0, 0, "", 1)
-	ntr = newNTopRecords(9, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	for i := 1; i <= 9; i++ {
 		rowID := int64(i)
 		score := float64(i) * 2.0
@@ -79,7 +95,11 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1)
-	ntr = newNTopRecords(9, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	ntr.register(1, 1.0, "a001 a002 a003 a004 a005", true)
 	ntr.register(2, 2.0, "b001 a002 a003 a004 a005", true)
 	ntr.register(3, 3.0, "c001 c002 c003 c004 c005", true)
@@ -117,7 +137,11 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1)
-	ntr = newNTopRecords(10, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	ntr.register(1, 1.0, "Jun 30 12:08:36 test test: NetScreen device_id=test  [Root]system-alert-00026: IPSec tunnel on interface ethernet0/2 with tunnel ID 0x9a received a packet with a bad SPI. 202.xxx.xxx.154->124.xxx.xxx.186/96, ESP, SPI 0xf5b25b5b, SEQ 0x1. (2021-06-30 12:08:35)", true)
 	ntr.register(2, 2.0, "Jun 29 10:58:54 test test: NetScreen device_id=test  [Root]system-critical-00042: Replay packet detected on IPSec tunnel on ethernet0/2 with tunnel ID 0x67! From 121.xxx.xxx.116 to 124.xxx.xxx.186/128, ESP, SPI 0xf5b259cc, SEQ 0x573. (2021-06-29 10:58:53)", true)
 	ntr.register(3, 3.0, "Jun 29 11:12:26 test test: NetScreen device_id=test  [Root]system-critical-00042: Replay packet detected on IPSec tunnel on ethernet0/2 with tunnel ID 0x67! From 121.xxx.xxx.116 to 124.xxx.xxx.186/96, ESP, SPI 0xf5b259cc, SEQ 0x239e. (2021-06-29 11:12:26)", true)
@@ -154,7 +178,11 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1)
-	ntr = newNTopRecords(5, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 5, 0.0, tran, true, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	ntr.register(1, 20.0, "Jun 30 12:08:36 test test: NetScreen device_id=test  [Root]system-alert-00026: IPSec tunnel on interface ethernet0/2 with tunnel ID 0x9a received a packet with a bad SPI. 202.xxx.xxx.154->124.xxx.xxx.186/96, ESP, SPI 0xf5b25b5b, SEQ 0x1. (2021-06-30 12:08:35)", true)
 	ntr.register(2, 19.0, "Jun 29 10:58:54 test test: NetScreen device_id=test  [Root]system-critical-00042: Replay packet detected on IPSec tunnel on ethernet0/2 with tunnel ID 0x67! From 121.xxx.xxx.116 to 124.xxx.xxx.186/128, ESP, SPI 0xf5b259cc, SEQ 0x573. (2021-06-29 10:58:53)", true)
 	ntr.register(3, 18.0, "Jun 29 11:12:26 test test: NetScreen device_id=test  [Root]system-critical-00042: Replay packet detected on IPSec tunnel on ethernet0/2 with tunnel ID 0x67! From 121.xxx.xxx.116 to 124.xxx.xxx.186/96, ESP, SPI 0xf5b259cc, SEQ 0x239e. (2021-06-29 11:12:26)", true)
@@ -195,7 +223,11 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1)
-	ntr = newNTopRecords(10, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	ntr.register(1, 20.0, "Jun 30 12:08:36 test test: NetScreen device_id=test  [Root]system-alert-00026: IPSec tunnel on interface ethernet0/2 with tunnel ID 0x9a received a packet with a bad SPI. 202.pqr.stu.154->124.gh.ijk.186/96, ESP, SPI 0xf5b25b5b, SEQ 0x1. (2021-06-30 12:08:35)", true)
 	ntr.register(2, 19.0, "Jun 29 10:58:54 test test: NetScreen device_id=test  [Root]system-critical-00042: Replay packet detected on IPSec tunnel on ethernet0/2 with tunnel ID 0x67! From 121.lm.no.116 to 124.gh.ijk.186/128, ESP, SPI 0xf5b259cc, SEQ 0x573. (2021-06-29 10:58:53)", true)
 	ntr.register(3, 18.0, "Jun 29 11:08:50 test test: NetScreen device_id=test  [Root]system-notification-00531: The system clock was updated from primary NTP server type abc.def.88.1 with an adjustment of -225 ms. Authentication was None. Update mode was Automatic (2021-06-29 11:08:50)", true)
@@ -226,7 +258,11 @@ func Test_nTop(t *testing.T) {
 
 func Test_nTop2(t *testing.T) {
 	tran, _ := newTrans("", 0, 0, 0, "", 1)
-	ntr := newNTopRecords(10, 0.0, tran, true)
+	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	for i := 1; i <= 80; i++ {
 		rowID := int64(i)
 		score := float64(i) * 2.0
@@ -250,7 +286,11 @@ func Test_nTop2(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1)
-	ntr = newNTopRecords(10, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	for i := 1; i <= 3; i++ {
 		rowID := int64(i)
 		score := float64(i) * 2.0
@@ -288,7 +328,11 @@ func Test_nTopDiff(t *testing.T) {
 	}
 
 	tran, _ := newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1)
-	ntr := newNTopRecords(10, 0.0, tran, true)
+	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	ntr.register(1, 1.0, "Oct 11 01:18:14 te101 te102 te103 te104 te105", true)
 	ntr.register(2, 1.1, "Oct 11 02:19:14 ty101 ty102 ty103 te104 te105", true)
 	ntr.register(3, 1.2, "Oct 11 02:20:14 ty101 ty102 ty103 te104 te105", true)
@@ -316,12 +360,16 @@ func Test_nTopDiff(t *testing.T) {
 		return
 	}
 
-	if err := ntr.save(dataDir); err != nil {
+	if err := ntr.save(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	ntr = newNTopRecords(10, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, dataDir)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	if err := ntr.load(dataDir, 12, 10, true); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -400,7 +448,11 @@ func Test_nTopDiff2(t *testing.T) {
 	}
 
 	tran, _ := newTrans("", 0, 0, 0, "", 1)
-	ntr := newNTopRecords(10, 0.0, tran, true)
+	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	for i := 0; i < 200; i++ {
 		rowID := int64(i)
 		score := float64(i)
@@ -421,12 +473,16 @@ func Test_nTopDiff2(t *testing.T) {
 		return
 	}
 
-	if err := ntr.save(dataDir); err != nil {
+	if err := ntr.save(); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	ntr = newNTopRecords(10, 0.0, tran, true)
+	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, dataDir)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 	if err := ntr.load(dataDir, 200, 1000, true); err != nil {
 		t.Errorf("%v", err)
 		return

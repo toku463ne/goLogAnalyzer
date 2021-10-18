@@ -84,6 +84,10 @@ type colLogRecord struct {
 }
 
 type nTopRecords struct {
+	*csvdb.CsvDB
+	name       string
+	rootDir    string
+	ntopTable  *csvdb.CsvTable
 	n          int
 	subN       int
 	minScore   float64

@@ -197,13 +197,16 @@ func (g *CsvTableGroup) GetTable(tableName string) (*CsvTable, error) {
 
 func (g *CsvTableGroup) CreateTable(tableName string) (*CsvTable, error) {
 
-	if _, ok := g.tableDefs[tableName]; ok {
+	if g.TableExists(tableName) {
 		return nil, errors.New(fmt.Sprintf("The table %s exists", tableName))
 	}
 	t := newCsvTable(g.groupName, tableName, g.getTablePath(tableName),
 		g.columns, g.useGzip, g.bufferSize)
 
 	g.tableDefs[tableName] = t.CsvTableDef
+	if err := t.Flush(); err != nil {
+		return nil, err
+	}
 	if err := g.save(); err != nil {
 		return nil, err
 	}
@@ -212,7 +215,11 @@ func (g *CsvTableGroup) CreateTable(tableName string) (*CsvTable, error) {
 
 func (g *CsvTableGroup) CreateTableIfNotExists(tableName string) (*CsvTable, error) {
 	if g.TableExists(tableName) {
-		return g.GetTable(tableName)
+		t, err := g.GetTable(tableName)
+		if err != nil {
+			return nil, err
+		}
+		return t, err
 	}
 	return g.CreateTable(tableName)
 }

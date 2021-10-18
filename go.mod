@@ -6,7 +6,4 @@ replace github.com/toku463ne/goLogAnalyzer/analyzer => ./analyzer
 
 replace github.com/toku463ne/goLogAnalyzer/csvdb => ./csvdb
 
-require (
-	github.com/toku463ne/goLogAnalyzer/analyzer v0.0.0-00010101000000-000000000000
-	github.com/toku463ne/goLogAnalyzer/csvdb v0.0.0-00010101000000-000000000000 // indirect
-)
+require github.com/toku463ne/goLogAnalyzer/analyzer v0.0.0-00010101000000-000000000000
