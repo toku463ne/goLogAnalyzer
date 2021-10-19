@@ -370,7 +370,7 @@ func Test_nTopDiff(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := ntr.load(dataDir, 12, 10, true); err != nil {
+	if err := ntr.load(12, 10, true); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -483,7 +483,7 @@ func Test_nTopDiff2(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := ntr.load(dataDir, 200, 1000, true); err != nil {
+	if err := ntr.load(200, 1000, true); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

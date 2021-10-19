@@ -34,7 +34,7 @@ func newNTopRecords(name string,
 		if err := ntop.prepareTables(); err != nil {
 			return nil, err
 		}
-		//if err := s.load(); err != nil {
+		//if err := ntop.load(); err != nil {
 		//	return nil, err
 		//}
 	}
@@ -260,7 +260,7 @@ func (ntop *nTopRecords) save() error {
 	return nil
 }
 
-func (ntop *nTopRecords) load(rootDir string, lastRowID int64,
+func (ntop *nTopRecords) load(lastRowID int64,
 	maxRowIDs int, registerItems bool) error {
 	if !ntop.TableExists("lastTopN") {
 		return nil

@@ -413,8 +413,11 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 		return nil, err
 	}
 
-	ntopUniq, err := newNTopRecords(nTopname, recordsToShow, minScore, a.trans, true, a.rootDir)
+	ntop, err := newNTopRecords(nTopname, recordsToShow, minScore, a.trans, true, a.rootDir)
 	if err != nil {
+		return nil, err
+	}
+	if err := ntop.load(a.rowID, a.linesInBlock*a.maxBlocks, false); err != nil {
 		return nil, err
 	}
 
@@ -441,10 +444,10 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 			continue
 		}
 
-		ntopUniq.register(rowID, score, record, false)
+		ntop.register(rowID, score, record, false)
 	}
 
-	return ntopUniq, nil
+	return ntop, nil
 }
 
 func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string, error) {
