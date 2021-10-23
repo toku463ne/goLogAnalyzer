@@ -386,6 +386,10 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	if err := rows.OrderBy([]string{"lastIndex"}, []string{"int64"},
+		csvdb.CorderByAsc); err != nil {
+		return nil, errors.WithStack(err)
+	}
 
 	blockNos := make([]int, 0)
 	minEpoch := int64(-1)

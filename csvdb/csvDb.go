@@ -102,6 +102,16 @@ func (db *CsvDB) getTable(groupName, tableName string) (*CsvTable, error) {
 	}
 }
 
+func (db *CsvDB) CloseAll() {
+	for _, g := range db.Groups {
+		for tableName, _ := range g.tableDefs {
+			if t, _ := g.GetTable(tableName); t != nil {
+				t.Close()
+			}
+		}
+	}
+}
+
 // DropAllTables() drop all tables in the CsvDB object
 func (db *CsvDB) DropAll() error {
 	for _, g := range db.Groups {

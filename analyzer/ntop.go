@@ -68,6 +68,12 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 	if ntop.minScore > 0 && score <= ntop.minScore && ntop.memberCnt >= ntop.subN {
 		return
 	}
+
+	if rowID > 0 && rowID <= ntop.lastRowId {
+		return
+	}
+
+	ntop.lastRowId = rowID
 	newRecords := make([]*colLogRecord, ntop.subN)
 	logr2 := new(colLogRecord)
 	logr2.rowid = rowID
@@ -92,7 +98,11 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 			}
 
 			rate := checkMatchRate(logr.tran, logr2.tran)
-			if rate > maxMatchRate {
+			if rate == 1.0 {
+				maxMatchRate = rate
+				maxMatchIdx = i
+				maxGreaterMatchIdx = i
+			} else if rate > maxMatchRate {
 				for j, l := range nTopBaseMTokens {
 					if tranlen >= l {
 						if nTopMatchRates[j] <= rate {
@@ -223,8 +233,12 @@ func (ntop *nTopRecords) getDiffRecords() []*colLogRecord {
 	return ntop.diff.records[0:cnt]
 }
 
+func (ntop *nTopRecords) getTableName() string {
+	return fmt.Sprintf("topn_%s", ntop.name)
+}
+
 func (ntop *nTopRecords) prepareTables() error {
-	ntopTable, err := ntop.CreateTableIfNotExists(fmt.Sprintf("topn_%s", ntop.name),
+	ntopTable, err := ntop.CreateTableIfNotExists(ntop.getTableName(),
 		tableDefs["lastTopN"], false, cDefaultBuffSize)
 	if err != nil {
 		return err
@@ -234,10 +248,9 @@ func (ntop *nTopRecords) prepareTables() error {
 }
 
 func (ntop *nTopRecords) save() error {
-	if err := ntop.ntopTable.Drop(); err != nil {
+	if err := ntop.ntopTable.Truncate(); err != nil {
 		return err
 	}
-
 	for _, r := range ntop.records {
 		if r == nil {
 			break
@@ -262,14 +275,15 @@ func (ntop *nTopRecords) save() error {
 
 func (ntop *nTopRecords) load(lastRowID int64,
 	maxRowIDs int, registerItems bool) error {
-	if !ntop.TableExists("lastTopN") {
+	if !ntop.TableExists(ntop.getTableName()) {
 		return nil
 	}
 
-	ntopTable, err := ntop.GetTable("lastTopN")
+	ntopTable, err := ntop.GetTable(ntop.getTableName())
 	if err != nil {
 		return err
 	}
+	defer ntopTable.Close()
 
 	rows, err := ntopTable.SelectRows(nil,
 		[]string{"rowid", "score", "record", "terms", "count", "lastNdates"})
@@ -302,6 +316,9 @@ func (ntop *nTopRecords) load(lastRowID int64,
 		r.tran = tran
 		ntop.records[ntopIdx] = r
 		ntopIdx++
+		if ntop.lastRowId < r.rowid {
+			ntop.lastRowId = r.rowid
+		}
 	}
 
 	if ntopIdx >= 0 {
@@ -312,6 +329,7 @@ func (ntop *nTopRecords) load(lastRowID int64,
 			return err
 		}
 	}
+
 	return nil
 }
 

@@ -97,6 +97,7 @@ type nTopRecords struct {
 	memberCnt  int
 	withDiff   bool
 	diff       *nTopRecords
+	lastRowId  int64
 }
 
 type nTopOutRec struct {

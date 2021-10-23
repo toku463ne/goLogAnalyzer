@@ -150,10 +150,7 @@ func (rs *reports) runAnalyzer(name string, startEpoch int64, l LogInfo) (*repor
 		ex = ex2
 	}
 
-	minScore, err := a.stats.getMinScoreInTopN(l.TopN*cNTopMultiplier, startEpoch)
-	if err != nil {
-		return nil, err
-	}
+	minScore := 0.0
 
 	ntopNorm, err := a.getNTop(name, l.TopN, startEpoch, 0,
 		l.Search, ex, minScore, 0)
