@@ -210,7 +210,7 @@ func (ntop *nTopRecords) getRecords() []*colLogRecord {
 }
 
 func (ntop *nTopRecords) getDiffRecords() []*colLogRecord {
-	minScore := ntop.getMinScore()
+	//minScore := ntop.getMinScore()
 	cnt := 0
 	if ntop == nil || ntop.diff == nil {
 		return nil
@@ -222,9 +222,9 @@ func (ntop *nTopRecords) getDiffRecords() []*colLogRecord {
 		if r == nil {
 			break
 		}
-		if ntop.n <= cnt || r.score < minScore {
-			break
-		}
+		//if ntop.n <= cnt || r.score < minScore {
+		//	break
+		//}
 		cnt++
 	}
 	if cnt == 0 {

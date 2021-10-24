@@ -158,7 +158,6 @@ type rarityAnalyzer struct {
 	datetimeStartPos int
 	datetimeLayout   string
 	scoreStyle       int
-	oldestEpoch      int64
 }
 
 type filePointer struct {

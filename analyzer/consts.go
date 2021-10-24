@@ -15,7 +15,7 @@ const (
 	cEOF                  = -1
 	cMaxTermLength        = 128
 	cMaxBlockDitigs       = 10
-	cMaxRowID             = int64(9999999999999)
+	cMaxRowID             = int64(9223372036854775806)
 	cNTopRareRecords      = 5
 	cLogPerLines          = 1000000
 	cDefaultBuffSize      = 10000
