@@ -255,7 +255,7 @@ Oct 12 01:21:14 test102 error204 test321`
 	}
 
 	recs = r2.nTopNorm.getDiffRecords()
-	if len(recs) == 1 {
+	if len(recs) != 1 {
 		t.Errorf("len is incorrect")
 		return
 	}

@@ -265,7 +265,7 @@ func (rs *reports) writeHtmlDiffSummary() error {
 
 			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", len(diffRecs),
 				fmt.Sprintf("%s %s", r.name, subNames[i]))
-			for i, diffRec := range diffRecs {
+			for _, diffRec := range diffRecs {
 				out += fmt.Sprintf("<td>%d</td><td>%d</td><td>%5.2f</td><td>%s</td></tr>",
 					diffRec.rowid, diffRec.count, diffRec.score, diffRec.record)
 				if i+1 < len(diffRecs) {
