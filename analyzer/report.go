@@ -268,7 +268,7 @@ func (rs *reports) writeHtmlDiffSummary() error {
 			for _, diffRec := range diffRecs {
 				out += fmt.Sprintf("<td>%d</td><td>%d</td><td>%5.2f</td><td>%s</td></tr>",
 					diffRec.rowid, diffRec.count, diffRec.score, diffRec.record)
-				if i+1 < len(diffRecs) {
+				if i+1 < len(diffRecs) || i+1 < ntop.n {
 					out += "<tr>"
 				}
 			}
