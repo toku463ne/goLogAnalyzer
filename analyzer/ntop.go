@@ -312,6 +312,7 @@ func (ntop *nTopRecords) load(lastRowID int64,
 		}
 
 		r.dates = strings.Split(lastNdatesStr, ";")
+		sort.Strings(r.dates)
 		tran, _ := ntop.tokenizeLine(r.record, registerItems)
 		r.tran = tran
 		ntop.records[ntopIdx] = r

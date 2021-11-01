@@ -254,7 +254,7 @@ func (r *report) writeHtmlReport() error {
 func (rs *reports) writeHtmlDiffSummary() error {
 	log.Println("Processing diff summary")
 	out := "<html>"
-	out += "<table border='1'><tr><td>name</td><td>rowID</td><td>count</td><td>score</td><td>text</td></tr>"
+	out += "<t<table border=1 ~~~ style='table-layout:fixed;width:100%;'><tr><td>name</td><td>rowID</td><td>count</td><td>score</td><td>text</td></tr>"
 	subNames := []string{"errors", ""}
 	for _, r := range rs.rep {
 		for i, ntop := range []*nTopRecords{r.nTopErr, r.nTopNorm} {
@@ -266,8 +266,14 @@ func (rs *reports) writeHtmlDiffSummary() error {
 			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", len(diffRecs),
 				fmt.Sprintf("%s %s", r.name, subNames[i]))
 			for _, diffRec := range diffRecs {
+				te := ""
+				if len(diffRec.record) > cMaxCharsToShowInTopN {
+					te = string([]rune(diffRec.record)[:cMaxCharsToShowInTopN])
+				} else {
+					te = diffRec.record
+				}
 				out += fmt.Sprintf("<td>%d</td><td>%d</td><td>%5.2f</td><td>%s</td></tr>",
-					diffRec.rowid, diffRec.count, diffRec.score, diffRec.record)
+					diffRec.rowid, diffRec.count, diffRec.score, te)
 				if i+1 < len(diffRecs) || i+1 < ntop.n {
 					out += "<tr>"
 				}
