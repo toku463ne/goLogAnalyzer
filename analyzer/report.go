@@ -254,7 +254,7 @@ func (r *report) writeHtmlReport() error {
 func (rs *reports) writeHtmlDiffSummary() error {
 	log.Println("Processing diff summary")
 	out := "<html>"
-	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'><tr><td>name</td><td>rowID</td><td>count</td><td>score</td><td>text</td></tr>"
+	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'><tr><td width=8%>name</td><width=4%>count</td><width=6%>score</td><td>text</td></tr>"
 	subNames := []string{"errors", ""}
 	for _, r := range rs.rep {
 		for i, ntop := range []*nTopRecords{r.nTopErr, r.nTopNorm} {
@@ -272,8 +272,8 @@ func (rs *reports) writeHtmlDiffSummary() error {
 				} else {
 					te = diffRec.record
 				}
-				out += fmt.Sprintf("<td>%d</td><td>%d</td><td>%5.2f</td><td>%s</td></tr>",
-					diffRec.rowid, diffRec.count, diffRec.score, te)
+				out += fmt.Sprintf("<td>%d</td><td>%5.2f</td><td>%s</td></tr>",
+					diffRec.count, diffRec.score, te)
 				if i+1 < len(diffRecs) || i+1 < ntop.n {
 					out += "<tr>"
 				}
