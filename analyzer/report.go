@@ -254,7 +254,7 @@ func (r *report) writeHtmlReport() error {
 func (rs *reports) writeHtmlDiffSummary() error {
 	log.Println("Processing diff summary")
 	out := "<html>"
-	out += "<t<table border=1 ~~~ style='table-layout:fixed;width:100%;'><tr><td>name</td><td>rowID</td><td>count</td><td>score</td><td>text</td></tr>"
+	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'><tr><td>name</td><td>rowID</td><td>count</td><td>score</td><td>text</td></tr>"
 	subNames := []string{"errors", ""}
 	for _, r := range rs.rep {
 		for i, ntop := range []*nTopRecords{r.nTopErr, r.nTopNorm} {
