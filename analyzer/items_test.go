@@ -118,7 +118,7 @@ func Test_Items(t *testing.T) {
 		return nil
 	}
 
-	dataDir, err := ensureTestDir("itemsTest")
+	dataDir, err := initTestDir("itemsTest")
 	if err != nil {
 		t.Errorf("%v", err)
 		return

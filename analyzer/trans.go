@@ -3,26 +3,29 @@ package analyzer
 import (
 	"fmt"
 	"log"
+	"math"
 	"regexp"
 	"strings"
 	"time"
 )
 
-func newTrans(dataDir string, maxBlocks, maxRowsInBlock int,
-	datetimeStartPos int, datetimeLayout string, scoreStyle int) (*trans, error) {
+func newTrans(dataDir string, maxBlocks, blockSize int,
+	datetimeStartPos int, datetimeLayout string,
+	scoreStyle, scoreNSize int) (*trans, error) {
 	t := new(trans)
-	i, err := newItems(dataDir, "items", maxBlocks, maxRowsInBlock)
+	i, err := newItems(dataDir, "items", maxBlocks, blockSize)
 	if err != nil {
 		return nil, err
 	}
 	t.items = i
 	t.items.register("", 1, true)
 	t.replacer = getDelimReplacer()
-	t.maxRowsInBlock = maxRowsInBlock
+	t.blockSize = blockSize
 	t.datetimeStartPos = datetimeStartPos
 	t.datetimeLayout = datetimeLayout
 	t.datetimeEndPos = datetimeStartPos + len(datetimeLayout)
 	t.scoreStyle = scoreStyle
+	t.scoreNSize = scoreNSize
 	return t, nil
 }
 
@@ -55,12 +58,28 @@ func (t *trans) calcScore(tran []int) float64 {
 		tranSize := len(tran)
 		scores := make([]float64, tranSize)
 		for i, itemID := range tran {
-			s := t.items.getScore(itemID)
-			scores[i] = s
+			adjScore := t.items.calcAdjScore(itemID)
+			scores[i] = adjScore
+			//t.items.topNItems.register(itemID, adjScore)
 		}
-		score = calcNAvgScore(scores, t.scoreStyle)
+		score = calcNAvgScore(scores, t.scoreStyle, t.scoreNSize)
 	}
-
+	for _, itemID := range tran {
+		c := t.items.counts[itemID]
+		if c <= 0 {
+			continue
+		}
+		s := t.items.tranScoreAvg[itemID]
+		if c == 1 || s == 0 {
+			t.items.tranScoreAvg[itemID] = score
+		} else {
+			s = (s*(float64(c)-1) + score) / float64(c)
+			t.items.tranScoreAvg[itemID] = s
+		}
+	}
+	if math.IsNaN(score) {
+		return 0
+	}
 	return score
 }
 
@@ -99,9 +118,16 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.T
 		}
 
 		word := strings.ToLower(w)
-		if len(word) > cWordMaxLen {
+		lenw := len(word)
+		if lenw > cWordMaxLen {
 			word = word[:cWordMaxLen]
+			lenw = cWordMaxLen
 		}
+		//remove '.' in the end
+		if lenw > 1 && string(word[lenw-1]) == "." {
+			word = word[:lenw-1]
+		}
+
 		if len(word) > 2 {
 			if isInt(word) && len(word) > cNumMaxDigits {
 				continue

@@ -18,6 +18,7 @@ func newItems(dataDir, tableName string, maxBlocks, maxRowsInBlock int) (*items,
 	i.termMap = make(map[int]string, 10000)
 	i.counts = make(map[int]int, 10000)
 	i.terms = make(map[string]int, 10000)
+	i.tranScoreAvg = make(map[int]float64, 10000)
 	i.currCounts = make(map[int]int, 10000)
 	i.maxItemID = 0
 	return i, nil
@@ -103,7 +104,7 @@ func (i *items) loadDB() error {
 		return err
 	}
 
-	rows, err := i.selectRows(nil, nil, []string{"item", "itemCount"})
+	rows, err := i.selectRows(nil, nil, []string{"item", "itemCount", "tranScoreAvg"})
 	if err != nil {
 		return err
 	}
@@ -114,7 +115,8 @@ func (i *items) loadDB() error {
 	for rows.next() {
 		var item string
 		var itemCount int
-		err = rows.scan(&item, &itemCount)
+		var tranScoreAvg float64
+		err = rows.scan(&item, &itemCount, &tranScoreAvg)
 		if err != nil {
 			return err
 		}
@@ -156,7 +158,9 @@ func (i *items) flush() error {
 	}
 	for itemID, cnt := range i.currCounts {
 		term := i.getWord(itemID)
-		if err := i.insertRow([]string{"item", "itemCount"}, term, cnt); err != nil {
+		avg := i.tranScoreAvg[itemID]
+		if err := i.insertRow([]string{"item", "itemCount", "tranScoreAvg"},
+			term, cnt, avg); err != nil {
 			return err
 		}
 	}
@@ -164,4 +168,14 @@ func (i *items) flush() error {
 		return errors.WithStack(err)
 	}
 	return nil
+}
+
+func (i *items) calcAdjScore(itemID int) float64 {
+	s := i.getScore(itemID)
+	m := i.tranScoreAvg[itemID]
+	if m == 0 {
+		return s
+	} else {
+		return (s + m) / 2
+	}
 }

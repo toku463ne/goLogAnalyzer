@@ -7,8 +7,24 @@ import (
 	"regexp"
 	"strings"
 
-	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
+	csvdb "goLogAnalyzer/csvdb"
 )
+
+type AnalConf struct {
+	RootDir          string
+	LogPathRegex     string
+	BlockSize        int
+	MaxBlocks        int
+	MaxItemBlocks    int
+	DatetimeStartPos int
+	DatetimeLayout   string
+	ScoreStyle       int
+	ScoreNSize       int
+	MinGapToRecord   float64
+	NTopRecordsCount int
+	ModeblockPerFile bool // if create block per file
+	NItemTop         int
+}
 
 type colStats struct {
 	scoreSum    float64
@@ -33,7 +49,7 @@ type stats struct {
 	currBlock       *colStats
 	countPerScore   []int
 	maxBlocks       int
-	maxRowsInBlock  int
+	blockSize       int
 	blockNo         int
 	rowNo           int
 	seqNo           int64
@@ -46,17 +62,17 @@ type stats struct {
 
 type circuitDB struct {
 	*csvdb.CsvDB
-	dataDir        string
-	name           string
-	maxBlocks      int
-	maxRowsInBlock int
-	blockNo        int
-	rowNo          int
-	lastIndex      int64
-	lastEpoch      int64
-	currTable      *csvdb.CsvTable
-	statusTable    *csvdb.CsvTable
-	writeMode      string
+	dataDir     string
+	name        string
+	maxBlocks   int
+	blockSize   int
+	blockNo     int
+	rowNo       int
+	lastIndex   int64
+	lastEpoch   int64
+	currTable   *csvdb.CsvTable
+	statusTable *csvdb.CsvTable
+	writeMode   string
 }
 
 type circuitRows struct {
@@ -75,12 +91,13 @@ type circuitRows struct {
 }
 
 type colLogRecord struct {
-	rowid  int64
-	score  float64
-	record string
-	tran   []int
-	count  int
-	dates  []string
+	rowid    int64
+	score    float64
+	maxScore float64
+	record   string
+	tran     []int
+	count    int
+	lastDate string
 }
 
 type nTopRecords struct {
@@ -95,17 +112,15 @@ type nTopRecords struct {
 	records    []*colLogRecord
 	t          *trans
 	memberCnt  int
-	withDiff   bool
-	diff       *nTopRecords
 	lastRowId  int64
 }
 
 type nTopOutRec struct {
-	rowid  int64
-	score  float64
-	record string
-	count  int
-	dates  []string
+	rowid    int64
+	score    float64
+	record   string
+	count    int
+	lastDate string
 }
 
 type logRecords struct {
@@ -114,13 +129,21 @@ type logRecords struct {
 
 type trans struct {
 	items            *items
-	maxRowsInBlock   int
+	blockSize        int
 	replacer         *strings.Replacer
 	datetimeStartPos int
 	datetimeEndPos   int
 	datetimeLayout   string
 	scoreStyle       int
+	scoreNSize       int
 	lastTimeResult   []int
+}
+
+type topNItems struct {
+	n              int
+	minScoreInTopN float64
+	itemIDs        []int
+	scores         []float64
 }
 
 type items struct {
@@ -130,34 +153,27 @@ type items struct {
 	terms              map[string]int
 	termMap            map[int]string
 	counts             map[int]int
+	tranScoreAvg       map[int]float64
 	currCounts         map[int]int
 	totalCount         int
 }
 
 type rarityAnalyzer struct {
 	*csvdb.CsvDB
-	configTable      *csvdb.CsvTable
-	lastStatusTable  *csvdb.CsvTable
-	rootDir          string
-	trans            *trans
-	stats            *stats
-	logRecs          *logRecords
-	fp               *filePointer
-	logPathRegex     string
-	filterRe         *regexp.Regexp
-	xFilterRe        *regexp.Regexp
-	minGapToRecord   float64
-	lastFileEpoch    int64
-	lastFileRow      int
-	rowID            int64
-	linesInBlock     int
-	maxBlocks        int
-	maxItemBlocks    int
-	nTopRecordsCount int
-	nTopRareLogs     *nTopRecords
-	datetimeStartPos int
-	datetimeLayout   string
-	scoreStyle       int
+	*AnalConf
+	configTable     *csvdb.CsvTable
+	lastStatusTable *csvdb.CsvTable
+	trans           *trans
+	stats           *stats
+	logRecs         *logRecords
+	fp              *filePointer
+	filterRe        *regexp.Regexp
+	xFilterRe       *regexp.Regexp
+	lastFileEpoch   int64
+	lastFileRow     int
+	rowID           int64
+	nTopRareLogs    *nTopRecords
+	linesProcessed  int
 }
 
 type filePointer struct {
@@ -190,37 +206,59 @@ type countPerScore struct {
 	count int
 }
 
-type reports struct {
-	dataDir string
-	rep     map[string]*report
-}
-
 type report struct {
-	name          string
-	nTopNorm      *nTopRecords
-	nTopErr       *nTopRecords
-	includePhrase string
-	st            *stats
-	info          LogInfo
+	st         *stats
+	conf       *LogConfRoot
+	confGroups *logConfGroups
 }
 
-type LogInfo struct {
-	DataDir          string  `json:"dataDir"`
-	TopN             int     `json:"topN"`
-	HistSize         int     `json:"histSize"`
-	ScoreStyle       int     `json:"scoreStyle"`
-	LogPath          string  `json:"path"`
-	Search           string  `json:"search"`
-	Exclude          string  `json:"exclude"`
-	LinesInBlock     int     `json:"linesInBlock"`
-	MaxBlocks        int     `json:"maxBlocks"`
-	MaxItemBlocks    int     `json:"maxItemBlocks"`
-	MinGapToRecord   float64 `json:"minGapToRecord"`
-	DatetimeStartPos int     `json:"dateStart"`
-	DatetimeLayout   string  `json:"dateLayout"`
+type LogConf struct {
+	LogPath          string              `json:"path"`
+	TopN             int                 `json:"topN"`
+	ScoreStyle       int                 `json:"scoreStyle"`
+	Search           string              `json:"search"`
+	Exclude          string              `json:"exclude"`
+	BlockSize        int                 `json:"blockSize"`
+	MaxBlocks        int                 `json:"maxBlocks"`
+	MaxItemBlocks    int                 `json:"maxItemBlocks"`
+	MinGapToRecord   float64             `json:"minGapToRecord"`
+	DatetimeStartPos int                 `json:"dateStartPos"`
+	DatetimeLayout   string              `json:"dateLayout"`
+	FromDate         string              `json:"fromDate"`
+	ToDate           string              `json:"toDate"`
+	KeyEmphasize     map[string][]string `json:"keyEmphasize"`
+	ModeblockPerFile int                 `json:"modeblockPerFile"`
+	MinScore         float64             `json:"minScore"`
+	MaxScore         float64             `json:"maxScore"`
 }
 
-type logInfoMap struct {
-	*LogInfo
-	Logs map[string]LogInfo `json:"logs"`
+type LogNode struct {
+	*LogConf
+	Name         string     `json:"name"`
+	TemplateName string     `json:"templateName"`
+	GroupNames   []string   `json:"groupNames"`
+	Children     []*LogNode `json:"children"`
+	Categories   []*LogNode `json:"categories"`
+	isCategory   bool
+	isEnd        bool
+	dataDir      string
+	reportDir    string
+}
+
+type LogConfRoot struct {
+	*LogConf
+	RootDir   string              `json:"rootDir"`
+	ReportDir string              `json:"reportDir"`
+	Templates map[string]*LogConf `json:"templates"`
+	Children  []*LogNode          `json:"children"`
+}
+
+type logConfGroups struct {
+	g         map[string][]*LogNode
+	reportDir string
+}
+
+type tranMatchRate struct {
+	matchLen  int
+	matchRate float64
 }

@@ -5,24 +5,18 @@ import (
 	"testing"
 )
 
+// logan run -f '/mnt/c/Users/kot/loganal/fw03/NFPFW003*'
 func Test_main1(t *testing.T) {
-	//rootDir := "c:\\Users\\kot\\loganal\\fw03\\data"
-	//linesInBlock := "100000"
-	//maxBlocks := "100"
-	//logPathRegex := "c:\\Users\\kot\\loganal\\fw03\\NFPFW003.log*"
-	//rarityCountRate := "0.0001"
-	//os.Args = []string{"test", "clean", "-d", rootDir}
-	//main()
+	rootDir := "/mnt/c/Users/kot/Documents/loganal/fw03/data"
+	logPathRegex := "/mnt/c/Users/kot/loganal/fw03/NFPFW003.log*"
+	os.Args = []string{"test", "clean", "-d", rootDir}
+	main()
 
-	//os.Args = []string{"test", "rar", "-f", logPathRegex,
-	//	"-d", rootDir, "-linesInBlock", linesInBlock,
-	//	"-maxBlock", maxBlocks, "-save"}
-
-	//main()
-
-	//os.Args = []string{"test", "topN", "-d", rootDir, "-n", "10"}
-
-	conf := "c:\\Users\\kot\\loganal\\zimconfwin.json"
-	os.Args = []string{"test", "report", "-c", conf}
+	os.Args = []string{"test", "run", "-d", rootDir, "-f", logPathRegex, "-save", "yes"}
+	main()
+}
+func Test_main2(t *testing.T) {
+	rootDir := "/mnt/c/Users/kot/loganal/realtest3/data"
+	os.Args = []string{"test", "topN", "-d", rootDir}
 	main()
 }

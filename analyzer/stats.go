@@ -5,8 +5,9 @@ import (
 	"math"
 	"strconv"
 
+	csvdb "goLogAnalyzer/csvdb"
+
 	"github.com/pkg/errors"
-	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 )
 
 func newColStats() *colStats {
@@ -20,12 +21,13 @@ func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s.currBlock = newColStats()
 	s.countPerScore = make([]int, cCountbyScoreLen)
 	s.maxBlocks = maxBlocks
-	s.maxRowsInBlock = maxRowsInBlock
+	s.blockSize = maxRowsInBlock
 	s.blockNo = 0
 	s.rowNo = 0
 	s.seqNo = 0
 	s.rootDir = rootDir
 	s.scoreMax = -1
+	s.scoreCount = 1
 	if s.rootDir != "" {
 		db, err := csvdb.NewCsvDB(rootDir)
 		if err != nil {
@@ -52,13 +54,13 @@ func (s *stats) getScoreStage(score float64) int {
 		scoreStage = cCountbyScoreLen - 1
 	}
 	return scoreStage
+
 }
 
-func (s *stats) registerScore(score float64, fileEpoch int64) error {
+func (s *stats) registerScore(score float64, rowLen int64, fileEpoch int64) error {
 	scoreSqr := score * score
 	scoreStage := s.getScoreStage(score)
 
-	s.scoreCount++
 	s.scoreSum += score
 	s.scoreSqrSum += scoreSqr
 	s.countPerScore[scoreStage]++
@@ -88,10 +90,12 @@ func (s *stats) registerScore(score float64, fileEpoch int64) error {
 
 	s.rowNo++
 
-	if s.rowNo >= s.maxRowsInBlock {
+	if s.rowNo >= s.blockSize {
 		err := s.nextBlock()
 		return err
 	}
+
+	s.scoreCount++
 	return nil
 }
 
@@ -430,7 +434,7 @@ func (s *stats) getCountPerStatsHtml(lastFileEpoch int64) (string, []int, error)
 
 	out := ""
 	if lastFileEpoch > 0 {
-		out = fmt.Sprintf("<b>Counts per score after %s</b><br>", epochToString(lastFileEpoch))
+		out = fmt.Sprintf("<b>Counts per score after %s</b><br>", EpochToString(lastFileEpoch))
 	} else {
 		out = "<b>Counts per score</b><br>"
 	}
@@ -500,7 +504,7 @@ func (s *stats) getRecentStatsHtml(histSize int) (string, error) {
 			continue
 		}
 		out += "<tr>"
-		out += fmt.Sprintf("<td>%s</td>", epochToString(rec.lastFileEpoch))
+		out += fmt.Sprintf("<td>%s</td>", EpochToString(rec.lastFileEpoch))
 		out += fmt.Sprintf("<td>%7.1f</td>", rec.avg)
 		out += fmt.Sprintf("<td>%7.1f</td>", rec.std)
 		out += fmt.Sprintf("<td>%7.1f</td>", rec.max)
@@ -528,7 +532,7 @@ func (s *stats) getRecentStatsString(histSize int) (string, error) {
 			continue
 		}
 		out += fmt.Sprintf(" %s | %7.1f | %7.1f | %7.1f \n",
-			epochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
+			EpochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
 	}
 	return out, nil
 }

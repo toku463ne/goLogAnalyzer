@@ -8,7 +8,7 @@ import (
 
 func TestFilePointer_run1(t *testing.T) {
 	testName := "TestFileRarityAnalyzer_run1"
-	testDir, err := ensureTestDir(testName)
+	testDir, err := initTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -26,7 +26,7 @@ func TestFilePointer_run1(t *testing.T) {
 	}
 	logPathRegex := fmt.Sprintf("%s/sample1.log*", testDir)
 
-	fp := newFilePointer(logPathRegex, 0, 0)
+	fp, _ := newFilePointer(logPathRegex, 0, 0)
 	if err := fp.open(); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -48,7 +48,7 @@ func TestFilePointer_run1(t *testing.T) {
 
 func TestFilePointer_run2(t *testing.T) {
 	testName := "TestFilePointer_run2"
-	testDir, err := ensureTestDir(testName)
+	testDir, err := initTestDir(testName)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -62,7 +62,7 @@ func TestFilePointer_run2(t *testing.T) {
 
 	logPathRegex := fmt.Sprintf("%s/long.txt.tar.gz", testDir)
 
-	fp := newFilePointer(logPathRegex, 0, 0)
+	fp, _ := newFilePointer(logPathRegex, 0, 0)
 	if err := fp.open(); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -74,5 +74,31 @@ func TestFilePointer_run2(t *testing.T) {
 	if fp.currErr != nil && !fp.isEOF {
 		t.Errorf("%+v", fp.currErr)
 		return
+	}
+}
+
+func Test_countNFiles(t *testing.T) {
+	logPathRegex := "testdata/filepointer/sample1.log*"
+	cnt, fileCnt, err := countNFiles(2, logPathRegex)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 12 {
+		t.Error("count does not match")
+	}
+	if fileCnt != 2 {
+		t.Error("count does not match")
+	}
+	cnt, fileCnt, err = countNFiles(1, logPathRegex)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt != 3 {
+		t.Error("count does not match")
+	}
+	if fileCnt != 1 {
+		t.Error("count does not match")
 	}
 }

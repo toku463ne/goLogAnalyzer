@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"time"
 	"unicode"
 
@@ -46,6 +47,14 @@ func RoundUp(num, places float64) float64 {
 func RoundDown(num, places float64) float64 {
 	shift := math.Pow(10, places)
 	return math.Trunc(num*shift) / shift
+}
+
+func Str2Epoch(dateFormat, str string) (int64, error) {
+	if dt, err := time.Parse(dateFormat, str); err != nil {
+		return 0, errors.WithStack(err)
+	} else {
+		return dt.Unix(), nil
+	}
 }
 
 // roundInt
@@ -163,7 +172,7 @@ func getSortedGlob(pathRegex string) ([]int64, []string, error) {
 }
 
 // PathExist ..
-func pathExist(path string) bool {
+func PathExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {
 		return false
 	}
@@ -171,9 +180,7 @@ func pathExist(path string) bool {
 }
 
 func ensureDir(dirPath string) error {
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		os.MkdirAll(dirPath, 0755)
-	} else if err != nil {
+	if err := os.MkdirAll(dirPath, 0755); err != nil && !os.IsExist(err) {
 		return errors.WithStack(err)
 	}
 	return nil
@@ -252,14 +259,22 @@ func getColIdx(tableName, colName string) int {
 	return -1
 }
 
-func timeToString(t time.Time) string {
-	str := t.Format(cTimestampLayout)
+func TimeToString(t time.Time) string {
+	str := t.Format(CDefaultTimestampLayout)
 	return str
 }
 
-func epochToString(epoch int64) string {
-	str := timeToString(time.Unix(epoch, 0).UTC())
+func EpochToString(epoch int64) string {
+	str := TimeToString(time.Unix(epoch, 0).UTC())
 	return str
+}
+
+func DateStringToEpoch(date string) (int64, error) {
+	t, err := time.Parse(time.RFC3339, date+"T00:00:00Z")
+	if err != nil {
+		return -1, err
+	}
+	return t.Unix(), nil
 }
 
 func getCurrentEpoch() int64 {
@@ -315,12 +330,13 @@ func getBottoms(n []int, baseLine int) []int {
 	return bottoms
 }
 
-func calcNAvgScore(scores []float64, scoreStyle int) float64 {
+// scores: list of term scores in the tran
+func calcNAvgScore(scores []float64, scoreStyle, scoreNSize int) float64 {
 	score := 0.0
 	tranSize := len(scores)
-	if tranSize >= cScoreNSize {
+	if tranSize >= scoreNSize {
 		sort.Slice(scores, func(i, j int) bool { return scores[i] > scores[j] })
-		mid := int(float64(cScoreNSize) / 2.0)
+		mid := int(float64(scoreNSize) / 2.0)
 		j := 0
 		for i := 0; i < mid; i++ {
 			score += scores[i]
@@ -328,10 +344,10 @@ func calcNAvgScore(scores []float64, scoreStyle int) float64 {
 		}
 		inc := 1
 		if scoreStyle == cScoreNDistAvg {
-			inc = int(float64(tranSize*2) / float64(cScoreNSize))
+			inc = int(float64(tranSize*2) / float64(scoreNSize))
 		}
 		i := mid
-		for j < cScoreNSize && i < tranSize {
+		for j < scoreNSize && i < tranSize {
 			score += scores[i]
 			i += inc
 			if i >= tranSize {
@@ -350,8 +366,13 @@ func calcNAvgScore(scores []float64, scoreStyle int) float64 {
 			}
 			scoreTotal += s
 		}
-		score = scoreTotal + minScore*float64(cScoreNSize-tranSize)/2.0
+		score = scoreTotal + minScore*float64(scoreNSize-tranSize)/2.0
 	}
-	score /= float64(cScoreNSize)
+	score /= float64(scoreNSize)
 	return score
+}
+
+func isNumeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
 }

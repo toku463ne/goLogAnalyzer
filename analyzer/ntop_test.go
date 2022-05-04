@@ -68,7 +68,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ := newTrans("", 0, 0, 0, "", 1)
+	tran, _ := newTrans("", 0, 0, 0, "", 1, 0)
 	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -94,7 +94,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
 	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -136,7 +136,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
 	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -177,7 +177,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
 	ntr, err = newNTopRecords("test", 5, 0.0, tran, true, "")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -205,24 +205,24 @@ func Test_nTop(t *testing.T) {
 		t.Errorf("count does not match!")
 		return
 	}
-	if ntr.records[1].rowid != 2 {
+	if ntr.records[1].rowid != 9 {
 		t.Errorf("rowID does not match!")
 		return
 	}
-	if ntr.records[1].count != 6 {
+	if ntr.records[1].count != 3 {
 		t.Errorf("count does not match!")
 		return
 	}
-	if ntr.records[2].rowid != 7 {
+	if ntr.records[2].rowid != 10 {
 		t.Errorf("rowID does not match!")
 		return
 	}
-	if ntr.records[2].count != 3 {
+	if ntr.records[2].count != 6 {
 		t.Errorf("count does not match!")
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1)
+	tran, _ = newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0)
 	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -250,14 +250,19 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	if r[7].rowid != 8 {
+	if r[7].rowid != 10 {
 		t.Errorf("rowID does not match!")
+		return
+	}
+
+	if r[7].count != 3 {
+		t.Errorf("count does not match!")
 		return
 	}
 }
 
 func Test_nTop2(t *testing.T) {
-	tran, _ := newTrans("", 0, 0, 0, "", 1)
+	tran, _ := newTrans("", 0, 0, 0, "", 1, 0)
 	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, "")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -285,7 +290,7 @@ func Test_nTop2(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
 	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -314,20 +319,20 @@ func Test_nTop2(t *testing.T) {
 	}
 }
 
-func Test_nTopDiff(t *testing.T) {
-	err := removeTestDir("Test_nTopDiff")
+func Test_nTop3(t *testing.T) {
+	err := removeTestDir("Test_nTop3")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	dataDir, err := ensureTestDir("Test_nTopDiff")
+	dataDir, err := initTestDir("Test_nTopDiff")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	tran, _ := newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1)
+	tran, _ := newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0)
 	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -337,11 +342,18 @@ func Test_nTopDiff(t *testing.T) {
 	ntr.register(2, 1.1, "Oct 11 02:19:14 ty101 ty102 ty103 te104 te105", true)
 	ntr.register(3, 1.2, "Oct 11 02:20:14 ty101 ty102 ty103 te104 te105", true)
 	ntr.register(4, 1.0, "Oct 11 03:21:14 wk101 wk102 wk103 wk104 wk105", true)
+
+	rs := ntr.getRecords()
+	if rs[1].rowid != 4 {
+		t.Errorf("row id incorrect")
+		return
+	}
+
 	ntr.register(5, 1.1, "Oct 11 03:22:14 wk101 wk102 wk103 wk104 wk105", true)
 	ntr.register(6, 1.2, "Oct 11 03:23:14 wk101 wk102 wk103 wk104 wk105", true)
 	ntr.register(7, 1.3, "Oct 11 03:24:14 wk101 wk102 wk103 wk104 wk105", true)
 
-	rs := ntr.getRecords()
+	rs = ntr.getRecords()
 	if rs[0].rowid != 7 {
 		t.Errorf("row id incorrect")
 		return
@@ -352,11 +364,6 @@ func Test_nTopDiff(t *testing.T) {
 	}
 	if rs[2].rowid != 1 {
 		t.Errorf("row id incorrect")
-		return
-	}
-
-	if ntr.diff != nil {
-		t.Errorf("diff must be empty")
 		return
 	}
 
@@ -409,8 +416,12 @@ func Test_nTopDiff(t *testing.T) {
 		t.Errorf("row id incorrect")
 		return
 	}
-	if rs[1].rowid != 7 {
+	if rs[1].rowid != 15 {
 		t.Errorf("row id incorrect")
+		return
+	}
+	if rs[1].maxScore != 1.3 {
+		t.Errorf("max score incorrect")
 		return
 	}
 	if rs[2].rowid != 12 {
@@ -418,36 +429,16 @@ func Test_nTopDiff(t *testing.T) {
 		return
 	}
 
-	rd := ntr.getDiffRecords()
-	if rd[0].rowid != 14 {
-		t.Errorf("row id incorrect")
-		return
-	}
-	if rd[1].rowid != 12 {
-		t.Errorf("row id incorrect")
-		return
-	}
-	if rd[2].rowid != 15 {
-		t.Errorf("row id incorrect")
-		return
-	}
-
 }
 
-func Test_nTopDiff2(t *testing.T) {
-	err := removeTestDir("Test_nTopDiff2")
+func Test_nTop4(t *testing.T) {
+	dataDir, err := initTestDir("Test_nTop4")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	dataDir, err := ensureTestDir("Test_nTopDiff2")
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	tran, _ := newTrans("", 0, 0, 0, "", 1)
+	tran, _ := newTrans("", 0, 0, 0, "", 1, 0)
 	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -497,36 +488,7 @@ func Test_nTopDiff2(t *testing.T) {
 	}
 
 	ntr.register(202, 189.0, "i202", true)
-	if ntr.records[11].rowid != 202 {
-		t.Errorf("row id incorrect")
-		return
-	}
-	if len(ntr.getDiffRecords()) != 0 {
-		t.Errorf("must not be any diff")
-		return
-	}
-	ntr.register(203, 203.0, "i203", true)
-	if len(ntr.getDiffRecords()) != 1 {
-		t.Errorf("diff is incorrect")
-		return
-	}
-
-	for i := 204; i < 220; i++ {
-		rowID := int64(i)
-		score := float64(i)
-		text := fmt.Sprintf("i%03d", i)
-		ntr.register(rowID, score, text, true)
-	}
-	recs = ntr.getDiffRecords()
-	if len(recs) != 10 {
-		t.Errorf("diff len incorrect")
-		return
-	}
-	if recs[0].rowid != 219 {
-		t.Errorf("row id incorrect")
-		return
-	}
-	if recs[9].rowid != 210 {
+	if ntr.records[10].rowid != 202 {
 		t.Errorf("row id incorrect")
 		return
 	}

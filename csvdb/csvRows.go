@@ -46,9 +46,12 @@ func (r *CsvRows) Next() bool {
 		for r.orderbyBuffPos < r.orderbyBuff.Len() {
 			r.orderbyBuffPos++
 
-			if r.conditionCheckFunc == nil || r.conditionCheckFunc(r.orderbyBuff[r.orderbyBuffPos].v) {
-				return true
-			}
+			return true
+			/*
+				if r.conditionCheckFunc == nil || r.conditionCheckFunc(r.orderbyBuff[r.orderbyBuffPos].v) {
+					return true
+				}
+			*/
 		}
 		r.orderbyErr = io.EOF
 	} else {

@@ -7,7 +7,7 @@ import (
 )
 
 func newFilePointer(pathRegex string,
-	lastEpoch int64, lastRow int) *filePointer {
+	lastEpoch int64, lastRow int) (*filePointer, error) {
 	fp := new(filePointer)
 	var targetFiles []string
 	var targetEpochs []int64
@@ -18,7 +18,7 @@ func newFilePointer(pathRegex string,
 		epochs, files, err := getSortedGlob(pathRegex)
 		if err != nil {
 			fp.currErr = err
-			return nil
+			return nil, err
 		}
 		for i, f := range files {
 			epoch := epochs[i]
@@ -35,11 +35,15 @@ func newFilePointer(pathRegex string,
 	fp.pos = 0
 	fp.isEOF = false
 	fp.currPos = 0
-	return fp
+	return fp, nil
 }
 
 func (fp *filePointer) currFileEpoch() int64 {
 	return fp.epochs[fp.pos]
+}
+
+func (fp *filePointer) err() error {
+	return fp.currErr
 }
 
 func (fp *filePointer) open() error {
@@ -159,4 +163,38 @@ func (fp *filePointer) isOpen() bool {
 		return false
 	}
 	return true
+}
+
+func countNFiles(totalFileCount int, pathRegex string) (int, int, error) {
+	fp, err := newFilePointer(pathRegex, 0, 0)
+	if err != nil {
+		return -1, -1, err
+	}
+	if fp == nil || len(fp.files) == 0 {
+		return 0, 0, nil
+	}
+	cnt := 0
+	fileCnt := 0
+	for i, filename := range fp.files {
+		if i >= totalFileCount {
+			break
+		}
+		fileCnt++
+		r, err := newReader(filename)
+		if err != nil {
+			return -1, fileCnt, err
+		}
+		for {
+			_, _, err := r.reader.ReadLine()
+			if err != nil {
+				if err != io.EOF {
+					return -1, fileCnt, err
+				}
+				break
+			}
+			cnt++
+		}
+	}
+	fp.close()
+	return cnt, fileCnt, nil
 }

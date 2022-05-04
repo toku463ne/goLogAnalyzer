@@ -107,12 +107,18 @@ func (t *CsvTable) Sum(conditionCheckFunc func([]string) bool,
 
 func (t *CsvTable) SelectRows(conditionCheckFunc func([]string) bool,
 	colNames []string) (*CsvRows, error) {
+	if !pathExist(t.path) {
+		return nil, errors.New(cErrPathNotExists)
+	}
 	return newCsvRows(conditionCheckFunc,
 		t.path, t.columns, colNames)
 }
 
 func (t *CsvTable) Select1Row(conditionCheckFunc func([]string) bool,
 	colNames []string, args ...interface{}) error {
+	if !pathExist(t.path) {
+		return errors.New(cErrPathNotExists)
+	}
 	r, err := t.SelectRows(conditionCheckFunc, colNames)
 	if err != nil {
 		return err
@@ -125,7 +131,7 @@ func (t *CsvTable) Select1Row(conditionCheckFunc func([]string) bool,
 
 func (t *CsvTable) readRows(conditionCheckFunc func([]string) bool) ([][]string, error) {
 	if !pathExist(t.path) {
-		return nil, nil
+		return nil, errors.New(cErrPathNotExists)
 	}
 
 	reader, err := newCsvReader(t.path)

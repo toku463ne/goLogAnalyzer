@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 func Clean(rootDir string) error {
-	if pathExist(rootDir) {
+	if PathExist(rootDir) {
 		log.Printf("removing '%s'", rootDir)
 		if err := os.RemoveAll(rootDir); err != nil {
 			log.Printf("failed to remove the dir\n Try 'rm -rf %s'", rootDir)
@@ -20,61 +22,59 @@ func Clean(rootDir string) error {
 	return nil
 }
 
-func AnalyzeRarity(rootDir, logPathRegex, filterStr, xFilterStr string,
-	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock int,
-	linesToProcess, nTopRecords int,
-	datetimeStartPos int, datetimeLayout string, scoreLayout int) (int, error) {
-
-	a := newRarityAnalyzer(rootDir)
-	if err := a.open(logPathRegex, filterStr, xFilterStr,
-		minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecords,
-		datetimeStartPos, datetimeLayout, scoreLayout); err != nil {
+func Run(c *AnalConf) (int, error) {
+	a, err := newRarityAnalyzer(c)
+	if err != nil {
 		return 0, err
 	}
-	linesProcessed, err := a.analyze(linesToProcess)
-	if err != nil {
-		return linesProcessed, err
+	log.Printf("blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
+		a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
+	if err := a.analyze(0); err != nil {
+		return 0, err
 	}
-	if rootDir == "" {
-		ntop, err := a.getNTop("ntop", nTopRecords, 0, 0,
-			filterStr, filterStr, 0, 0)
+	if c.RootDir == "" {
+		filterReStr := re2str(a.filterRe)
+		xFilterReStr := re2str(a.xFilterRe)
+		ntop, err := a.getNTop("ntop", a.NTopRecordsCount, 0, 0,
+			filterReStr, xFilterReStr, 0, 0)
 		if err != nil {
-			return linesProcessed, err
+			return a.linesProcessed, err
 		}
-		msg := fmt.Sprintf("%d top rare records", nTopRecords)
-		out, _, err := a.getNTopString(msg, nTopRecords, "", ntop)
+		msg := fmt.Sprintf("%d top rare records", a.NTopRecordsCount)
+		out, _, err := ntop.getString(msg, a.NTopRecordsCount, a.NItemTop)
 		if err != nil {
-			return linesProcessed, err
+			return a.linesProcessed, err
 		}
-
-		out2, err := a.getRarStatsString("", cDefaultHistSize)
-		if err != nil {
-			return linesProcessed, err
-		}
-		out += out2
 		println(out)
 	}
-	return linesProcessed, nil
+
+	return a.linesProcessed, nil
 }
 
-func PrintRarTopN(rootDir, msg string,
-	recordsToShow int, startEpoch, endEpoch int64,
-	filterReStr, xFilterReStr string, showItemScore bool,
-	minScore float64, maxScore float64) error {
-	a := newRarityAnalyzer(rootDir)
-	if err := a.load(); err != nil {
-		return err
+func PrintTopN(rootDir string, n int,
+	filterRe, xFilterRe string,
+	startEpoch, endEpoch int64,
+	minScore, maxScore float64, nTopItems int) error {
+	if rootDir == "" {
+		return errors.New("rootDir cannot be empty")
 	}
-
-	ntop, err := a.getNTop("ntop",
-		recordsToShow, startEpoch, endEpoch,
-		filterReStr, xFilterReStr, minScore, maxScore)
+	if !PathExist(rootDir) {
+		return errors.New("Run analyzation first.")
+	}
+	c := NewAnalConf(rootDir)
+	c.NItemTop = nTopItems
+	a, err := newRarityAnalyzer(c)
 	if err != nil {
 		return err
 	}
 
-	if out, _, err := a.getNTopString(msg,
-		recordsToShow, cFormatText, ntop); err != nil {
+	ntop, err := a.getNTop("ntop", n, startEpoch, endEpoch,
+		filterRe, xFilterRe, minScore, maxScore)
+	if err != nil {
+		return err
+	}
+
+	if out, _, err := ntop.getString(fmt.Sprintf("Top %d rare messages", n), n, nTopItems); err != nil {
 		return err
 	} else {
 		println(out)
@@ -83,8 +83,9 @@ func PrintRarTopN(rootDir, msg string,
 }
 
 func RarStats(rootDir string, histSize int) error {
-	a := newRarityAnalyzer(rootDir)
-	if err := a.load(); err != nil {
+	c := NewAnalConf(rootDir)
+	a, err := newRarityAnalyzer(c)
+	if err != nil {
 		return err
 	}
 
@@ -96,21 +97,12 @@ func RarStats(rootDir string, histSize int) error {
 	return nil
 }
 
-func Report(jsonFile string, recentNdays int, outFormat string,
-	defaultMinGapToRecord float64,
-	defaultMaxBlocks, defaultMaxItemBlocks,
-	defaultLinesInBlock, defaultNTopRecords, defaultHistSize int,
-	defaultOutFormat string,
-	defaultDatetimeStartPos int, defaultDatetimeLayout string) error {
-
-	rs := newReports()
-
-	err := rs.run(jsonFile, recentNdays, outFormat,
-		defaultMinGapToRecord,
-		defaultMaxBlocks, defaultMaxItemBlocks,
-		defaultLinesInBlock, defaultNTopRecords, defaultHistSize,
-		defaultDatetimeStartPos, defaultDatetimeLayout)
+func Report(jsonFile string) error {
+	r, err := newReport(jsonFile)
 	if err != nil {
+		return err
+	}
+	if err := r.run(); err != nil {
 		return err
 	}
 	return nil

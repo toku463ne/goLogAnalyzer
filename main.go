@@ -4,81 +4,79 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"goLogAnalyzer/analyzer"
 	"log"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/toku463ne/goLogAnalyzer/analyzer"
 )
 
 const (
-	cDefaultBlockSize          = 10000
-	cDefaultMaxBlocks          = 100
-	cDefaultMaxItemBlocks      = 1000
-	cMinGapToRecord            = 1.5
-	cDefaultHistSize           = 5
-	cDefaultReportOutputFormat = "html"
-	cDefaultDatetimeStartPos   = 0
-	cDefaultDatetimeLayout     = ""
-	cDefaultScoreStyle         = 3
+	cRootDirDesc   = "Directory to save the analyzation data"
+	cPathRegexDesc = "Log file(regex) to analyze. Supports data from pipe"
+	cFilterReDesc  = "key word to search"
+	cXfilterReDesc = "key word to exclude"
+	cGapDesc       = `Gap rate from average
+		Log records with rarity score whose gap if higher that this value will be showed.`
+	cForceSaveDbDesc       = "Update the data without asking"
+	cBlockSizeDesc         = "Max number of lines in a block"
+	cMaxBlockDesc          = "max blocks to save logs"
+	cMaxItemBlockDesc      = "max blocks to save terms"
+	cMaxLinesDesc          = "max lines to process"
+	cNRecordsToShowDesc    = "Top N rare records to show"
+	cStartDateDesc         = "Start date to collect stats %Y-%m-%d format"
+	cEndDateDesc           = "End date to collect stats %Y-%m-%d format"
+	cDatetimeStartDesc     = "Start position of datetime in the log starting from 0"
+	cDatetimeLayoutDesc    = "Layout of datetime in the log"
+	cScoreStyleDesc        = "How to calculate the score.\n 1:simple average\n 2:average of top scoreNSize terms in a record"
+	cScoreNSizeDesc        = "How many terms to take into count"
+	cTopNShowItemCountDesc = "Show score of items in the log record"
+	cTopNMinScoreDesc      = "Minimum score to show"
+	cTopNMaxScoreDesc      = "Maximum score to show"
+	cRecordsToShowDesc     = "Number of history to show"
+	cReportConfigDesc      = "Path of the config file (JSON)"
+	cReportRecentNdaysDesc = "Recent N days to show the report"
+	cModeblockPerFileDesc  = "If create blocks per files"
+	cNItemTopDesc          = "Top N rare terms to display"
 )
 
 var (
 	clnFlag    = flag.NewFlagSet("clean", flag.ExitOnError)
-	rarFlag    = flag.NewFlagSet("rar", flag.ExitOnError)
+	runFlag    = flag.NewFlagSet("run", flag.ExitOnError)
 	topNFlag   = flag.NewFlagSet("topN", flag.ExitOnError)
 	stsFlag    = flag.NewFlagSet("stats", flag.ExitOnError)
 	reportFlag = flag.NewFlagSet("report", flag.ExitOnError)
 
-	rootDirDesc   = "Directory to save the analyzation data"
-	rarRootDir    = rarFlag.String("d", "", rootDirDesc)
-	pathRegexDesc = "Log file(regex) to analyze. Supports data from pipe"
-	rarPathRegex  = rarFlag.String("f", "", pathRegexDesc)
-	filterReDesc  = "key word to search"
-	rarFilterRe   = rarFlag.String("s", "", filterReDesc)
-	xfilterReDesc = "key word to exclude"
-	rarXFilterRe  = rarFlag.String("x", "", xfilterReDesc)
-	gapDesc       = `Gap rate from average
-		Log records with rarity score whose gap if higher that this value will be showed.`
-	rarGap               = rarFlag.Float64("g", cMinGapToRecord, gapDesc)
-	forceSaveDb          = "Update the data without asking"
-	rarForceSaveDb       = rarFlag.Bool("save", false, forceSaveDb)
-	linesInBlockDesc     = "lines in block"
-	rarLinesInBlock      = rarFlag.Int("linesInBlock", cDefaultBlockSize, linesInBlockDesc)
-	maxBlockDesc         = "max blocks"
-	rarMaxBlock          = rarFlag.Int("maxBlock", cDefaultMaxBlocks, maxBlockDesc)
-	maxItemBlockDesc     = "max blocks for items"
-	rarMaxItemBlock      = rarFlag.Int("maxItemBlock", cDefaultMaxItemBlocks, maxItemBlockDesc)
-	maxLinesDesc         = "max lines to process"
-	rarMaxLines          = rarFlag.Int("n", 0, maxLinesDesc)
-	recordsToShowDesc    = "Top N rare records to show"
-	rarTopnRecordsToShow = rarFlag.Int("silent", 10, recordsToShowDesc)
-	rarDatetimeStartPos  = rarFlag.Int("dateStart", -1, "Start position of datetime in the log starting from 0.")
-	rarDatetimeLayout    = rarFlag.String("dateLayout", "", "Layout of datetime in the log.")
-	rarScoreStyle        = rarFlag.Int("scoreStyle", 2, "How to calculate the score.\n 1=simple average 2=average of top 20")
+	clnRootDir = clnFlag.String("d", "", cRootDirDesc)
 
-	clnRootDir = clnFlag.String("d", "", rootDirDesc)
+	runRootDir           = runFlag.String("d", "", cRootDirDesc)
+	runPathRegex         = runFlag.String("f", "", cPathRegexDesc)
+	runGap               = runFlag.Float64("g", analyzer.CDefaultMinGap, cGapDesc)
+	runForceSaveDb       = runFlag.Bool("save", false, cForceSaveDbDesc)
+	runBlockSize         = runFlag.Int("blockSize", analyzer.CDefaultBlockSize, cBlockSizeDesc)
+	runMaxBlock          = runFlag.Int("maxBlock", analyzer.CDefaultNBlocks, cMaxBlockDesc)
+	runMaxItemBlock      = runFlag.Int("maxItemBlock", analyzer.CDefaultNItemBlocks, cMaxItemBlockDesc)
+	runTopNRecordsToShow = runFlag.Int("n", analyzer.CDefaultTopNToShow, cNRecordsToShowDesc)
+	runDatetimeStartPos  = runFlag.Int("dateStart", 0, cDatetimeStartDesc)
+	runDatetimeLayout    = runFlag.String("dateLayout", "", cDatetimeLayoutDesc)
+	runScoreStyle        = runFlag.Int("scoreStyle", analyzer.CDefaultScoreStyle, cScoreStyleDesc)
+	runScoreNSize        = runFlag.Int("scoreNSize", analyzer.CDefaultScoreNSize, cScoreStyleDesc)
+	runModeblockPerFile  = runFlag.Bool("blockPerFile", false, cModeblockPerFileDesc)
+	runNItemTop          = runFlag.Int("nHotTerms", analyzer.CDefaultNItemTop, cNItemTopDesc)
 
-	topnRootDir           = topNFlag.String("d", "", rootDirDesc)
-	topnRecordsToShow     = topNFlag.Int("n", 10, recordsToShowDesc)
-	topnFilterRe          = topNFlag.String("s", "", filterReDesc)
-	topnXFilterRe         = topNFlag.String("x", "", xfilterReDesc)
-	startDateDesc         = "Start date to collect stats %Y-%m-%d format"
-	topnStartDate         = topNFlag.String("start", "", startDateDesc)
-	endDateDesc           = "End date to collect stats %Y-%m-%d format"
-	topnEndDate           = topNFlag.String("end", "", endDateDesc)
-	topnShowItemCountDesc = "Show score of items in the log record"
-	topnShowItemCount     = topNFlag.Bool("v", false, topnShowItemCountDesc)
-	topnMinScore          = topNFlag.Float64("min", 0, "Minimum score to show")
-	topnMaxScore          = topNFlag.Float64("max", 0, "Maximum score to shoe")
+	topNRootDir       = topNFlag.String("d", "", cRootDirDesc)
+	topNRecordsToShow = topNFlag.Int("n", 10, cNRecordsToShowDesc)
+	topNFilterRe      = topNFlag.String("s", "", cFilterReDesc)
+	topNXFilterRe     = topNFlag.String("x", "", cXfilterReDesc)
+	topNStartDate     = topNFlag.String("start", "", cStartDateDesc)
+	topNEndDate       = topNFlag.String("end", "", cEndDateDesc)
+	topNMinScore      = topNFlag.Float64("min", 0, cTopNMinScoreDesc)
+	topNMaxScore      = topNFlag.Float64("max", 0, cTopNMaxScoreDesc)
+	topNItemTop       = topNFlag.Int("nHotTerms", analyzer.CDefaultNItemTop, cNItemTopDesc)
 
-	stsRootDir       = stsFlag.String("d", "", rootDirDesc)
-	stsRecordsToShow = stsFlag.Int("n", 5, "Number of history to show")
+	stsRootDir       = stsFlag.String("d", "", cRootDirDesc)
+	stsRecordsToShow = stsFlag.Int("n", 5, cRecordsToShowDesc)
 
-	reportConfig       = reportFlag.String("c", "", "Path of the config file (JSON)")
-	reportRecentNdays  = reportFlag.Int("n", 0, "Recent N days to show the report")
-	reportOutputFormat = reportFlag.String("o", cDefaultReportOutputFormat, "Output format [html|json|text]")
+	reportConfig = reportFlag.String("c", "", cReportConfigDesc)
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -104,72 +102,19 @@ logan topN:
 `
 )
 
-func pathExist(path string) bool {
-	if _, err := os.Stat(path); err != nil {
-		return false
-	}
-	return true
-}
-
-func dateStringToEpoch(date string) (int64, error) {
-	t, err := time.Parse(time.RFC3339, date+"T00:00:00Z")
-	if err != nil {
-		return -1, err
-	}
-	return t.Unix(), nil
-}
-
 func clean() error {
 	log.Printf("cleaning up %s", *clnRootDir)
 	clnFlag.Parse(os.Args[2:])
 	return analyzer.Clean(*clnRootDir)
 }
 
-func topN() error {
-	topNFlag.Parse(os.Args[2:])
-	if *topnRootDir == "" {
-		return fmt.Errorf("rootDir is must")
-	}
-	if !pathExist(*topnRootDir) {
-		return fmt.Errorf("%s does not exist", *topnRootDir)
-	}
-	var startEpoch, endEpoch int64
-	var err error
-	if *topnStartDate != "" {
-		startEpoch, err = dateStringToEpoch(*topnStartDate)
-		if err != nil {
-			return err
-		}
-	}
-	if *topnEndDate != "" {
-		endEpoch, err = dateStringToEpoch(*topnEndDate)
-		if err != nil {
-			return err
-		}
-	}
-	/*
-		rootDir, msg string,
-		recordsToShow int, startEpoch int64,
-		filterReStr, xFilterReStr string
-	*/
-
-	msg := fmt.Sprintf("%d top rare records", *topnRecordsToShow)
-
-	err = analyzer.PrintRarTopN(*topnRootDir, msg,
-		*topnRecordsToShow, startEpoch, endEpoch,
-		*topnFilterRe, *topnXFilterRe, *topnShowItemCount,
-		*topnMinScore, *topnMaxScore)
-	return err
-}
-
-func rar() error {
-	rarFlag.Parse(os.Args[2:])
-
-	forceSaveDb := *rarForceSaveDb
+func run() error {
+	runFlag.Parse(os.Args[2:])
+	forceSaveDb := *runForceSaveDb
 	if !forceSaveDb {
-		if *rarRootDir != "" {
-			if pathExist(*rarRootDir) {
-				fmt.Printf("Update data on %s? (y/n) (default 'no') ", *rarRootDir)
+		if *runRootDir != "" {
+			if analyzer.PathExist(*runRootDir) {
+				fmt.Printf("Update data on %s? (y/n) (default 'no') ", *runRootDir)
 				stdin := bufio.NewScanner(os.Stdin)
 				stdin.Scan()
 				k := stdin.Text()
@@ -177,24 +122,66 @@ func rar() error {
 					fmt.Printf(`input='%s' will exit here.\n
 You can also try to use -clean option to cleanup the database and try again\n`, k)
 				} else {
-					fmt.Printf("input='%s' will update %s\n", k, *rarRootDir)
+					fmt.Printf("input='%s' will update %s\n", k, *runRootDir)
 				}
 			}
 		}
 	}
 
-	log.Printf("start analyzing %s", *rarPathRegex)
+	log.Printf("start analyzing %s", *runPathRegex)
 
-	linesProcessed, err := analyzer.AnalyzeRarity(*rarRootDir, *rarPathRegex,
-		*rarFilterRe, *rarXFilterRe,
-		*rarGap,
-		*rarMaxBlock, *rarMaxItemBlock, *rarLinesInBlock,
-		*rarMaxLines, *rarTopnRecordsToShow,
-		*rarDatetimeStartPos, *rarDatetimeLayout,
-		*rarScoreStyle)
+	c := analyzer.NewAnalConf(*runRootDir)
+	c.LogPathRegex = *runPathRegex
+	c.BlockSize = *runBlockSize
+	c.MaxBlocks = *runMaxBlock
+	c.MaxItemBlocks = *runMaxItemBlock
+	c.DatetimeStartPos = *runDatetimeStartPos
+	c.DatetimeLayout = *runDatetimeLayout
+	c.ScoreStyle = *runScoreStyle
+	c.ScoreNSize = *runScoreNSize
+	c.MinGapToRecord = *runGap
+	c.NTopRecordsCount = *runTopNRecordsToShow
+	c.ModeblockPerFile = *runModeblockPerFile
+	c.NItemTop = *runNItemTop
+
+	linesProcessed, err := analyzer.Run(c)
+	if err != nil {
+		log.Printf("%+v", err)
+	}
 
 	log.Printf("%d lines processed\n", linesProcessed)
 
+	return nil
+}
+
+func topN() error {
+	topNFlag.Parse(os.Args[2:])
+	if *topNRootDir == "" {
+		return fmt.Errorf("rootDir is must")
+	}
+	if !analyzer.PathExist(*topNRootDir) {
+		return fmt.Errorf("%s does not exist", *topNRootDir)
+	}
+	var startEpoch, endEpoch int64
+	var err error
+	if *topNStartDate != "" {
+		startEpoch, err = analyzer.DateStringToEpoch(*topNStartDate)
+		if err != nil {
+			return err
+		}
+	}
+	if *topNEndDate != "" {
+		endEpoch, err = analyzer.DateStringToEpoch(*topNEndDate)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = analyzer.PrintTopN(*topNRootDir,
+		*topNRecordsToShow,
+		*topNFilterRe, *topNXFilterRe,
+		startEpoch, endEpoch,
+		*topNMinScore, *topNMaxScore, *topNItemTop)
 	return err
 }
 
@@ -203,7 +190,7 @@ func stats() error {
 	if *stsRootDir == "" {
 		return fmt.Errorf("rootDir is must")
 	}
-	if !pathExist(*stsRootDir) {
+	if !analyzer.PathExist(*stsRootDir) {
 		return fmt.Errorf("%s does not exist", *stsRootDir)
 	}
 
@@ -213,11 +200,7 @@ func stats() error {
 
 func report() error {
 	reportFlag.Parse(os.Args[2:])
-	return analyzer.Report(*reportConfig, *reportRecentNdays, *reportOutputFormat,
-		cMinGapToRecord,
-		cDefaultMaxBlocks, cDefaultMaxItemBlocks,
-		cDefaultBlockSize, 10, cDefaultHistSize,
-		cDefaultReportOutputFormat, cDefaultDatetimeStartPos, cDefaultDatetimeLayout)
+	return analyzer.Report(*reportConfig)
 }
 
 func main() {
@@ -235,8 +218,8 @@ func main() {
 	switch opt {
 	case "clean":
 		err = clean()
-	case "rar":
-		err = rar()
+	case "run":
+		err = run()
 	case "stats":
 		err = stats()
 	case "topN":

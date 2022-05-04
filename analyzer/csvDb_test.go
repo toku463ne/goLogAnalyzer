@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
+	csvdb "goLogAnalyzer/csvdb"
 )
 
 func TestCsvDb(t *testing.T) {
@@ -27,7 +27,7 @@ func TestCsvDb(t *testing.T) {
 		return nil
 	}
 
-	rootDir, err := ensureTestDir("TestGoLogAnalCsvDb")
+	rootDir, err := initTestDir("TestGoLogAnalCsvDb")
 	if err != nil {
 		t.Errorf("%v", err)
 	}

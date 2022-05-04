@@ -69,7 +69,7 @@ func Test_logRecords(t *testing.T) {
 		return getGotExpErr(fmt.Sprintf("score %f count", score), cnt, want)
 	}
 
-	dataDir, err := ensureTestDir("logrecTest")
+	dataDir, err := initTestDir("logrecTest")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -93,9 +93,9 @@ func Test_logRecords(t *testing.T) {
 	}
 
 	inRows := []colLogRecord{
-		{1, 1.5, "test1", nil, 0, nil},
-		{2, 1.5, "test1", nil, 0, nil},
-		{3, 1.5, "test1", nil, 0, nil},
+		{1, 1.5, 1.5, "test1", nil, 0, ""},
+		{2, 1.5, 1.5, "test1", nil, 0, ""},
+		{3, 1.5, 1.5, "test1", nil, 0, ""},
 	}
 
 	for _, row := range inRows {
@@ -113,9 +113,9 @@ func Test_logRecords(t *testing.T) {
 	}
 
 	inRows = []colLogRecord{
-		{4, 2.5, "test1", nil, 0, nil},
-		{5, 2.5, "test1", nil, 0, nil},
-		{6, 2.5, "test2", nil, 0, nil},
+		{4, 2.5, 2.5, "test1", nil, 0, ""},
+		{5, 2.5, 2.5, "test1", nil, 0, ""},
+		{6, 2.5, 2.5, "test2", nil, 0, ""},
 	}
 
 	for _, row := range inRows {
@@ -148,16 +148,16 @@ func Test_logRecords(t *testing.T) {
 	}
 
 	inRows = []colLogRecord{
-		{7, 3.5, "test2", nil, 0, nil},
-		{8, 3.5, "test2", nil, 0, nil},
-		{9, 3.5, "test2", nil, 0, nil},
-		{10, 3.5, "test2", nil, 0, nil},
-		{11, 3.5, "test3", nil, 0, nil},
-		{12, 3.5, "test3", nil, 0, nil},
-		{13, 3.5, "test3", nil, 0, nil},
-		{14, 3.5, "test3", nil, 0, nil},
-		{15, 3.5, "test3", nil, 0, nil},
-		{16, 3.5, "test4", nil, 0, nil},
+		{7, 3.5, 3.5, "test2", nil, 0, ""},
+		{8, 3.5, 3.5, "test2", nil, 0, ""},
+		{9, 3.5, 3.5, "test2", nil, 0, ""},
+		{10, 3.5, 3.5, "test2", nil, 0, ""},
+		{11, 3.5, 3.5, "test3", nil, 0, ""},
+		{12, 3.5, 3.5, "test3", nil, 0, ""},
+		{13, 3.5, 3.5, "test3", nil, 0, ""},
+		{14, 3.5, 3.5, "test3", nil, 0, ""},
+		{15, 3.5, 3.5, "test3", nil, 0, ""},
+		{16, 3.5, 3.5, "test4", nil, 0, ""},
 	}
 
 	for _, row := range inRows {
@@ -238,11 +238,11 @@ func Test_logRecords(t *testing.T) {
 	}
 
 	inRows = []colLogRecord{
-		{17, 4.5, "test4", nil, 0, nil},
-		{18, 4.5, "test4", nil, 0, nil},
-		{19, 4.5, "test4", nil, 0, nil},
-		{20, 4.5, "test4", nil, 0, nil},
-		{21, 5.5, "test5", nil, 0, nil},
+		{17, 4.5, 4.5, "test4", nil, 0, ""},
+		{18, 4.5, 4.5, "test4", nil, 0, ""},
+		{19, 4.5, 4.5, "test4", nil, 0, ""},
+		{20, 4.5, 4.5, "test4", nil, 0, ""},
+		{21, 5.5, 5.5, "test5", nil, 0, ""},
 	}
 
 	for _, row := range inRows {

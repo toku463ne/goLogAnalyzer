@@ -2,136 +2,66 @@ package analyzer
 
 import (
 	"fmt"
+	csvdb "goLogAnalyzer/csvdb"
 	"log"
-	"os"
+	"math"
 	"strconv"
 
 	"github.com/pkg/errors"
-	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 )
 
-func newRarityAnalyzer(rootDir string) *rarityAnalyzer {
+func newRarityAnalyzer(conf *AnalConf) (*rarityAnalyzer, error) {
 	a := new(rarityAnalyzer)
-	a.rootDir = rootDir
-	return a
+	a.AnalConf = conf
+	if err := a.open(); err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
-func (a *rarityAnalyzer) clean() error {
-	if pathExist(a.rootDir) {
-		return os.RemoveAll(a.rootDir)
-	}
-	return nil
-}
+func (a *rarityAnalyzer) open() error {
+	InitLog(a.RootDir)
 
-func (a *rarityAnalyzer) init(logPathRegex, filterStr, xFilterStr string,
-	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecordsCount int,
-	datetimeStartPos int, datetimeLayout string, scoreStyle int) error {
-	a.logPathRegex = logPathRegex
-	a.filterRe = getRegex(filterStr)
-	a.xFilterRe = getRegex(xFilterStr)
-	a.datetimeStartPos = datetimeStartPos
-	a.datetimeLayout = datetimeLayout
-	a.scoreStyle = scoreStyle
-	a.nTopRecordsCount = nTopRecordsCount
-
-	if a.rootDir != "" {
-		if err := ensureDir(a.rootDir); err != nil {
+	if a.RootDir == "" {
+		if err := a.initBlocks(); err != nil {
 			return err
 		}
-	}
-	InitLog(a.rootDir)
-
-	a.minGapToRecord = minGapToRecord
-
-	if maxBlocks > 0 {
-		a.maxBlocks = maxBlocks
-	}
-	if maxItemBlocks > 0 {
-		a.maxItemBlocks = maxItemBlocks
-	}
-
-	if linesInBlock > 0 {
-		a.linesInBlock = linesInBlock
-	}
-
-	if err := a.openObjs(); err != nil {
-		return err
-	}
-
-	if a.rootDir != "" {
-		if err := a.prepareDB(); err != nil {
-			return err
-		}
-
-		if err := a.saveConfig(); err != nil {
-			return err
-		}
-		if err := a.saveLastStatus(); err != nil {
-			return err
-		}
-		if err := a.saveObjs(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (a *rarityAnalyzer) open(logPathRegex, filterStr, xFilterStr string,
-	minGapToRecord float64, maxBlocks, maxItemBlocks, linesInBlock, nTopRecordsCount int,
-	datetimeStartPos int, datetimeLayout string, scoreStyle int) error {
-	if pathExist(a.rootDir) {
-		if err := a.load(); err != nil {
+		if err := a.init(); err != nil {
 			return err
 		}
 	} else {
-		if err := a.init(logPathRegex, filterStr, xFilterStr,
-			minGapToRecord, maxBlocks, maxItemBlocks, linesInBlock, nTopRecordsCount,
-			datetimeStartPos, datetimeLayout, scoreStyle); err != nil {
-			return err
+		if PathExist((a.RootDir)) {
+			if err := a.init(); err != nil {
+				return err
+			}
+			if err := a.load(); err != nil {
+				return err
+			}
+		} else {
+			if err := a.initBlocks(); err != nil {
+				return err
+			}
+			if err := a.init(); err != nil {
+				return err
+			}
+			if err := a.saveConfig(); err != nil {
+				return err
+			}
 		}
 	}
-	return nil
-}
-
-func (a *rarityAnalyzer) prepareDB() error {
-	d, err := csvdb.NewCsvDB(a.rootDir)
-	if err != nil {
-		return err
-	}
-	ct, err := d.CreateTableIfNotExists("config", tableDefs["config"], false, 1)
-	if err != nil {
-		return err
-	}
-	a.configTable = ct
-
-	ls, err := d.CreateTableIfNotExists("lastStatus", tableDefs["lastStatus"], false, 1)
-	if err != nil {
-		return err
-	}
-	a.lastStatusTable = ls
-
-	a.CsvDB = d
 	return nil
 }
 
 func (a *rarityAnalyzer) load() error {
-	InitLog(a.rootDir)
-	log.Printf("loading data from %s", a.rootDir)
-
-	if err := a.prepareDB(); err != nil {
-		return err
-	}
-
 	filterReStr := ""
 	xFilterReStr := ""
 	if err := a.configTable.Select1Row(nil,
-		[]string{"logPathRegex", "linesInBlock", "maxBlocks",
+		[]string{"logPathRegex", "blockSize", "maxBlocks",
 			"maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord",
 			"datetimeStartPos", "datetimeLayout", "scoreStyle"},
-		&a.logPathRegex, &a.linesInBlock, &a.maxBlocks, &a.maxItemBlocks,
-		&filterReStr, &xFilterReStr, &a.minGapToRecord,
-		&a.datetimeStartPos, &a.datetimeLayout, &a.scoreStyle); err != nil {
+		&a.LogPathRegex, &a.BlockSize, &a.MaxBlocks, &a.MaxItemBlocks,
+		&filterReStr, &xFilterReStr, &a.MinGapToRecord,
+		&a.DatetimeStartPos, &a.DatetimeLayout, &a.ScoreStyle); err != nil {
 		return err
 	}
 
@@ -141,48 +71,11 @@ func (a *rarityAnalyzer) load() error {
 	if err := a.lastStatusTable.Select1Row(nil,
 		[]string{"lastRowID", "lastFileEpoch", "lastFileRow"},
 		&a.rowID, &a.lastFileEpoch, &a.lastFileRow); err != nil {
-		return err
-	}
-
-	if err := a.openObjs(); err != nil {
-		return err
-	}
-	if err := a.loadObjs(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (a *rarityAnalyzer) openObjs() error {
-	trans, err := newTrans(a.rootDir, a.maxItemBlocks, a.linesInBlock,
-		a.datetimeStartPos, a.datetimeLayout, a.scoreStyle)
-	if err != nil {
-		return err
-	}
-	a.trans = trans
-	if a.rootDir == "" {
-		a.nTopRareLogs, err = newNTopRecords("ntop", a.nTopRecordsCount, 0.0, trans, true, "")
-		if err != nil {
+		if err.Error() != cErrPathNotExists {
 			return err
 		}
 	}
 
-	stats, err := newStats(a.rootDir, a.maxBlocks, a.linesInBlock)
-	if err != nil {
-		return err
-	}
-	a.stats = stats
-
-	logRecs, err := newLogRecords(a.rootDir, a.maxBlocks, a.linesInBlock)
-	if err != nil {
-		return err
-	}
-	a.logRecs = logRecs
-	return nil
-}
-
-func (a *rarityAnalyzer) loadObjs() error {
 	if err := a.trans.load(); err != nil {
 		return err
 	}
@@ -195,41 +88,51 @@ func (a *rarityAnalyzer) loadObjs() error {
 	return nil
 }
 
-func (a *rarityAnalyzer) saveObjs() error {
-	if err := a.trans.commit(false); err != nil {
-		return err
+func (a *rarityAnalyzer) init() error {
+	if a.RootDir != "" {
+		if err := ensureDir(a.RootDir); err != nil {
+			return err
+		}
 	}
-	if err := a.stats.commit(false); err != nil {
-		return err
-	}
-	if err := a.logRecs.commit(false); err != nil {
-		return err
-	}
-	return nil
-}
 
-func (a *rarityAnalyzer) saveConfig() error {
-	filterReStr := re2str(a.filterRe)
-	xFilterReStr := re2str(a.xFilterRe)
-
-	if err := a.configTable.Upsert(nil, map[string]interface{}{
-		"logPathRegex":     a.logPathRegex,
-		"linesInBlock":     a.linesInBlock,
-		"maxBlocks":        a.maxBlocks,
-		"maxItemBlocks":    a.maxItemBlocks,
-		"filterRe":         filterReStr,
-		"xFilterRe":        xFilterReStr,
-		"minGapToRecord":   a.minGapToRecord,
-		"datetimeStartPos": a.datetimeStartPos,
-		"datetimeLayout":   a.datetimeLayout,
-		"scoreStyle":       a.scoreStyle,
-	}); err != nil {
+	trans, err := newTrans(a.RootDir, a.MaxItemBlocks, a.BlockSize,
+		a.DatetimeStartPos, a.DatetimeLayout, a.ScoreStyle, a.ScoreNSize)
+	if err != nil {
 		return err
+	}
+	a.trans = trans
+	if a.RootDir == "" {
+		a.nTopRareLogs, err = newNTopRecords("ntop", a.NTopRecordsCount, 0.0, trans, true, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	stats, err := newStats(a.RootDir, a.MaxBlocks, a.BlockSize)
+	if err != nil {
+		return err
+	}
+	a.stats = stats
+
+	logRecs, err := newLogRecords(a.RootDir, a.MaxBlocks, a.BlockSize)
+	if err != nil {
+		return err
+	}
+	a.logRecs = logRecs
+
+	if a.RootDir != "" {
+		if err := a.prepareDB(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (a *rarityAnalyzer) saveLastStatus() error {
+	if a.RootDir == "" {
+		return nil
+	}
+
 	var epoch int64
 	rowNo := 0
 	if a.fp != nil {
@@ -240,14 +143,31 @@ func (a *rarityAnalyzer) saveLastStatus() error {
 		rowNo = 0
 	}
 
-	if a.rootDir == "" {
-		return nil
-	}
-
 	if err := a.lastStatusTable.Upsert(nil, map[string]interface{}{
 		"lastRowID":     a.rowID,
 		"lastFileEpoch": epoch,
 		"lastFileRow":   rowNo,
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *rarityAnalyzer) saveConfig() error {
+	filterReStr := re2str(a.filterRe)
+	xFilterReStr := re2str(a.xFilterRe)
+
+	if err := a.configTable.Upsert(nil, map[string]interface{}{
+		"logPathRegex":     a.LogPathRegex,
+		"blockSize":        a.BlockSize,
+		"maxBlocks":        a.MaxBlocks,
+		"maxItemBlocks":    a.MaxItemBlocks,
+		"filterRe":         filterReStr,
+		"xFilterRe":        xFilterReStr,
+		"minGapToRecord":   a.MinGapToRecord,
+		"datetimeStartPos": a.DatetimeStartPos,
+		"datetimeLayout":   a.DatetimeLayout,
+		"scoreStyle":       a.ScoreStyle,
 	}); err != nil {
 		return err
 	}
@@ -270,7 +190,7 @@ func (a *rarityAnalyzer) close() {
 }
 
 func (a *rarityAnalyzer) commit(completed bool) error {
-	if a.rootDir == "" {
+	if a.RootDir == "" {
 		return nil
 	}
 	if err := a.trans.commit(completed); err != nil {
@@ -291,13 +211,86 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	return nil
 }
 
-func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
+func (a *rarityAnalyzer) prepareDB() error {
+	d, err := csvdb.NewCsvDB(a.RootDir)
+	if err != nil {
+		return err
+	}
+	ct, err := d.CreateTableIfNotExists("config", tableDefs["config"], false, 1)
+	if err != nil {
+		return err
+	}
+	a.configTable = ct
+
+	ls, err := d.CreateTableIfNotExists("lastStatus", tableDefs["lastStatus"], false, 1)
+	if err != nil {
+		return err
+	}
+	a.lastStatusTable = ls
+
+	a.CsvDB = d
+	return nil
+}
+
+func (a *rarityAnalyzer) initBlocks() error {
+	if a.MaxBlocks == 0 && a.BlockSize == 0 {
+		cnt, fileCnt, err := countNFiles(cNFilesToCheckCount, a.LogPathRegex)
+		if err != nil {
+			return err
+		}
+		a.calcBlocks(cnt, fileCnt)
+	}
+	return nil
+}
+
+func (a *rarityAnalyzer) setMaxBlock(m float64) {
+	a.MaxBlocks = int(cLogCycle * (float64(m) / float64(a.BlockSize)))
+	a.MaxItemBlocks = a.MaxBlocks * 5
+}
+
+func (a *rarityAnalyzer) calcBlocks(totalCount int, nFiles int) {
+	if nFiles == 0 {
+		nFiles = 1
+	}
+	m := float64(totalCount) / float64(nFiles)
+	if m < 3000 {
+		a.ModeblockPerFile = true
+		a.MinGapToRecord = 0.3
+		a.MaxBlocks = cLogCycle * 2
+		a.BlockSize = 0
+		return
+	} else {
+		a.ModeblockPerFile = false
+	}
+
+	if m >= 3000 && m < 30000 {
+		a.BlockSize = 1000
+		a.MinGapToRecord = 0.5
+		a.setMaxBlock(m)
+	}
+	if m >= 30000 && m < 300000 {
+		a.BlockSize = 10000
+		a.MinGapToRecord = 1.2
+		a.setMaxBlock(m)
+	}
+	if m >= 300000 {
+		a.BlockSize = 100000
+		a.MinGapToRecord = 1.5
+		a.setMaxBlock(m)
+	}
+}
+
+func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 	linesProcessed := 0
+	var err error
 
 	if a.fp == nil || !a.fp.isOpen() {
-		a.fp = newFilePointer(a.logPathRegex, a.lastFileEpoch, a.lastFileRow)
+		a.fp, err = newFilePointer(a.LogPathRegex, a.lastFileEpoch, a.lastFileRow)
+		if err != nil {
+			return err
+		}
 		if err := a.fp.open(); err != nil {
-			return 0, err
+			return err
 		}
 	}
 	var lastEpoch int64
@@ -310,7 +303,8 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 
 		timeTran, tran, dt, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
 		if err != nil {
-			return linesProcessed, err
+			a.linesProcessed = linesProcessed
+			return err
 		}
 		lineEpoch := dt.Unix()
 		tran = append(tran, timeTran...)
@@ -326,22 +320,27 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 		a.logRecs.lastEpoch = lastEpoch
 
 		score := a.trans.calcScore(tran)
-		err = a.stats.registerScore(score, lastEpoch)
+		err = a.stats.registerScore(score, int64(len(tran)), lastEpoch)
 		if err != nil {
-			return linesProcessed, err
+			a.linesProcessed = linesProcessed
+			return err
 		}
-		if a.stats.lastGap >= a.minGapToRecord {
+		if a.stats.lastGap >= a.MinGapToRecord {
 			if err := a.logRecs.insert(a.rowID, score, te, lastEpoch); err != nil {
-				return linesProcessed, err
+				a.linesProcessed = linesProcessed
+				return err
 			}
 		}
-		if a.rootDir == "" {
-			a.nTopRareLogs.register(a.rowID, score, te, false)
+		if a.RootDir == "" {
+			if !math.IsNaN(score) {
+				a.nTopRareLogs.register(a.rowID, score, te, false)
+			}
 		}
 
-		if a.fp.isEOF && !a.fp.isLastFile() {
+		if a.fp.isEOF && (!a.fp.isLastFile() || a.ModeblockPerFile) {
 			if err := a.saveLastStatus(); err != nil {
-				return linesProcessed, err
+				a.linesProcessed = linesProcessed
+				return err
 			}
 		}
 
@@ -355,10 +354,11 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) (int, error) {
 			break
 		}
 	}
+	a.linesProcessed = linesProcessed
 	if err := a.commit(false); err != nil {
-		return linesProcessed, err
+		return err
 	}
-	return linesProcessed, nil
+	return nil
 }
 
 func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, startEpoch, endEpoch int64,
@@ -407,8 +407,8 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 		}
 		blockNos = append(blockNos, blockNo)
 	}
-	startEpoch = minEpoch
-	endEpoch = maxEpoch
+	//startEpoch = minEpoch
+	//endEpoch = maxEpoch
 
 	lastEpochIdx = getColIdx("logRecords", "epoch")
 	r, err := a.logRecs.selectRows(conditionCheckFunc,
@@ -417,11 +417,11 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 		return nil, err
 	}
 
-	ntop, err := newNTopRecords(nTopname, recordsToShow, minScore, a.trans, true, a.rootDir)
+	ntop, err := newNTopRecords(nTopname, recordsToShow, minScore, a.trans, true, a.RootDir)
 	if err != nil {
 		return nil, err
 	}
-	if err := ntop.load(a.rowID, a.linesInBlock*a.maxBlocks, false); err != nil {
+	if err := ntop.load(a.rowID, a.BlockSize*a.MaxBlocks, false); err != nil {
 		return nil, err
 	}
 
@@ -435,16 +435,19 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 		if err := r.scan(&rowID, &score, &record, &lastEpoch); err != nil {
 			return nil, err
 		}
-		if filterRe != nil && !filterRe.Match([]byte(record)) {
-			continue
-		}
-		if xFilterRe != nil && xFilterRe.Match([]byte(record)) {
+		if math.IsNaN(score) {
 			continue
 		}
 		if minScore > 0 && score < minScore {
 			continue
 		}
 		if maxScore > 0 && score > maxScore {
+			continue
+		}
+		if filterRe != nil && !filterRe.Match([]byte(record)) {
+			continue
+		}
+		if xFilterRe != nil && xFilterRe.Match([]byte(record)) {
 			continue
 		}
 
@@ -454,39 +457,12 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 	return ntop, nil
 }
 
-func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string, error) {
-	var err error
-	out, _, err := a.stats.getCountPerStatsString(0)
-	if err != nil {
-		return "", err
-	}
-	//out += fmt.Sprintf("score border %f\n", border)
-	//println("")
-	if a.rootDir == "" {
-		out += "statistics\n"
-		out += fmt.Sprintf("average= %f\n", a.stats.lastAverage)
-		out += fmt.Sprintf("std=     %f\n", a.stats.lastStd)
-		out += fmt.Sprintf("max=     %f\n", a.stats.scoreMax)
-		out += "\n"
-		return "", nil
-	}
-
-	if a.rootDir != "" {
-		if out2, err := a.stats.getRecentStatsString(histSize); err != nil {
-			return "", err
-		} else {
-			out += out2
-		}
-	}
-	return out, nil
-}
-
 func (a *rarityAnalyzer) getNTop(nTopName string, recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string,
 	minScore float64, maxScore float64) (*nTopRecords, error) {
 	var err error
 	var ntop *nTopRecords
-	if a.rootDir == "" {
+	if a.RootDir == "" {
 		ntop = a.nTopRareLogs
 	} else {
 		ntop, err = a.scanAndGetNTop(nTopName, recordsToShow,
@@ -498,26 +474,27 @@ func (a *rarityAnalyzer) getNTop(nTopName string, recordsToShow int, startEpoch,
 	return ntop, nil
 }
 
-func (a *rarityAnalyzer) getNTopString(msg string,
-	recordsToShow int, outFormat string, ntop *nTopRecords) (string, float64, error) {
-
-	switch outFormat {
-	case cFormatText:
-		return ntop.nTop2string(msg, recordsToShow)
-	case cFormatHtml:
-		return ntop.nTop2html(msg, recordsToShow)
+func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string, error) {
+	var err error
+	out, _, err := a.stats.getCountPerStatsString(0)
+	if err != nil {
+		return "", err
 	}
-	return "", -1, nil
-}
-
-func (a *rarityAnalyzer) getNTopDiffString(msg string,
-	recordsToShow int, outFormat string, ntop *nTopRecords) (string, float64, error) {
-
-	switch outFormat {
-	case cFormatText:
-		return ntop.nTop2string(msg, recordsToShow)
-	case cFormatHtml:
-		return ntop.nTop2html(msg, recordsToShow)
+	if a.RootDir == "" {
+		out += "statistics\n"
+		out += fmt.Sprintf("average= %f\n", a.stats.lastAverage)
+		out += fmt.Sprintf("std=     %f\n", a.stats.lastStd)
+		out += fmt.Sprintf("max=     %f\n", a.stats.scoreMax)
+		out += "\n"
+		return "", nil
 	}
-	return "", -1, nil
+
+	if a.RootDir != "" {
+		if out2, err := a.stats.getRecentStatsString(histSize); err != nil {
+			return "", err
+		} else {
+			out += out2
+		}
+	}
+	return out, nil
 }

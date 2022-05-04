@@ -1,21 +1,52 @@
 {
-    "dataDir": "",
-    "topN": 3,
-    "logs": {
-        "a": {
-            "path": "testdata/abnormal/samples/a/A.log*",
-            "search": "test333",
-            "linesInBlock": 5
+    "rootDir": "/home/administrator/loganal/reportest",
+    "reportDir": "/tmp/reportest",
+    "topN": 9,
+    "scoreStyle": 1,
+    "search": "rootSearch",
+    "exclude": "rootExclude",
+    "blockSize": 99,
+    "maxBlocks": 9,
+    "maxItemBlocks": 99,
+    "minGapToRecord": 1,
+    "fromDate": "Oct 01 01:18:00 2021",
+    "toDate": "Oct 30 01:18:00 2021",
+    "dateStartPos": 0,
+    "dateLayout": "Jan _2 15:04:05 2006",
+    "keyEmphasize": {"333": ["font color='red'", "b"]},
+    "templates": {
+        "test333": {
+            "search": "test334"
         },
-        "b": {
-            "path": "testdata/abnormal/samples/b/B.log*",
-            "exclude": "test333",
-            "linesInBlock": 5
-        },
-        "c": {
-            "path": "testdata/abnormal/samples/c/C.log*",
-            "linesInBlock": 2,
-            "maxBlocks": 2
+        "nontest333": {
+            "exclude": "test333"
         }
-    }
+    },
+    "children": [
+        {
+            "name": "logA",
+            "path": "testdata/report/samples/a/A.log*",
+            "search": "test333",
+            "BlockSize": 5,
+            "categories": [
+                {
+                    "name": "a_test333",
+                    "templateName": "test333",
+                    "groupNames": ["test333"]
+                },
+                {
+                    "name": "a_nontest333",
+                    "templateName": "nontest333",
+                    "groupNames": ["nontest333"]
+                }
+            ]
+        },
+        {
+            "name": "logB",
+            "path": "testdata/report/samples/b/B.log*",
+            "search": "test",
+            "BlockSize": 5,
+            "groupNames": ["test333"]
+        }
+    ]
 }

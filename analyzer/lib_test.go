@@ -89,8 +89,8 @@ func Test_getBottoms(t *testing.T) {
 }
 
 func Test_calcNAvgScore(t *testing.T) {
-	assertScore := func(title string, scores []float64, scoreStyle int, want float64) error {
-		got := calcNAvgScore(scores, scoreStyle)
+	assertScore := func(title string, scores []float64, scoreStyle, scoreNSize int, want float64) error {
+		got := calcNAvgScore(scores, scoreStyle, scoreNSize)
 		if got != want {
 			return errors.New(fmt.Sprintf("%s got=%f want=%f", title, got, want))
 		}
@@ -99,14 +99,14 @@ func Test_calcNAvgScore(t *testing.T) {
 
 	//calcNAvgScore(scores []float64, scoreStyle int)
 	scores := []float64{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-	if err := assertScore("10 scores", scores, cScoreNDistAvg, 0.0); err != nil {
+	if err := assertScore("10 scores", scores, cScoreNDistAvg, 20, 0.0); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
 
 	scores = []float64{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}
-	if err := assertScore("20 scores", scores, cScoreNDistAvg, 0.5); err != nil {
+	if err := assertScore("20 scores", scores, cScoreNDistAvg, 20, 0.5); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
@@ -114,13 +114,13 @@ func Test_calcNAvgScore(t *testing.T) {
 	scores = []float64{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 		1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
 		10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}
-	if err := assertScore("30 scores", scores, cScoreNDistAvg, 5.2); err != nil {
+	if err := assertScore("30 scores", scores, cScoreNDistAvg, 20, 5.2); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
 
 	scores = []float64{10.0, 10.0, 10.0, 10.0, 1.0}
-	if err := assertScore("4 scores", scores, cScoreNDistAvg, 2.425); err != nil {
+	if err := assertScore("4 scores", scores, cScoreNDistAvg, 20, 2.425); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}

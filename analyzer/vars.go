@@ -2,6 +2,18 @@ package analyzer
 
 var (
 	useGzipInCircuitTables = true
-	nTopBaseMTokens        = []int{5, 20}
-	nTopMatchRates         = []float64{0.8, 0.7}
+	tranMatchRates         = []tranMatchRate{
+		{
+			matchLen:  1,
+			matchRate: 1,
+		},
+		{
+			matchLen:  5,
+			matchRate: 0.8,
+		},
+		{
+			matchLen:  20,
+			matchRate: 0.7,
+		},
+	}
 )

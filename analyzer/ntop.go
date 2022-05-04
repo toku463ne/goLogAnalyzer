@@ -3,11 +3,11 @@ package analyzer
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
+	csvdb "goLogAnalyzer/csvdb"
+
 	"github.com/pkg/errors"
-	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
 )
 
 func newNTopRecords(name string,
@@ -17,10 +17,13 @@ func newNTopRecords(name string,
 	ntop.n = n
 	ntop.isUniqMode = isUniqMode
 	ntop.minScore = minScore
-	ntop.withDiff = false
 	ntop.rootDir = rootDir
 	ntop.name = name
-	ntop.t = t
+	if t == nil {
+		ntop.t, _ = newTrans("", 0, 0, 0, "", 1, 0)
+	} else {
+		ntop.t = t
+	}
 	ntop.initRecords()
 	if rootDir != "" {
 		if err := ensureDir(rootDir); err != nil {
@@ -74,23 +77,21 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 	}
 
 	ntop.lastRowId = rowID
-	newRecords := make([]*colLogRecord, ntop.subN)
 	logr2 := new(colLogRecord)
 	logr2.rowid = rowID
 	logr2.score = score
+	logr2.maxScore = score
 	logr2.record = text
 	logr2.count = 1
-	logr2.dates = make([]string, 0)
 	maxMatchRate := 0.0
 	maxMatchIdx := -1
-	maxGreaterMatchIdx := -1
+	tran, dt := ntop.tokenizeLine(text, registerItems)
+	if dt.Unix() > 0 {
+		logr2.lastDate = dt.Format("01/02 15:04")
+	}
+	logr2.tran = tran
 
 	if ntop.isUniqMode {
-		tran, dt := ntop.tokenizeLine(text, registerItems)
-		if dt.Unix() > 0 {
-			logr2.dates = append(logr2.dates, dt.Format("01-02T15:04:05"))
-		}
-		logr2.tran = tran
 		tranlen := len(logr2.tran)
 		for i, logr := range ntop.records {
 			if logr == nil {
@@ -99,42 +100,32 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 
 			rate := checkMatchRate(logr.tran, logr2.tran)
 			if rate == 1.0 {
-				maxMatchRate = rate
 				maxMatchIdx = i
-				maxGreaterMatchIdx = i
+				break
 			} else if rate > maxMatchRate {
-				for j, l := range nTopBaseMTokens {
-					if tranlen >= l {
-						if nTopMatchRates[j] <= rate {
-							maxMatchRate = rate
-							maxMatchIdx = i
-							if score > logr.score {
-								maxGreaterMatchIdx = i
-							}
-							break
-						}
-					} else {
+				for _, tmr := range tranMatchRates {
+					if tranlen >= tmr.matchLen && tmr.matchRate <= rate {
+						maxMatchRate = rate
+						maxMatchIdx = i
 						break
 					}
 				}
 			}
 		}
 	}
-	// no change to ranking but increment the count
-	if maxGreaterMatchIdx == -1 && maxMatchIdx >= 0 {
-		ntop.records[maxMatchIdx].count++
-		ntop.records[maxMatchIdx].dates = append(ntop.records[maxMatchIdx].dates, logr2.dates...)
-		if ntop.withDiff {
-			ntop.diff.register(logr2.rowid, logr2.score, logr2.record, registerItems)
-		}
-		return
-	}
 
 	if maxMatchIdx >= 0 {
 		logr2.count += ntop.records[maxMatchIdx].count
-		logr2.dates = append(logr2.dates, ntop.records[maxMatchIdx].dates...)
+		maxScore := ntop.records[maxMatchIdx].maxScore
+		if logr2.maxScore < maxScore {
+			logr2.maxScore = maxScore
+		}
+		tmpRec := new(colLogRecord)
+		tmpRec.rowid = -1
+		ntop.records[maxMatchIdx] = tmpRec
 	}
 
+	newRecords := make([]*colLogRecord, ntop.subN)
 	newi := 0
 	for i, logr := range ntop.records {
 		if newi >= ntop.subN {
@@ -142,63 +133,59 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 		}
 		if logr == nil {
 			newRecords[newi] = logr2
-			if ntop.withDiff {
-				ntop.diff.register(logr2.rowid, logr2.score, logr2.record, registerItems)
-			}
 			break
 		}
-		if score > logr.score {
+		if logr.rowid == -1 {
+			continue
+		}
+		if score >= logr.score {
 			newRecords[newi] = logr2
-			if ntop.withDiff {
-				ntop.diff.register(logr2.rowid, logr2.score, logr2.record, registerItems)
-			}
-			newi++
-			for j := i; j < ntop.subN; j++ {
-				if newi >= ntop.subN {
-					break
-				}
+			for j := i; j < len(ntop.records); j++ {
 				if ntop.records[j] == nil {
 					break
 				}
-				if j != maxGreaterMatchIdx {
-					newRecords[newi] = ntop.records[j]
+				if ntop.records[j].rowid != -1 {
 					newi++
+					if newi >= len(newRecords) {
+						break
+					}
+					newRecords[newi] = ntop.records[j]
 				}
 			}
 			break
-		} else {
-			if i == maxMatchIdx {
-				continue
-			}
-			newRecords[newi] = logr
 		}
+		newRecords[newi] = logr
 		newi++
 	}
 
 	ntop.records = newRecords
 }
 
-func (ntop *nTopRecords) getRecords() []*colLogRecord {
-	/*
-		if !ntop.isUniqMode {
-			return ntop.records
+func (ntop *nTopRecords) getRareTerms(nItems int, records []*colLogRecord) []string {
+	ntopi := newTopNItems(nItems)
+	items := ntop.t.items
+	for _, record := range records {
+		for _, itemID := range record.tran {
+			cnt := items.counts[itemID]
+			if cnt < cMinNTopItemCount {
+				continue
+			}
+			term := items.getWord(itemID)
+			if len(term) < cMinNTopItemTermLen || isNumeric(term) {
+				continue
+			}
+			score := items.calcAdjScore(itemID)
+			ntopi.register(itemID, score)
 		}
-			recs := make([]*colLogRecord, len(ntop.records))
-			copy(recs, ntop.records)
-			sort.Slice(recs, func(i, j int) bool {
-					if recs[i] == nil {
-						return false
-					}
-					if recs[j] == nil {
-						return true
-					}
-					if recs[i].count == recs[j].count {
-						return recs[i].score > recs[j].score
-					}
-					return recs[i].count < recs[j].count
-				})
-	*/
+	}
+	terms := make([]string, nItems)
+	for j, itemID := range ntopi.itemIDs {
+		terms[j] = items.getWord(itemID)
+	}
+	return terms
+}
 
+func (ntop *nTopRecords) getRecords() []*colLogRecord {
 	cnt := 0
 	for i := 0; i < ntop.n; i++ {
 		if ntop.records[i] == nil {
@@ -209,28 +196,23 @@ func (ntop *nTopRecords) getRecords() []*colLogRecord {
 	return ntop.records[0:cnt]
 }
 
-func (ntop *nTopRecords) getDiffRecords() []*colLogRecord {
-	//minScore := ntop.getMinScore()
+// get records sorted by count
+func (ntop *nTopRecords) getRecords2() []*colLogRecord {
 	cnt := 0
-	if ntop == nil || ntop.diff == nil {
-		return nil
-	}
-	if len(ntop.diff.records) == 0 {
-		return nil
-	}
-	for _, r := range ntop.diff.records {
-		if r == nil {
+	records := make([]*colLogRecord, len(ntop.records))
+	for i := 0; i < ntop.n; i++ {
+		if ntop.records[i] == nil {
 			break
 		}
-		if ntop.n <= cnt {
-			break
-		}
+		records[i] = ntop.records[i]
 		cnt++
 	}
-	if cnt == 0 {
-		return nil
-	}
-	return ntop.diff.records[0:cnt]
+	records = records[0:cnt]
+	sort.Slice(records,
+		func(i, j int) bool {
+			return records[i].count < records[j].count || (records[i].count == records[j].count && records[i].score > records[j].score)
+		})
+	return records[0:cnt]
 }
 
 func (ntop *nTopRecords) getTableName() string {
@@ -259,10 +241,10 @@ func (ntop *nTopRecords) save() error {
 		for i, t := range r.tran {
 			terms[i] = ntop.t.items.getWord(t)
 		}
-		if err := ntop.ntopTable.InsertRow([]string{"rowid", "score",
-			"record", "terms", "count", "lastNdates"},
-			r.rowid, r.score, r.record, terms, r.count,
-			strings.Join(r.dates, ";")); err != nil {
+		if err := ntop.ntopTable.InsertRow([]string{"rowid", "score", "maxScore",
+			"record", "terms", "count", "lastDate"},
+			r.rowid, r.score, r.maxScore, r.record, terms, r.count,
+			r.lastDate); err != nil {
 			return err
 		}
 	}
@@ -286,48 +268,28 @@ func (ntop *nTopRecords) load(lastRowID int64,
 	defer ntopTable.Close()
 
 	rows, err := ntopTable.SelectRows(nil,
-		[]string{"rowid", "score", "record", "terms", "count", "lastNdates"})
+		[]string{"rowid", "score", "maxScore", "record", "terms", "count", "lastDate"})
 	if err != nil {
 		return err
 	}
 
-	lastNdatesStr := ""
+	lastDate := ""
 	ntopIdx := 0
 	for rows.Next() {
 		r := new(colLogRecord)
 		terms := make([]string, 0)
-		if err := rows.Scan(&r.rowid, &r.score, &r.record, &terms,
-			&r.count, &lastNdatesStr); err != nil {
+		if err := rows.Scan(&r.rowid, &r.score, &r.maxScore, &r.record, &terms,
+			&r.count, &lastDate); err != nil {
 			return errors.WithStack(err)
 		}
 
-		rowIdDiff := 0
-		if r.rowid > lastRowID {
-			rowIdDiff = int(cMaxRowID) - int(r.rowid) + int(lastRowID)
-		} else {
-			rowIdDiff = int(lastRowID) - int(r.rowid)
-		}
-		if rowIdDiff > maxRowIDs {
-			continue
-		}
-
-		r.dates = strings.Split(lastNdatesStr, ";")
-		sort.Strings(r.dates)
+		r.lastDate = lastDate
 		tran, _ := ntop.tokenizeLine(r.record, registerItems)
 		r.tran = tran
 		ntop.records[ntopIdx] = r
 		ntopIdx++
 		if ntop.lastRowId < r.rowid {
 			ntop.lastRowId = r.rowid
-		}
-	}
-
-	if ntopIdx >= 0 {
-		ntop.withDiff = true
-		ntop.diff, err = newNTopRecords("diff_"+ntop.name,
-			ntop.n, ntop.minScore, ntop.t, ntop.isUniqMode, ntop.rootDir)
-		if err != nil {
-			return err
 		}
 	}
 
@@ -348,43 +310,13 @@ func (ntop *nTopRecords) getLen() int {
 	return cnt
 }
 
-func (ntop *nTopRecords) getMinScore() float64 {
-	minScore := 0.0
-	i := 0
-	for _, l := range ntop.records {
-		if i >= ntop.n {
-			return minScore
-		}
-		if l == nil {
-			return minScore
-		}
-		if minScore == 0.0 || (l.score > 0 && l.score < minScore) {
-			minScore = l.score
-		}
-		i++
-	}
-	return minScore
-}
-
-func (ntop *nTopRecords) getMaxCount() int {
-	maxCnt := 0
-	for _, l := range ntop.records {
-		if l == nil {
-			return maxCnt
-		}
-		if maxCnt == 0 || l.count > maxCnt {
-			maxCnt = l.count
-		}
-	}
-	return maxCnt
-}
-
-func (ntop *nTopRecords) nTop2string(msg string, recordsToShow int) (string, float64, error) {
+func (ntop *nTopRecords) getString(msg string, recordsToShow, nItemTop int) (string, float64, error) {
 	out := fmt.Sprintf("%s\n", msg)
-	out += " count | score   | rowID      | text\n"
-	out += "-------+---------+------------+-------\n"
+	out += " count | score   | maxScore | rowID      | text\n"
+	out += "-------+---------+----------+------------+-------\n"
 	topScore := 0.0
-	for i, logr := range ntop.getRecords() {
+	records := ntop.getRecords2()
+	for i, logr := range records {
 		if logr == nil {
 			break
 		}
@@ -397,8 +329,8 @@ func (ntop *nTopRecords) nTop2string(msg string, recordsToShow int) (string, flo
 		} else {
 			te = logr.record
 		}
-		outRec := fmt.Sprintf(" %5d |%8.2f | %10d | %s", logr.count, logr.score,
-			logr.rowid, te)
+		outRec := fmt.Sprintf(" %5d |%8.2f |%8.2f  | %10d | %s", logr.count,
+			logr.score, logr.maxScore, logr.rowid, te)
 
 		out += fmt.Sprintf("%s\n", outRec)
 
@@ -410,17 +342,29 @@ func (ntop *nTopRecords) nTop2string(msg string, recordsToShow int) (string, flo
 			break
 		}
 	}
+
+	out += "\nRare words:\n"
+	for i, term := range ntop.getRareTerms(nItemTop, records) {
+		if term == "" {
+			break
+		}
+		if i == 0 {
+			out += term
+		} else {
+			out += fmt.Sprintf(" %s", term)
+		}
+	}
+	out += "\n\n"
 	return out, topScore, nil
 }
 
-func (ntop *nTopRecords) nTop2html(msg string, recordsToShow int) (string, float64, error) {
+func (ntop *nTopRecords) getHtmlTable(recordsToShow int) (string, float64, error) {
 	//println(a.trans.items.totalCount)
 	out := ""
-	topScore := 0.0
-	out += fmt.Sprintf("<b>%s</b><br>", msg)
 	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
-	out += "<tr><td width=4%>count</td><td width=10%>dates</td><td width=6%>score</td><td width=6%>rowID</td><td>text</td></tr>"
-	for i, logr := range ntop.getRecords() {
+	out += "<tr><td width=4%>count</td><td width=10%>lastUpdate</td><td width=6%>score</td><td width=10%>rowID</td><td>text</td></tr>"
+	topScore := 0.0
+	for i, logr := range ntop.getRecords2() {
 		if logr == nil {
 			break
 		}
@@ -433,19 +377,9 @@ func (ntop *nTopRecords) nTop2html(msg string, recordsToShow int) (string, float
 		} else {
 			te = logr.record
 		}
-		dates := logr.dates
-		if len(dates) > 10 {
-			dates = dates[len(dates)-10:]
-		}
-		dates2 := make([]string, len(dates))
-		k := 0
-		for j := len(dates) - 1; j >= 0; j-- {
-			dates2[k] = dates[j]
-			k++
-		}
 
 		out += fmt.Sprintf("<tr><td>%d</td><td>%s</td><td>%8.2f</td><td>%10d</td><td>%s</td></tr>",
-			logr.count, strings.Join(dates2, ", "), logr.score, logr.rowid, te)
+			logr.count, logr.lastDate, logr.score, logr.rowid, te)
 
 		if logr.score == 0 {
 			break
@@ -455,12 +389,11 @@ func (ntop *nTopRecords) nTop2html(msg string, recordsToShow int) (string, float
 			break
 		}
 	}
-	out += "</table><br>\n"
-
+	out += "</table>"
 	return out, topScore, nil
 }
 
-func (ntop *nTopRecords) nTop2json(msg string, recordsToShow int) ([]*nTopOutRec,
+func (ntop *nTopRecords) getJson(msg string, recordsToShow int) ([]*nTopOutRec,
 	float64, error) {
 	topScore := 0.0
 	outRecs := make([]*nTopOutRec, 0)
@@ -485,6 +418,7 @@ func (ntop *nTopRecords) nTop2json(msg string, recordsToShow int) ([]*nTopOutRec
 		outRec.rowid = logr.rowid
 		outRec.count = logr.count
 		outRec.score = logr.score
+		outRec.lastDate = logr.lastDate
 		outRec.record = te
 		outRecs = append(outRecs, outRec)
 

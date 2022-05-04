@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	csvdb "github.com/toku463ne/goLogAnalyzer/csvdb"
+	csvdb "goLogAnalyzer/csvdb"
 )
 
 func Test_stats(t *testing.T) {
@@ -89,7 +89,7 @@ func Test_stats(t *testing.T) {
 		return nil
 	}
 
-	dataDir, err := ensureTestDir("statsTest")
+	dataDir, err := initTestDir("statsTest")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -107,7 +107,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{1.0, 1.0, 1.0} {
-		st.registerScore(score, 1)
+		st.registerScore(score, 1, 0)
 	}
 
 	if err := assertScore(st, 3, 3.0, 3.0); err != nil {
@@ -120,7 +120,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{1.0, 1.0, 2.0} {
-		if err := st.registerScore(score, 2); err != nil {
+		if err := st.registerScore(score, 2, 0); err != nil {
 			t.Errorf("%v", err)
 			return
 		}
@@ -147,7 +147,7 @@ func Test_stats(t *testing.T) {
 	for _, score := range []float64{2.0, 2.0, 2.0, 2.0,
 		3.0, 3.0, 3.0, 3.0, 3.0,
 		4.0} {
-		if err := st.registerScore(score, 3); err != nil {
+		if err := st.registerScore(score, 3, 0); err != nil {
 			t.Errorf("%v", err)
 			return
 		}
@@ -194,6 +194,11 @@ func Test_stats(t *testing.T) {
 		return
 	}
 
+	if err := st.load(false); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 	if err := assertCurrBlockScore(st, 1, 4.0, 16.0); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -204,7 +209,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{4.0, 4.0, 4.0, 4.0, 5.0} {
-		if err := st.registerScore(score, 3); err != nil {
+		if err := st.registerScore(score, 3, 0); err != nil {
 			t.Errorf("%v", err)
 			return
 		}

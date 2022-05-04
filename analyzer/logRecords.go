@@ -3,10 +3,10 @@ package analyzer
 import "github.com/pkg/errors"
 
 func newLogRecords(dataDir string,
-	maxBlocks, maxRowsInBlock int) (*logRecords, error) {
+	maxBlocks, blockSize int) (*logRecords, error) {
 	lr := new(logRecords)
 	cdb, err := newCircuitDB(dataDir, "logRecords",
-		tableDefs["logRecords"], maxBlocks, maxRowsInBlock)
+		tableDefs["logRecords"], maxBlocks, blockSize)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (lr *logRecords) insert(rowID int64, score float64, record string, lastEpoc
 	}
 	lr.rowNo++
 
-	if lr.maxRowsInBlock > 0 && lr.rowNo >= lr.maxRowsInBlock {
+	if lr.blockSize > 0 && lr.rowNo >= lr.blockSize {
 		if lr.dataDir != "" {
 			lr.lastEpoch = lastEpoch
 			if err := lr.currTable.Flush(); err != nil {

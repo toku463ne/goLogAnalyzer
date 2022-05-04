@@ -1,9 +1,9 @@
-module github.com/toku463ne/goLogAnalyzer
+module goLogAnalyzer
 
-go 1.16
+go 1.13
 
-replace github.com/toku463ne/goLogAnalyzer/analyzer => ./analyzer
-
-replace github.com/toku463ne/goLogAnalyzer/csvdb => ./csvdb
-
-require github.com/toku463ne/goLogAnalyzer/analyzer v0.0.0-00010101000000-000000000000
+require (
+	github.com/go-ini/ini v1.66.4
+	github.com/pkg/errors v0.9.1
+	github.com/stretchr/testify v1.7.1 // indirect
+)

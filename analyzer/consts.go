@@ -1,9 +1,27 @@
 package analyzer
 
 const (
+	CDefaultTopNToShow      = 10
+	CDefaultBlockSize       = 0
+	CDefaultNBlocks         = 0
+	CDefaultNItemBlocks     = 0
+	CDefaultScoreStyle      = cScoreNDistAvg
+	CDefaultScoreNSize      = 10
+	CDefaultTimestampLayout = "2006-01-02 15:04:05"
+	CDefaultMinGap          = 0
+	CDefaultDaysToReport    = 3
+	CDefaultNItemTop        = 20
+
+	cDefaultGroupName = "default"
+	cIntTrue          = 1
+	cIntFalse         = 2
+
+	cMinNTopItemCount   = 3
+	cMinNTopItemTermLen = 3
+
+	cErrPathNotExists     = "path not exists"
 	cRModePlain           = "plain"
 	cRModeGZip            = "gzip"
-	cTimestampLayout      = "2006-01-02 15:04:05"
 	cIPReStr              = `[0-9]+\.[0-9]+\.[0-9]+.[0-9]+`
 	cWordReStr            = `[0-9\pL\p{Mc}\p{Mn}.%]{2,}`
 	cWordMaxLen           = 40 // IPv6
@@ -15,6 +33,7 @@ const (
 	cEOF                  = -1
 	cMaxTermLength        = 128
 	cMaxBlockDitigs       = 10
+	cLogCycle             = 14
 	cMaxRowID             = int64(9223372036854775806)
 	cNTopRareRecords      = 5
 	cLogPerLines          = 1000000
@@ -27,7 +46,9 @@ const (
 	cScoreSimpleAvg       = 1
 	cScoreNAvg            = 2
 	cScoreNDistAvg        = 3
-	cScoreNSize           = 20
 	cMaxCharsToShowInTopN = 400
 	cNTopMultiplier       = 10
+	cNFilesToCheckCount   = 5
+
+	cHtmlRareEmphTag = "font color='blue'"
 )
