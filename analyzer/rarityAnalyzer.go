@@ -488,13 +488,5 @@ func (a *rarityAnalyzer) getRarStatsString(rootDir string, histSize int) (string
 		out += "\n"
 		return "", nil
 	}
-
-	if a.RootDir != "" {
-		if out2, err := a.stats.getRecentStatsString(histSize); err != nil {
-			return "", err
-		} else {
-			out += out2
-		}
-	}
 	return out, nil
 }

@@ -23,7 +23,7 @@ type AnalConf struct {
 	MinGapToRecord   float64
 	NTopRecordsCount int
 	ModeblockPerFile bool // if create block per file
-	NItemTop         int
+	NRareTerms       int
 }
 
 type colStats struct {
@@ -32,32 +32,24 @@ type colStats struct {
 	scoreCount  int64
 }
 
-type colScoresHist struct {
-	lastFileEpoch int64
-	avg           float64
-	std           float64
-	max           float64
-}
-
 type stats struct {
 	*csvdb.CsvDB
 	*colStats
-	statsTable      *csvdb.CsvTable
-	scoresTable     *csvdb.CsvTable
-	scoresHistTable *csvdb.CsvTable
-	rootDir         string
-	currBlock       *colStats
-	countPerScore   []int
-	maxBlocks       int
-	blockSize       int
-	blockNo         int
-	rowNo           int
-	seqNo           int64
-	lastAverage     float64
-	lastStd         float64
-	lastGap         float64
-	lastFileEpoch   int64
-	scoreMax        float64
+	statsTable    *csvdb.CsvTable
+	scoresTable   *csvdb.CsvTable
+	rootDir       string
+	currBlock     *colStats
+	countPerScore []int
+	maxBlocks     int
+	blockSize     int
+	blockNo       int
+	rowNo         int
+	seqNo         int64
+	lastAverage   float64
+	lastStd       float64
+	lastGap       float64
+	lastFileEpoch int64
+	scoreMax      float64
 }
 
 type circuitDB struct {
@@ -230,6 +222,7 @@ type LogConf struct {
 	ModeblockPerFile int                 `json:"modeblockPerFile"`
 	MinScore         float64             `json:"minScore"`
 	MaxScore         float64             `json:"maxScore"`
+	NRareTerms       int                 `json:"nRareTerms"`
 }
 
 type LogNode struct {

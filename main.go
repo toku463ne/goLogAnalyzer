@@ -61,7 +61,7 @@ var (
 	runScoreStyle        = runFlag.Int("scoreStyle", analyzer.CDefaultScoreStyle, cScoreStyleDesc)
 	runScoreNSize        = runFlag.Int("scoreNSize", analyzer.CDefaultScoreNSize, cScoreStyleDesc)
 	runModeblockPerFile  = runFlag.Bool("blockPerFile", false, cModeblockPerFileDesc)
-	runNItemTop          = runFlag.Int("nHotTerms", analyzer.CDefaultNItemTop, cNItemTopDesc)
+	runNRareTerms        = runFlag.Int("nRareTerms", analyzer.CDefaultNRareTerms, cNItemTopDesc)
 
 	topNRootDir       = topNFlag.String("d", "", cRootDirDesc)
 	topNRecordsToShow = topNFlag.Int("n", 10, cNRecordsToShowDesc)
@@ -71,7 +71,7 @@ var (
 	topNEndDate       = topNFlag.String("end", "", cEndDateDesc)
 	topNMinScore      = topNFlag.Float64("min", 0, cTopNMinScoreDesc)
 	topNMaxScore      = topNFlag.Float64("max", 0, cTopNMaxScoreDesc)
-	topNItemTop       = topNFlag.Int("nHotTerms", analyzer.CDefaultNItemTop, cNItemTopDesc)
+	topNRareTerms     = topNFlag.Int("nRareTerms", analyzer.CDefaultNRareTerms, cNItemTopDesc)
 
 	stsRootDir       = stsFlag.String("d", "", cRootDirDesc)
 	stsRecordsToShow = stsFlag.Int("n", 5, cRecordsToShowDesc)
@@ -142,7 +142,7 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 	c.MinGapToRecord = *runGap
 	c.NTopRecordsCount = *runTopNRecordsToShow
 	c.ModeblockPerFile = *runModeblockPerFile
-	c.NItemTop = *runNItemTop
+	c.NRareTerms = *runNRareTerms
 
 	linesProcessed, err := analyzer.Run(c)
 	if err != nil {
@@ -181,7 +181,7 @@ func topN() error {
 		*topNRecordsToShow,
 		*topNFilterRe, *topNXFilterRe,
 		startEpoch, endEpoch,
-		*topNMinScore, *topNMaxScore, *topNItemTop)
+		*topNMinScore, *topNMaxScore, *topNRareTerms)
 	return err
 }
 

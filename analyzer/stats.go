@@ -27,7 +27,7 @@ func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 	s.seqNo = 0
 	s.rootDir = rootDir
 	s.scoreMax = -1
-	s.scoreCount = 1
+	s.scoreCount = 0
 	if s.rootDir != "" {
 		db, err := csvdb.NewCsvDB(rootDir)
 		if err != nil {
@@ -65,7 +65,7 @@ func (s *stats) registerScore(score float64, rowLen int64, fileEpoch int64) erro
 	s.scoreSqrSum += scoreSqr
 	s.countPerScore[scoreStage]++
 	s.lastFileEpoch = fileEpoch
-
+	s.scoreCount++
 	cnt := float64(s.scoreCount)
 	//score avg
 	sa := s.scoreSum / cnt
@@ -95,7 +95,6 @@ func (s *stats) registerScore(score float64, rowLen int64, fileEpoch int64) erro
 		return err
 	}
 
-	s.scoreCount++
 	return nil
 }
 
@@ -136,12 +135,6 @@ func (s *stats) prepareTables() error {
 		return err
 	} else {
 		s.scoresTable = t
-	}
-	if t, err := s.CreateTableIfNotExists("scoresHist",
-		tableDefs["scoresHist"], false, s.maxBlocks); err != nil {
-		return err
-	} else {
-		s.scoresHistTable = t
 	}
 	return nil
 }
@@ -193,21 +186,6 @@ func (s *stats) commit(completed bool) error {
 	if err := s.scoresTable.Max(nil, "scoreMax", &scoreMax); err != nil {
 		return errors.WithStack(err)
 	}
-
-	blockNoidx = s.scoresHistTable.GetColIdx("blockNo")
-	if err := s.scoresHistTable.Upsert(func(v []string) bool {
-		return v[blockNoidx] == strconv.Itoa(int(s.blockNo))
-	}, map[string]interface{}{
-		"seqNo":         s.seqNo,
-		"blockNo":       s.blockNo,
-		"avg":           s.lastAverage,
-		"std":           s.lastStd,
-		"max":           s.scoreMax,
-		"lastFileEpoch": s.lastFileEpoch,
-	}); err != nil {
-		return errors.WithStack(err)
-	}
-
 	s.seqNo++
 
 	return nil
@@ -336,44 +314,6 @@ func (s *stats) loadAllScorePerCount(lastFileEpoch int64) ([]int, error) {
 	return countPerScore, nil
 }
 
-func (s *stats) loadRecentStats(showCounts int) ([]colScoresHist, error) {
-	var lastFileEpoch int64
-	var avg float64
-	var std float64
-	var max float64
-	if showCounts == 0 {
-		return nil, nil
-	}
-	rows, err := s.scoresHistTable.SelectRows(nil,
-		[]string{"lastFileEpoch", "avg", "std", "max"})
-	if err != nil {
-		return nil, err
-	}
-
-	err = rows.OrderBy([]string{"seqNo"}, []string{"int"}, csvdb.CorderByDesc)
-	if err != nil {
-		return nil, err
-	}
-
-	scoresHists := make([]colScoresHist, showCounts)
-	oldScore := new(colScoresHist)
-	i := 0
-	for rows.Next() {
-		if err := rows.Scan(&lastFileEpoch, &avg, &std, &max); err != nil {
-			return nil, errors.WithStack(err)
-		}
-		if oldScore.lastFileEpoch == 0 || oldScore.lastFileEpoch != lastFileEpoch {
-			scoresHists[i] = colScoresHist{lastFileEpoch, avg, std, max}
-			oldScore = &scoresHists[i]
-			i++
-		}
-		if i >= showCounts {
-			break
-		}
-	}
-	return scoresHists, nil
-}
-
 func (s *stats) getCountPerStats(lastFileEpoch int64) ([]*countPerScore, error) {
 	var g []int
 	var err error
@@ -478,61 +418,4 @@ func (s *stats) getCountPerStatsString(lastFileEpoch int64) (string, []int, erro
 	out += "\n"
 
 	return out, g, nil
-}
-
-func (s *stats) getRecentStats(histSize int, outFormat string) (string, error) {
-	switch outFormat {
-	case cFormatText:
-		return s.getRecentStatsString(histSize)
-	case cFormatHtml:
-		return s.getRecentStatsHtml(histSize)
-	}
-	return "", nil
-}
-
-func (s *stats) getRecentStatsHtml(histSize int) (string, error) {
-	h, err := s.loadRecentStats(histSize)
-	if err != nil {
-		return "", err
-	}
-
-	out := "<b>Counts per score</b><br>"
-	out += "<table  border='1'>"
-	out += "<tr><td>last data</td><td>average</td><td>std</td><td>max</td></tr>"
-	for _, rec := range h {
-		if rec.lastFileEpoch == 0 {
-			continue
-		}
-		out += "<tr>"
-		out += fmt.Sprintf("<td>%s</td>", EpochToString(rec.lastFileEpoch))
-		out += fmt.Sprintf("<td>%7.1f</td>", rec.avg)
-		out += fmt.Sprintf("<td>%7.1f</td>", rec.std)
-		out += fmt.Sprintf("<td>%7.1f</td>", rec.max)
-
-		//out += fmt.Sprintf(" %s | %7.1f | %7.1f | %7.1f \n",
-		//	epochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
-		out += "</tr>\n"
-	}
-	out += "</table><br>\n"
-	return out, nil
-}
-
-func (s *stats) getRecentStatsString(histSize int) (string, error) {
-	h, err := s.loadRecentStats(histSize)
-	if err != nil {
-		return "", err
-	}
-
-	out := "\n"
-	out += "score history\n"
-	out += " last date           | average |     std |     max \n"
-	out += " --------------------+---------+---------+---------\n"
-	for _, rec := range h {
-		if rec.lastFileEpoch == 0 {
-			continue
-		}
-		out += fmt.Sprintf(" %s | %7.1f | %7.1f | %7.1f \n",
-			EpochToString(rec.lastFileEpoch), rec.avg, rec.std, rec.max)
-	}
-	return out, nil
 }

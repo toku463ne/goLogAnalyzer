@@ -41,7 +41,7 @@ func Run(c *AnalConf) (int, error) {
 			return a.linesProcessed, err
 		}
 		msg := fmt.Sprintf("%d top rare records", a.NTopRecordsCount)
-		out, _, err := ntop.getString(msg, a.NTopRecordsCount, a.NItemTop)
+		out, _, err := ntop.getString(msg, a.NTopRecordsCount, a.NRareTerms)
 		if err != nil {
 			return a.linesProcessed, err
 		}
@@ -54,7 +54,7 @@ func Run(c *AnalConf) (int, error) {
 func PrintTopN(rootDir string, n int,
 	filterRe, xFilterRe string,
 	startEpoch, endEpoch int64,
-	minScore, maxScore float64, nTopItems int) error {
+	minScore, maxScore float64, nRareTerms int) error {
 	if rootDir == "" {
 		return errors.New("rootDir cannot be empty")
 	}
@@ -62,7 +62,7 @@ func PrintTopN(rootDir string, n int,
 		return errors.New("Run analyzation first.")
 	}
 	c := NewAnalConf(rootDir)
-	c.NItemTop = nTopItems
+	c.NRareTerms = nRareTerms
 	a, err := newRarityAnalyzer(c)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func PrintTopN(rootDir string, n int,
 		return err
 	}
 
-	if out, _, err := ntop.getString(fmt.Sprintf("Top %d rare messages", n), n, nTopItems); err != nil {
+	if out, _, err := ntop.getString(fmt.Sprintf("Top %d rare messages", n), n, nRareTerms); err != nil {
 		return err
 	} else {
 		println(out)

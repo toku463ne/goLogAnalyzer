@@ -310,7 +310,7 @@ func (ntop *nTopRecords) getLen() int {
 	return cnt
 }
 
-func (ntop *nTopRecords) getString(msg string, recordsToShow, nItemTop int) (string, float64, error) {
+func (ntop *nTopRecords) getString(msg string, recordsToShow, nRareTerms int) (string, float64, error) {
 	out := fmt.Sprintf("%s\n", msg)
 	out += " count | score   | maxScore | rowID      | text\n"
 	out += "-------+---------+----------+------------+-------\n"
@@ -344,7 +344,7 @@ func (ntop *nTopRecords) getString(msg string, recordsToShow, nItemTop int) (str
 	}
 
 	out += "\nRare words:\n"
-	for i, term := range ntop.getRareTerms(nItemTop, records) {
+	for i, term := range ntop.getRareTerms(nRareTerms, records) {
 		if term == "" {
 			break
 		}

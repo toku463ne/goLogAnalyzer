@@ -29,6 +29,7 @@ func (r *report) getAnalyzer(node *LogNode) (*rarityAnalyzer, error) {
 	ac.ScoreStyle = node.ScoreStyle
 	ac.MinGapToRecord = node.MinGapToRecord
 	ac.NTopRecordsCount = node.TopN
+	ac.NRareTerms = node.NRareTerms
 	if node.ModeblockPerFile == cIntTrue {
 		ac.ModeblockPerFile = true
 	} else {
@@ -125,6 +126,9 @@ func (r *report) getStartEndEpoch(node *LogNode) (int64, int64, error) {
 
 func (r *report) insertHtmlTag(te string, emp map[string][]string) string {
 	for k, l := range emp {
+		if k == "" {
+			continue
+		}
 		for _, v := range l {
 			a := strings.Split(v, " ")
 			te = strings.Replace(te, k, fmt.Sprintf("<%s>%s</%s>", v, k, a[0]), -1)
@@ -166,7 +170,7 @@ func (r *report) createDigestReport() error {
 			}
 			records := ar.getRecords2()
 			keyRareTerms := make(map[string][]string, 0)
-			for _, term := range ar.getRareTerms(a.NItemTop, records) {
+			for _, term := range ar.getRareTerms(a.NRareTerms, records) {
 				keyRareTerms[term] = []string{cHtmlRareEmphTag}
 			}
 			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", ar.getLen(), node.Name)
@@ -179,9 +183,9 @@ func (r *report) createDigestReport() error {
 				//out += fmt.Sprintf("<td>%5.2f</td>", rec.score)
 				//out += fmt.Sprintf("<td>%s</td>", rec.lastDate)
 				txt := rec.record
-				txt = fmt.Sprintf("<td>%s</td>", r.insertHtmlTag(txt, keyRareTerms))
-				txt = fmt.Sprintf("<td>%s</td>", r.insertHtmlTag(txt, node.KeyEmphasize))
-				out += txt
+				txt = r.insertHtmlTag(txt, keyRareTerms)
+				txt = r.insertHtmlTag(txt, node.KeyEmphasize)
+				out += fmt.Sprintf("<td>%s</td>", txt)
 				out += "</tr>"
 			}
 		}

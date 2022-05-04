@@ -11,7 +11,6 @@ var (
 		"logRecords": {"rowID", "score", "epoch", "record"},
 		"scores": {"seqNo", "blockNo", "rowCount", "scoreSum",
 			"scoreSqrSum", "scoreMax", "completed", "lastFileEpoch"},
-		"scoresHist": {"seqNo", "blockNo", "avg", "std", "max", "lastFileEpoch"},
 		"statistics": {"seqNo", "blockNo", "scoreStage", "itemCount", "lastFileEpoch"},
 		"blockInfo": {"lastIndex", "blockNo", "blockID",
 			"rowNo", "lastEpoch", "completed"},

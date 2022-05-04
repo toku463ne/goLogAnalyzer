@@ -10,7 +10,7 @@ const (
 	CDefaultTimestampLayout = "2006-01-02 15:04:05"
 	CDefaultMinGap          = 0
 	CDefaultDaysToReport    = 3
-	CDefaultNItemTop        = 20
+	CDefaultNRareTerms      = 20
 
 	cDefaultGroupName = "default"
 	cIntTrue          = 1
@@ -38,7 +38,6 @@ const (
 	cNTopRareRecords      = 5
 	cLogPerLines          = 1000000
 	cDefaultBuffSize      = 10000
-	cDefaultHistSize      = 5
 	cCountBorderRate      = 0.01
 	cErrorKeywords        = "failure|failed|error|down|crit"
 	cFormatHtml           = "html"

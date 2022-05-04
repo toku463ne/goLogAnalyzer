@@ -112,6 +112,9 @@ func (node *LogNode) inheritConf(parentConf *LogConf, parentDataDir, parentRepor
 		if c.ToDate != "" {
 			node2.ToDate = c.ToDate
 		}
+		if c.NRareTerms == 0 {
+			node2.NRareTerms = CDefaultNRareTerms
+		}
 
 	}
 	node.LogConf = node2.LogConf

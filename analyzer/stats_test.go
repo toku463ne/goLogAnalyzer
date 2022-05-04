@@ -65,30 +65,6 @@ func Test_stats(t *testing.T) {
 		return nil
 	}
 
-	checkScoresHistTable := func(st *stats, blockNo int,
-		expected ...interface{}) error {
-		var avg float64
-		var std float64
-		var epoch int64
-
-		blockNoIdx := st.scoresHistTable.GetColIdx("blockNo")
-		blockNoStr := strconv.Itoa(blockNo)
-		if err := st.scoresHistTable.Select1Row(func(v []string) bool {
-			return v[blockNoIdx] == blockNoStr
-		}, []string{"avg", "std", "lastFileEpoch"},
-			&avg, &std, &epoch); err != nil {
-			return err
-		}
-
-		if err := getGotExpErr("avg", avg, expected[0]); err != nil {
-			return err
-		}
-		if err := getGotExpErr("std", std, expected[1]); err != nil {
-			return err
-		}
-		return nil
-	}
-
 	dataDir, err := initTestDir("statsTest")
 	if err != nil {
 		t.Errorf("%v", err)
@@ -136,10 +112,6 @@ func Test_stats(t *testing.T) {
 	}
 	//blockNo, rowCount, scoreSum, scoreSqrSum, completed
 	if err := checkScoresTable(st, 0, 5, 5.0, 5.0, true); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if err := checkScoresHistTable(st, 0, 1.0, 0.0); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
