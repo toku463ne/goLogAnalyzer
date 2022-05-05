@@ -12,7 +12,7 @@ import (
 
 func newNTopRecords(name string,
 	n int, minScore float64, t *trans,
-	isUniqMode bool, rootDir string) (*nTopRecords, error) {
+	isUniqMode bool, rootDir string, nItems int) (*nTopRecords, error) {
 	ntop := new(nTopRecords)
 	ntop.n = n
 	ntop.isUniqMode = isUniqMode
@@ -41,6 +41,7 @@ func newNTopRecords(name string,
 		//	return nil, err
 		//}
 	}
+	ntop.ntopi = newTopNItems(nItems)
 	return ntop, nil
 }
 
@@ -90,6 +91,9 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 		logr2.lastDate = dt.Format("01/02 15:04")
 	}
 	logr2.tran = tran
+
+	// register rare items
+	ntop.registerRareItems(tran)
 
 	if ntop.isUniqMode {
 		tranlen := len(logr2.tran)
@@ -161,25 +165,27 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 	ntop.records = newRecords
 }
 
-func (ntop *nTopRecords) getRareTerms(nItems int, records []*colLogRecord) []string {
-	ntopi := newTopNItems(nItems)
+func (ntop *nTopRecords) registerRareItems(tran []int) {
 	items := ntop.t.items
-	for _, record := range records {
-		for _, itemID := range record.tran {
-			cnt := items.counts[itemID]
-			if cnt < cMinNTopItemCount {
-				continue
-			}
-			term := items.getWord(itemID)
-			if len(term) < cMinNTopItemTermLen || isNumeric(term) {
-				continue
-			}
-			score := items.calcAdjScore(itemID)
-			ntopi.register(itemID, score)
+	for _, itemID := range tran {
+		//cnt := items.counts[itemID]
+		//if cnt < cMinNTopItemCount {
+		//	continue
+		//}
+		term := items.getWord(itemID)
+		if len(term) <= cMinNTopItemTermLen || isNumeric(term) {
+			continue
 		}
+		score := items.calcAdjScore(itemID)
+		ntop.ntopi.register(itemID, score, term)
 	}
-	terms := make([]string, nItems)
-	for j, itemID := range ntopi.itemIDs {
+
+}
+
+func (ntop *nTopRecords) getRareTerms() []string {
+	items := ntop.t.items
+	terms := make([]string, ntop.ntopi.n)
+	for j, itemID := range ntop.ntopi.itemIDs {
 		terms[j] = items.getWord(itemID)
 	}
 	return terms
@@ -213,7 +219,11 @@ func (ntop *nTopRecords) getRecords2() []*colLogRecord {
 			return records[i].count < records[j].count || (records[i].count == records[j].count && records[i].score > records[j].score)
 		})
 	if cnt > ntop.n {
-		records = records[0:cnt]
+		records2 := make([]*colLogRecord, ntop.n)
+		for i := 0; i < ntop.n; i++ {
+			records2[i] = records[i]
+		}
+		records = records2
 	}
 	return records
 }
@@ -347,7 +357,7 @@ func (ntop *nTopRecords) getString(msg string, recordsToShow, nRareTerms int) (s
 	}
 
 	out += "\nRare words:\n"
-	for i, term := range ntop.getRareTerms(nRareTerms, records) {
+	for i, term := range ntop.getRareTerms() {
 		if term == "" {
 			break
 		}

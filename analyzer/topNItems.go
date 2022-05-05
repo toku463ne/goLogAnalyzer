@@ -5,10 +5,11 @@ func newTopNItems(n int) *topNItems {
 	t.n = n
 	t.itemIDs = make([]int, n)
 	t.scores = make([]float64, n)
+	t.terms = make([]string, n)
 	return t
 }
 
-func (t *topNItems) register(itemID int, score float64) {
+func (t *topNItems) register(itemID int, score float64, term string) {
 	if score <= 0 || t.scores[t.n-1] > 0 && t.minScoreInTopN > score {
 		return
 	}
@@ -17,11 +18,13 @@ func (t *topNItems) register(itemID int, score float64) {
 	}
 	newItemIDs := make([]int, t.n)
 	newScores := make([]float64, t.n)
+	newTerms := make([]string, t.n)
 	j := 0
 	for i := range newScores {
 		if score >= t.scores[j] {
 			newScores[i] = score
 			newItemIDs[i] = itemID
+			newTerms[i] = term
 			score = -1
 			continue
 		}
@@ -33,8 +36,10 @@ func (t *topNItems) register(itemID int, score float64) {
 		}
 		newScores[i] = t.scores[j]
 		newItemIDs[i] = t.itemIDs[j]
+		newTerms[i] = t.terms[j]
 		j++
 	}
 	t.itemIDs = newItemIDs
 	t.scores = newScores
+	t.terms = newTerms
 }

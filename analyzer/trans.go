@@ -18,7 +18,7 @@ func newTrans(dataDir string, maxBlocks, blockSize int,
 		return nil, err
 	}
 	t.items = i
-	t.items.register("", 1, true)
+	t.items.register("", 1, 0, true)
 	t.replacer = getDelimReplacer()
 	t.blockSize = blockSize
 	t.datetimeStartPos = datetimeStartPos
@@ -98,11 +98,11 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.T
 		dt, err = time.Parse(t.datetimeLayout, line[:t.datetimeEndPos])
 		if err == nil {
 			line = line[t.datetimeEndPos+1:]
-			timeResult[0] = t.items.register(fmt.Sprint(dt.Month()), 1, registerItem)
-			timeResult[1] = t.items.register(fmt.Sprintf("d-%02d", dt.Day()), 1, registerItem)
-			timeResult[2] = t.items.register(fmt.Sprintf("H-%02d", dt.Hour()), 1, registerItem)
-			timeResult[3] = t.items.register(fmt.Sprintf("M-%02d", dt.Minute()), 1, registerItem)
-			timeResult[4] = t.items.register(fmt.Sprint(dt.Weekday()), 1, registerItem)
+			timeResult[0] = t.items.register(fmt.Sprint(dt.Month()), 1, 0, registerItem)
+			timeResult[1] = t.items.register(fmt.Sprintf("d-%02d", dt.Day()), 1, 0, registerItem)
+			timeResult[2] = t.items.register(fmt.Sprintf("H-%02d", dt.Hour()), 1, 0, registerItem)
+			timeResult[3] = t.items.register(fmt.Sprintf("M-%02d", dt.Minute()), 1, 0, registerItem)
+			timeResult[4] = t.items.register(fmt.Sprint(dt.Weekday()), 1, 0, registerItem)
 			//dtstr = dt.Format("2006-01-02T15:04:05")
 			t.lastTimeResult = timeResult
 		} else {
@@ -139,9 +139,9 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.T
 				continue
 			}
 			if registerItem {
-				result = append(result, t.items.register(word, 1, true))
+				result = append(result, t.items.register(word, 1, 0, true))
 			} else {
-				result = append(result, t.items.register(word, 0, false))
+				result = append(result, t.items.register(word, 0, 0, false))
 			}
 		}
 	}

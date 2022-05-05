@@ -33,7 +33,7 @@ func (i *items) load() error {
 	return nil
 }
 
-func (i *items) register(item string, addCount int, isNew bool) int {
+func (i *items) register(item string, addCount int, tranScore float64, isNew bool) int {
 	if item == "" {
 		return -1
 	}
@@ -48,6 +48,9 @@ func (i *items) register(item string, addCount int, isNew bool) int {
 		return itemID
 	}
 
+	if tranScore > 0 {
+		i.tranScoreAvg[itemID] = tranScore
+	}
 	i.counts[itemID] += addCount
 	if isNew {
 		i.currCounts[itemID] += addCount
@@ -120,7 +123,7 @@ func (i *items) loadDB() error {
 		if err != nil {
 			return err
 		}
-		i.register(item, itemCount, !rows.blockCompleted)
+		i.register(item, itemCount, tranScoreAvg, !rows.blockCompleted)
 	}
 	return nil
 }
@@ -174,8 +177,9 @@ func (i *items) calcAdjScore(itemID int) float64 {
 	s := i.getScore(itemID)
 	m := i.tranScoreAvg[itemID]
 	if m == 0 {
-		return s
+		return 0 // this score is suspicious
 	} else {
 		return (s + m) / 2
+		//return m
 	}
 }

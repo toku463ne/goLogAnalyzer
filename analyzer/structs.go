@@ -97,6 +97,7 @@ type nTopRecords struct {
 	name       string
 	rootDir    string
 	ntopTable  *csvdb.CsvTable
+	ntopi      *topNItems
 	n          int
 	subN       int
 	minScore   float64
@@ -136,6 +137,7 @@ type topNItems struct {
 	minScoreInTopN float64
 	itemIDs        []int
 	scores         []float64
+	terms          []string
 }
 
 type items struct {

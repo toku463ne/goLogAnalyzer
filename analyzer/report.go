@@ -70,8 +70,9 @@ func (r *report) analyzeAndCreateReport(node *LogNode) error {
 		if err != nil {
 			return err
 		}
+		log.Printf("Creating [%s] report", node.Name)
 		ar, err := a.getNTop(node.Name, node.TopN, start, end,
-			node.Search, node.Exclude, node.MinScore, node.MaxScore)
+			node.Search, node.Exclude, node.MinScore, node.MaxScore, node.NRareTerms)
 		if err != nil {
 			return err
 		}
@@ -79,7 +80,16 @@ func (r *report) analyzeAndCreateReport(node *LogNode) error {
 			return nil
 		}
 		out := "<html>"
-		out += fmt.Sprintf("<h2>Top %d rare %s records</h2><br><br>", node.TopN, node.Name)
+
+		// count per stats
+		ost, _, err := a.stats.getCountPerStatsHtml(0)
+		if err != nil {
+			return err
+		}
+		out += ost
+		out += "<br>"
+
+		out += fmt.Sprintf("<h3>Top %d rare %s records</h3><br>", node.TopN, node.Name)
 		tmp, _, err := ar.getHtmlTable(node.TopN)
 		if err != nil {
 			return err
@@ -173,7 +183,7 @@ func (r *report) createDigestReport() error {
 			}
 
 			ar, err := a.getNTop(node.Name, node.TopN, start, end,
-				node.Search, node.Exclude, node.MinScore, node.MaxScore)
+				node.Search, node.Exclude, node.MinScore, node.MaxScore, node.NRareTerms)
 			if err != nil {
 				return err
 			}
@@ -182,7 +192,8 @@ func (r *report) createDigestReport() error {
 			}
 			records := ar.getRecords2()
 			keyRareTerms := make(map[string][]string, 0)
-			for _, term := range ar.getRareTerms(a.NRareTerms, records) {
+			rareTerms := ar.getRareTerms()
+			for _, term := range rareTerms {
 				if term == "" {
 					continue
 				}
@@ -235,7 +246,7 @@ func (r *report) run() error {
 	}
 
 	// create digests
-	log.Printf("Creating reports")
+	log.Printf("Creating digest reports")
 	if err := r.createDigestReport(); err != nil {
 		return err
 	}

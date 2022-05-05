@@ -211,7 +211,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	if err := getGotExpErr("logRecords count", a.logRecs.countAll(nil), 13); err != nil {
+	if err := getGotExpErr("logRecords count", a.logRecs.countAll(nil), 11); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -458,7 +458,7 @@ func Test_scanAndGetNTop(t *testing.T) {
 		return
 	}
 	n := 5
-	nTop, err := a.scanAndGetNTop("test", n, 0, 0, "", "", 0, 0)
+	nTop, err := a.scanAndGetNTop("test", n, 0, 0, "", "", 0, 0, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

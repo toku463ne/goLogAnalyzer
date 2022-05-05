@@ -14,7 +14,7 @@ func Test_Items(t *testing.T) {
 
 	registerTran := func(it *items, itemCount int, a ...string) error {
 		for _, item := range a {
-			if itemID := it.register(item, itemCount, true); itemID < 0 {
+			if itemID := it.register(item, itemCount, 0, true); itemID < 0 {
 				return errors.New("Failed to register the item " + item)
 			}
 		}

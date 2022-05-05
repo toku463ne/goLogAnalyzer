@@ -16,7 +16,7 @@ const (
 	cIntTrue          = 1
 	cIntFalse         = 2
 
-	cMinNTopItemCount   = 3
+	cMinNTopItemCount   = 2
 	cMinNTopItemTermLen = 3
 
 	cErrPathNotExists     = "path not exists"

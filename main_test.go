@@ -7,8 +7,8 @@ import (
 
 // logan run -f '/mnt/c/Users/kot/loganal/fw03/NFPFW003*'
 func Test_main1(t *testing.T) {
-	rootDir := "/mnt/c/Users/kot/Documents/loganal/fw03/data"
-	logPathRegex := "/mnt/c/Users/kot/loganal/fw03/NFPFW003.log*"
+	rootDir := "/mnt/c/Users/kot/Documents/loganal/ipx/data"
+	logPathRegex := "/mnt/c/Users/kot/loganal/ipx/ipx/IPXFW001.log*"
 	os.Args = []string{"test", "clean", "-d", rootDir}
 	main()
 
@@ -31,5 +31,11 @@ func Test_main4(t *testing.T) {
 	datadir := "/mnt/c/Users/kot/Documents/loganal/test2root/test"
 	os.Args = []string{"test", "topN", "-d", datadir,
 		"-s", "(?i)(error|fatal|crit|fail|down|panic|timeout|warn)"}
+	main()
+}
+
+func Test_reportipx(t *testing.T) {
+	jconf := "ipx.json"
+	os.Args = []string{"test", "report", "-c", jconf}
 	main()
 }

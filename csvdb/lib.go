@@ -248,7 +248,9 @@ func ScanRow(row []string, args ...interface{}) error {
 
 func ensureDir(dirPath string) error {
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		os.MkdirAll(dirPath, 0755)
+		if err = os.MkdirAll(dirPath, 0755); err != nil {
+			return errors.WithStack(err)
+		}
 	} else if err != nil {
 		return errors.WithStack(err)
 	}

@@ -101,7 +101,8 @@ func (a *rarityAnalyzer) init() error {
 	}
 	a.trans = trans
 	if a.RootDir == "" {
-		a.nTopRareLogs, err = newNTopRecords("ntop", a.NTopRecordsCount, 0.0, trans, true, "")
+		a.nTopRareLogs, err = newNTopRecords("ntop", a.NTopRecordsCount,
+			0.0, trans, true, "", a.NRareTerms)
 		if err != nil {
 			return err
 		}
@@ -363,7 +364,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 
 func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string,
-	minScore float64, maxScore float64) (*nTopRecords, error) {
+	minScore float64, maxScore float64, itemsToShow int) (*nTopRecords, error) {
 	var conditionCheckFunc func(v []string) bool
 	var statusLastEpoch int64
 
@@ -417,7 +418,8 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 		return nil, err
 	}
 
-	ntop, err := newNTopRecords(nTopname, recordsToShow, minScore, a.trans, true, a.RootDir)
+	ntop, err := newNTopRecords(nTopname, recordsToShow,
+		minScore, a.trans, true, a.RootDir, itemsToShow)
 	if err != nil {
 		return nil, err
 	}
@@ -461,14 +463,14 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 
 func (a *rarityAnalyzer) getNTop(nTopName string, recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string,
-	minScore float64, maxScore float64) (*nTopRecords, error) {
+	minScore float64, maxScore float64, itemsToShow int) (*nTopRecords, error) {
 	var err error
 	var ntop *nTopRecords
 	if a.RootDir == "" {
 		ntop = a.nTopRareLogs
 	} else {
 		ntop, err = a.scanAndGetNTop(nTopName, recordsToShow,
-			startEpoch, endEpoch, filterReStr, xFilterReStr, minScore, maxScore)
+			startEpoch, endEpoch, filterReStr, xFilterReStr, minScore, maxScore, itemsToShow)
 		if err != nil {
 			return nil, err
 		}

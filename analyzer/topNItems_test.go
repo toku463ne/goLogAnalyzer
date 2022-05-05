@@ -6,7 +6,7 @@ import (
 
 func Test_topNItems(t *testing.T) {
 	h := newTopNItems(3)
-	h.register(1, 1)
+	h.register(1, 1, "test1")
 	if err := getGotExpErr("first", h.scores[0], 1.0); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -16,8 +16,8 @@ func Test_topNItems(t *testing.T) {
 		return
 	}
 
-	h.register(2, 2)
-	h.register(3, 3)
+	h.register(2, 2, "test2")
+	h.register(3, 3, "test3")
 	if err := getGotExpErr("first", h.scores[0], 3.0); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -27,7 +27,7 @@ func Test_topNItems(t *testing.T) {
 		return
 	}
 
-	h.register(4, 2.5)
+	h.register(4, 2.5, "test4")
 	if err := getGotExpErr("not moved", h.scores[0], 3.0); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -41,12 +41,12 @@ func Test_topNItems(t *testing.T) {
 		return
 	}
 
-	h.register(5, 1)
+	h.register(5, 1, "test5")
 	if err := getGotExpErr("not registered", 2, h.itemIDs[2]); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	h.register(4, 4.0)
+	h.register(4, 4.0, "test6")
 	if err := getGotExpErr("duplicate", 2, h.itemIDs[2]); err != nil {
 		t.Errorf("%v", err)
 		return

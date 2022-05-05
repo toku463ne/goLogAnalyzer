@@ -36,7 +36,7 @@ func Run(c *AnalConf) error {
 		filterReStr := re2str(a.filterRe)
 		xFilterReStr := re2str(a.xFilterRe)
 		ntop, err := a.getNTop("ntop", a.NTopRecordsCount, 0, 0,
-			filterReStr, xFilterReStr, 0, 0)
+			filterReStr, xFilterReStr, 0, 0, a.NRareTerms)
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func PrintTopN(rootDir string, n int,
 	}
 
 	ntop, err := a.getNTop("ntop", n, startEpoch, endEpoch,
-		filterRe, xFilterRe, minScore, maxScore)
+		filterRe, xFilterRe, minScore, maxScore, nRareTerms)
 	if err != nil {
 		return err
 	}

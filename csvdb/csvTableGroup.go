@@ -71,7 +71,7 @@ func (g *CsvTableGroup) load(iniFile string) error {
 
 	cfg, err := ini.Load(iniFile)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	tableNames := make([]string, 0)
 	columns := make([]string, 0)
@@ -119,7 +119,7 @@ func (g *CsvTableGroup) save() error {
 
 	file, err := os.OpenFile(g.iniFile, os.O_CREATE, 0640)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	defer file.Close()
 
