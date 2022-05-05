@@ -374,5 +374,6 @@ func getDelimReplacer() *strings.Replacer {
 		"?", " ",
 		"+", " ",
 		"/", " ",
+		"*", " ",
 	)
 }

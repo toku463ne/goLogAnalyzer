@@ -46,10 +46,11 @@ func (node *LogNode) inheritConf(parentConf *LogConf, parentDataDir, parentRepor
 			return nil, errors.New("Cannot define children inside category")
 		}
 		node.dataDir = parentDataDir
+		node.reportDir = parentReportDir
 	} else {
 		node.dataDir = fmt.Sprintf("%s/%s", parentDataDir, node.Name)
+		node.reportDir = fmt.Sprintf("%s/%s", parentReportDir, node.Name)
 	}
-	node.reportDir = fmt.Sprintf("%s/%s", parentReportDir, node.Name)
 
 	if node.TemplateName != "" {
 		template = templates[node.TemplateName]

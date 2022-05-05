@@ -41,7 +41,7 @@ func Test_newLogConfRoot(t *testing.T) {
 		return
 	}
 	if err := getGotExpErr("category.reportDir", lcr.Children[0].Categories[0].reportDir,
-		"/tmp/reportest/logA/a_test333"); err != nil {
+		"/tmp/reportest/logA"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
