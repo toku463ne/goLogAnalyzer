@@ -49,5 +49,7 @@ const (
 	cNTopMultiplier       = 10
 	cNFilesToCheckCount   = 5
 
+	cMaxCountToShowInDigest = 50
+
 	cHtmlRareEmphTag = "font color='blue'"
 )

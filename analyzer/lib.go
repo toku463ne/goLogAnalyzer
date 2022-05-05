@@ -26,6 +26,12 @@ func InitLog(rootDir string) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
 
+func ShowDebug(msg string) {
+	if IsDebug {
+		log.Printf("[DEBUG] %s", msg)
+	}
+}
+
 func searchReg(s, reStr string) bool {
 	re := regexp.MustCompile(fmt.Sprintf(".*%s.*", reStr))
 	return re.MatchString(s)

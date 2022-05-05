@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/pkg/errors"
@@ -21,6 +22,13 @@ func newItems(dataDir, tableName string, maxBlocks, maxRowsInBlock int) (*items,
 	i.tranScoreAvg = make(map[int]float64, 10000)
 	i.currCounts = make(map[int]int, 10000)
 	i.maxItemID = 0
+
+	if IsDebug {
+		msg := "items.newItems(): "
+		msg += fmt.Sprintf("dataDir=%s maxBlocks=%d maxRowsInBlock=%d",
+			dataDir, maxBlocks, maxRowsInBlock)
+		ShowDebug(msg)
+	}
 	return i, nil
 }
 
@@ -177,7 +185,7 @@ func (i *items) calcAdjScore(itemID int) float64 {
 	s := i.getScore(itemID)
 	m := i.tranScoreAvg[itemID]
 	if m == 0 {
-		return 0 // this score is suspicious
+		return s // this score is suspicious
 	} else {
 		return (s + m) / 2
 		//return m

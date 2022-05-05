@@ -34,6 +34,7 @@ func (r *report) getAnalyzer(node *LogNode) (*rarityAnalyzer, error) {
 	ac.DatetimeStartPos = node.DatetimeStartPos
 	ac.DatetimeLayout = node.DatetimeLayout
 	ac.ScoreStyle = node.ScoreStyle
+	ac.ScoreNSize = node.ScoreNSize
 	ac.MinGapToRecord = node.MinGapToRecord
 	ac.NTopRecordsCount = node.TopN
 	ac.NRareTerms = node.NRareTerms
@@ -202,6 +203,9 @@ func (r *report) createDigestReport() error {
 			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", len(records), node.Name)
 			for _, rec := range records {
 				if rec == nil {
+					break
+				}
+				if rec.count > cMaxCountToShowInDigest {
 					break
 				}
 

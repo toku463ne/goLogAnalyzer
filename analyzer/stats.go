@@ -42,6 +42,13 @@ func newStats(rootDir string, maxBlocks, maxRowsInBlock int) (*stats, error) {
 		//}
 	}
 
+	if IsDebug {
+		msg := "stats.newStats(): "
+		msg += fmt.Sprintf("rootDir=%s maxBlocks=%d maxRowsInBlock=%d",
+			rootDir, maxBlocks, maxRowsInBlock)
+		ShowDebug(msg)
+	}
+
 	return s, nil
 }
 

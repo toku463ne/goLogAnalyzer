@@ -46,6 +46,12 @@ func (a *rarityAnalyzer) open() error {
 				return err
 			}
 		}
+		if IsDebug {
+			msg := "alanyzer.open(): "
+			msg += fmt.Sprintf("rootDir=%s LogPathRegex=%s ScoreStyle=%d ScoreNSize=%d",
+				a.RootDir, a.LogPathRegex, a.ScoreStyle, a.ScoreNSize)
+			ShowDebug(msg)
+		}
 	}
 
 	return nil

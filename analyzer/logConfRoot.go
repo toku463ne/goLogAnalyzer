@@ -71,6 +71,9 @@ func (node *LogNode) inheritConf(parentConf *LogConf, parentDataDir, parentRepor
 		if c.ScoreStyle != 0 {
 			node2.ScoreStyle = c.ScoreStyle
 		}
+		if c.ScoreNSize != 0 {
+			node2.ScoreNSize = c.ScoreNSize
+		}
 		if c.Search != "" {
 			node2.Search = c.Search
 		}
@@ -125,6 +128,9 @@ func (node *LogNode) inheritConf(parentConf *LogConf, parentDataDir, parentRepor
 	}
 	if node.ScoreStyle == 0 {
 		node.ScoreStyle = CDefaultScoreStyle
+	}
+	if node.ScoreNSize == 0 {
+		node.ScoreNSize = CDefaultScoreNSize
 	}
 	if node.NRareTerms == 0 {
 		node.NRareTerms = CDefaultNRareTerms

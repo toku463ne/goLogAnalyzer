@@ -32,6 +32,13 @@ func newTrans(dataDir string, maxBlocks, blockSize int,
 	if t.scoreNSize == 0 {
 		t.scoreNSize = CDefaultScoreNSize
 	}
+	if IsDebug {
+		msg := "trans.newTrans(): "
+		msg += fmt.Sprintf("dataDir=%s maxBlocks=%d blockSize=%d datetimeStartPos=%d datetimeLayout=%s scoreStyle=%d scoreNSize=%d",
+			dataDir, maxBlocks, blockSize, datetimeStartPos, datetimeLayout, scoreStyle, scoreNSize)
+		ShowDebug(msg)
+	}
+
 	return t, nil
 }
 

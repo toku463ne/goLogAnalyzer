@@ -37,6 +37,7 @@ const (
 	cReportRecentNdaysDesc = "Recent N days to show the report"
 	cModeblockPerFileDesc  = "If create blocks per files"
 	cNItemTopDesc          = "Top N rare terms to display"
+	cDebugDesc             = "Run with detailed messages"
 )
 
 var (
@@ -62,6 +63,7 @@ var (
 	runScoreNSize        = runFlag.Int("scoreNSize", analyzer.CDefaultScoreNSize, cScoreStyleDesc)
 	runModeblockPerFile  = runFlag.Bool("blockPerFile", false, cModeblockPerFileDesc)
 	runNRareTerms        = runFlag.Int("nRareTerms", analyzer.CDefaultNRareTerms, cNItemTopDesc)
+	runDebug             = runFlag.Bool("debug", false, cDebugDesc)
 
 	topNRootDir       = topNFlag.String("d", "", cRootDirDesc)
 	topNRecordsToShow = topNFlag.Int("n", 10, cNRecordsToShowDesc)
@@ -78,6 +80,7 @@ var (
 
 	reportConfig      = reportFlag.String("c", "", cReportConfigDesc)
 	reportRecentNdays = reportFlag.Int("n", 0, "Recent N days to show the report")
+	reportDebug       = reportFlag.Bool("debug", false, cDebugDesc)
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -114,9 +117,9 @@ func clean() error {
 }
 
 func run() error {
-	analyzer.InitLog(*runRootDir)
-
 	runFlag.Parse(os.Args[2:])
+	analyzer.InitLog(*runRootDir)
+	analyzer.IsDebug = *runDebug
 	forceSaveDb := *runForceSaveDb
 	if !forceSaveDb {
 		if *runRootDir != "" {
@@ -205,6 +208,7 @@ func stats() error {
 
 func report() error {
 	reportFlag.Parse(os.Args[2:])
+	analyzer.IsDebug = *reportDebug
 	return analyzer.Report(*reportConfig, *reportRecentNdays)
 }
 

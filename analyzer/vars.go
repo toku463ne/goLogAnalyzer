@@ -16,4 +16,5 @@ var (
 			matchRate: 0.7,
 		},
 	}
+	IsDebug = false
 )

@@ -211,6 +211,7 @@ type LogConf struct {
 	LogPath          string              `json:"path"`
 	TopN             int                 `json:"topN"`
 	ScoreStyle       int                 `json:"scoreStyle"`
+	ScoreNSize       int                 `json:"scoreNSize"`
 	Search           string              `json:"search"`
 	Exclude          string              `json:"exclude"`
 	BlockSize        int                 `json:"blockSize"`
