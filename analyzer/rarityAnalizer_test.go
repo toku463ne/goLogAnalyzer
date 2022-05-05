@@ -94,7 +94,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 		t.Errorf("%+v", err)
 		return
 	}
-	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 1.0); err != nil {
+	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 0.3); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
@@ -112,7 +112,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 		t.Errorf("%+v", err)
 		return
 	}
-	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 2.0); err != nil {
+	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 0.5); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
@@ -134,7 +134,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 		t.Errorf("%+v", err)
 		return
 	}
-	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 3.0); err != nil {
+	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 1.2); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
@@ -156,7 +156,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 		t.Errorf("%+v", err)
 		return
 	}
-	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 3.0); err != nil {
+	if err := getGotExpErr("MinGapToRecord", a.MinGapToRecord, 1.5); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
@@ -211,7 +211,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	if err := getGotExpErr("logRecords count", a.logRecs.countAll(nil), 11); err != nil {
+	if err := getGotExpErr("logRecords count", a.logRecs.countAll(nil), 13); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
