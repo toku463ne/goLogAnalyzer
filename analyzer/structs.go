@@ -202,6 +202,7 @@ type report struct {
 	st         *stats
 	conf       *LogConfRoot
 	confGroups *logConfGroups
+	daysToShow int
 }
 
 type LogConf struct {

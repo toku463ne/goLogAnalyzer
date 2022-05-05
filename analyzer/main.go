@@ -97,8 +97,8 @@ func RarStats(rootDir string, histSize int) error {
 	return nil
 }
 
-func Report(jsonFile string) error {
-	r, err := newReport(jsonFile)
+func Report(jsonFile string, nDays int) error {
+	r, err := newReport(jsonFile, nDays)
 	if err != nil {
 		return err
 	}

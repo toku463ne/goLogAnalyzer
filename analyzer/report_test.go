@@ -11,7 +11,7 @@ func Test_report(t *testing.T) {
 		return
 	}
 
-	r, err := newReport("testdata/report/config_test.json")
+	r, err := newReport("testdata/report/config_test.json", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

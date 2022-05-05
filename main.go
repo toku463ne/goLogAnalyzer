@@ -76,7 +76,8 @@ var (
 	stsRootDir       = stsFlag.String("d", "", cRootDirDesc)
 	stsRecordsToShow = stsFlag.Int("n", 5, cRecordsToShowDesc)
 
-	reportConfig = reportFlag.String("c", "", cReportConfigDesc)
+	reportConfig      = reportFlag.String("c", "", cReportConfigDesc)
+	reportRecentNdays = reportFlag.Int("n", 0, "Recent N days to show the report")
 
 	usageTxt = `Usage of logan:  
 logan [rar|clean|topN|stats] OPTIONS  
@@ -204,7 +205,7 @@ func stats() error {
 
 func report() error {
 	reportFlag.Parse(os.Args[2:])
-	return analyzer.Report(*reportConfig)
+	return analyzer.Report(*reportConfig, *reportRecentNdays)
 }
 
 func main() {

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func newReport(jsonFile string) (*report, error) {
+func newReport(jsonFile string, nDays int) (*report, error) {
 	r := new(report)
 	var err error
 	r.conf, err = newLogConfRoot(jsonFile)
@@ -17,6 +17,10 @@ func newReport(jsonFile string) (*report, error) {
 	}
 	InitLog(r.conf.RootDir)
 	r.confGroups = newLogConfGroups(r.conf)
+	if nDays == 0 {
+		nDays = CDefaultDaysToReport
+	}
+	r.daysToShow = nDays
 	return r, nil
 }
 
