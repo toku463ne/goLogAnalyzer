@@ -155,7 +155,7 @@ func getSortedGlob(pathRegex string) ([]int64, []string, error) {
 		return nil, nil, err
 	}
 	if fileNames == nil {
-		return nil, nil, errors.New("No filed found")
+		return nil, nil, errors.New(fmt.Sprintf("No files found at %s", pathRegex))
 	}
 	filesEpoch := make([]int64, len(fileNames))
 
@@ -169,6 +169,18 @@ func getSortedGlob(pathRegex string) ([]int64, []string, error) {
 
 	quickSort(filesEpoch, fileNames, 0, len(fileNames)-1)
 	return filesEpoch, fileNames, nil
+}
+
+func UniqueStringSplit(s []string) []string {
+	m := make(map[string]bool, 0)
+	for _, v := range s {
+		m[v] = true
+	}
+	u := make([]string, 0)
+	for k := range m {
+		u = append(u, k)
+	}
+	return u
 }
 
 // PathExist ..

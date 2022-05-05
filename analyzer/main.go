@@ -22,15 +22,15 @@ func Clean(rootDir string) error {
 	return nil
 }
 
-func Run(c *AnalConf) (int, error) {
+func Run(c *AnalConf) error {
 	a, err := newRarityAnalyzer(c)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	log.Printf("blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
 		a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
 	if err := a.analyze(0); err != nil {
-		return 0, err
+		return err
 	}
 	if c.RootDir == "" {
 		filterReStr := re2str(a.filterRe)
@@ -38,17 +38,17 @@ func Run(c *AnalConf) (int, error) {
 		ntop, err := a.getNTop("ntop", a.NTopRecordsCount, 0, 0,
 			filterReStr, xFilterReStr, 0, 0)
 		if err != nil {
-			return a.linesProcessed, err
+			return err
 		}
 		msg := fmt.Sprintf("%d top rare records", a.NTopRecordsCount)
 		out, _, err := ntop.getString(msg, a.NTopRecordsCount, a.NRareTerms)
 		if err != nil {
-			return a.linesProcessed, err
+			return err
 		}
 		println(out)
 	}
 
-	return a.linesProcessed, nil
+	return nil
 }
 
 func PrintTopN(rootDir string, n int,

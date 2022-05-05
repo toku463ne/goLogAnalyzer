@@ -20,3 +20,16 @@ func Test_main2(t *testing.T) {
 	os.Args = []string{"test", "topN", "-d", rootDir}
 	main()
 }
+
+func Test_report(t *testing.T) {
+	jconf := "configsample.json"
+	os.Args = []string{"test", "report", "-c", jconf}
+	main()
+}
+
+func Test_main4(t *testing.T) {
+	datadir := "/mnt/c/Users/kot/Documents/loganal/test2root/test"
+	os.Args = []string{"test", "topN", "-d", datadir,
+		"-s", "(?i)(error|fatal|crit|fail|down|panic|timeout|warn)"}
+	main()
+}

@@ -84,9 +84,13 @@ logan [rar|clean|topN|stats] OPTIONS
 logan -help:
 	Shows this help
 
-logan rar:
+logan run:
 	Calculate rarity score of each log records and show the "rare" records.
 	Run "logan rar -help" for details.
+
+logan report:
+	Reads params from json config file.
+	Run "logan report -help" for details.
 
 logan clean:
 	Cleanups all statistics data.
@@ -109,6 +113,8 @@ func clean() error {
 }
 
 func run() error {
+	analyzer.InitLog(*runRootDir)
+
 	runFlag.Parse(os.Args[2:])
 	forceSaveDb := *runForceSaveDb
 	if !forceSaveDb {
@@ -144,12 +150,10 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 	c.ModeblockPerFile = *runModeblockPerFile
 	c.NRareTerms = *runNRareTerms
 
-	linesProcessed, err := analyzer.Run(c)
+	err := analyzer.Run(c)
 	if err != nil {
 		log.Printf("%+v", err)
 	}
-
-	log.Printf("%d lines processed\n", linesProcessed)
 
 	return nil
 }

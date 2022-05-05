@@ -200,11 +200,11 @@ func (ntop *nTopRecords) getRecords() []*colLogRecord {
 func (ntop *nTopRecords) getRecords2() []*colLogRecord {
 	cnt := 0
 	records := make([]*colLogRecord, len(ntop.records))
-	for i := 0; i < ntop.n; i++ {
-		if ntop.records[i] == nil {
+	for i, rec := range ntop.records {
+		if rec == nil {
 			break
 		}
-		records[i] = ntop.records[i]
+		records[i] = rec
 		cnt++
 	}
 	records = records[0:cnt]
@@ -212,7 +212,10 @@ func (ntop *nTopRecords) getRecords2() []*colLogRecord {
 		func(i, j int) bool {
 			return records[i].count < records[j].count || (records[i].count == records[j].count && records[i].score > records[j].score)
 		})
-	return records[0:cnt]
+	if cnt > ntop.n {
+		records = records[0:cnt]
+	}
+	return records
 }
 
 func (ntop *nTopRecords) getTableName() string {

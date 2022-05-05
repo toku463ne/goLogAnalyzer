@@ -20,8 +20,6 @@ func newRarityAnalyzer(conf *AnalConf) (*rarityAnalyzer, error) {
 }
 
 func (a *rarityAnalyzer) open() error {
-	InitLog(a.RootDir)
-
 	if a.RootDir == "" {
 		if err := a.initBlocks(); err != nil {
 			return err
@@ -30,7 +28,7 @@ func (a *rarityAnalyzer) open() error {
 			return err
 		}
 	} else {
-		if PathExist((a.RootDir)) {
+		if PathExist(a.RootDir) {
 			if err := a.init(); err != nil {
 				return err
 			}
@@ -49,6 +47,7 @@ func (a *rarityAnalyzer) open() error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -358,6 +357,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 	if err := a.commit(false); err != nil {
 		return err
 	}
+	log.Printf("processed %d lines", linesProcessed)
 	return nil
 }
 
@@ -444,10 +444,12 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 		if maxScore > 0 && score > maxScore {
 			continue
 		}
-		if filterRe != nil && !filterRe.Match([]byte(record)) {
+
+		b := []byte(record)
+		if filterRe != nil && !filterRe.Match(b) {
 			continue
 		}
-		if xFilterRe != nil && xFilterRe.Match([]byte(record)) {
+		if xFilterRe != nil && xFilterRe.Match(b) {
 			continue
 		}
 

@@ -2,20 +2,23 @@
 set -e
 
 orgdir=`pwd`
+GOSRC=go1.18.linux-amd64.tar.gz
 if [ ! -d $HOME/go ];then
     cd $HOME
-    wget https://go.dev/dl/go1.18.linux-amd64.tar.gz
-    tar -xfz go1.18.linux-amd64.tar.gz
+    wget https://go.dev/dl/$GOSRC
+    tar -xzf $GOSRC
 fi
 
+GO=$HOME/go/bin/go
+
 if [ ! -f "go.mod" ];then
-    go mod init goLogAnalyzer
+    $GO mod init goLogAnalyzer
 fi
-go mod tidy
+$GO mod tidy
 
 echo "Installing goLogAnalyzer"
 echo go build -o logan main.go
-go build -o logan main.go
+$GO build -o logan main.go
 echo "sudo cp logan /usr/local/bin/logan"
 sudo cp logan /usr/local/bin/logan
 echo "OK!"

@@ -1,0 +1,39 @@
+{
+    "rootDir": "/mnt/c/Users/kot/Documents/loganal/testroot",
+    "reportDir": "/mnt/c/Users/kot/Documents/loganal/testroot/reports",
+    "templates": {
+        "errors": {
+            "search": "(?i)(error|fatal|crit|fail|down|panic|timeout|delay|lost)",
+            "keyEmphasize": {
+                "error": ["font color='red'", "b"],
+                "fatal": ["font color='red'", "b"],
+                "crit": ["font color='red'", "b"],
+                "fail": ["font color='red'", "b"],
+                "down": ["font color='red'", "b"],
+                "panic": ["font color='red'", "b"],
+                "timeout": ["font color='green'", "b"]
+            }
+        },
+        "others": {
+            "exclude": "(?i)(error|fatal|crit|fail|down|panic|timeout|delay|lost)"
+        }
+    },
+    "children": [
+        {
+            "name": "test2",
+            "path": "/mnt/c/Users/kot/loganal/realtest2/test.txt*",
+            "categories": [
+                {"name": "test2_e", "templateName": "errors", "groupNames": ["errors"]},
+                {"name": "test2_o", "templateName": "others", "groupNames": ["others"]}
+            ]
+        },
+        {
+            "name": "test1",
+            "path": "/mnt/c/Users/kot/loganal/realtest/test.log*",
+            "categories": [
+                {"name": "test1_e", "templateName": "errors", "groupNames": ["errors"]},
+                {"name": "test1_o", "templateName": "others", "groupNames": ["others"]}
+            ]
+        }
+    ]
+}

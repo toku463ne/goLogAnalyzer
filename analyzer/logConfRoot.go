@@ -23,7 +23,8 @@ func newLogConfRoot(jsonFile string) (*LogConfRoot, error) {
 	}
 
 	for i, child := range lcr.Children {
-		lcr.Children[i], err = child.inheritConf(lcr.LogConf, lcr.RootDir, lcr.ReportDir, lcr.Templates, false)
+		lcr.Children[i], err = child.inheritConf(lcr.LogConf,
+			lcr.RootDir, lcr.ReportDir, lcr.Templates, false)
 		if err != nil {
 			return nil, err
 		}
@@ -118,6 +119,16 @@ func (node *LogNode) inheritConf(parentConf *LogConf, parentDataDir, parentRepor
 
 	}
 	node.LogConf = node2.LogConf
+
+	if node.TopN == 0 {
+		node.TopN = CDefaultTopNToShow
+	}
+	if node.ScoreStyle == 0 {
+		node.ScoreStyle = CDefaultScoreStyle
+	}
+	if node.NRareTerms == 0 {
+		node.NRareTerms = CDefaultNRareTerms
+	}
 
 	if (node.FromDate != "" || node.ToDate != "") && node.DatetimeLayout == "" {
 		return nil, errors.WithStack(errors.New("dateLayout is mandatory if you have FromDate or ToDate"))

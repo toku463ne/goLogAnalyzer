@@ -12,11 +12,12 @@ func Test_newLogConfRoot(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := getGotExpErr("keyempasize", lcr.KeyEmphasize["error"], "b"); err != nil {
+	if err := getGotExpErr("keyempasize", lcr.KeyEmphasize["333"][0],
+		"font color='red'"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := getGotExpErr("template", lcr.Templates["test333"].Search, "test333"); err != nil {
+	if err := getGotExpErr("template", lcr.Templates["test333"].Search, "test334"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -48,7 +49,7 @@ func Test_newLogConfRoot(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := getGotExpErr("category.Search", lcr.Children[0].Categories[0].Search, "test333"); err != nil {
+	if err := getGotExpErr("category.Search", lcr.Children[0].Categories[0].Search, "test334"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

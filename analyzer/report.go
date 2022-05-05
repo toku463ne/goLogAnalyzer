@@ -2,7 +2,9 @@ package analyzer
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -13,6 +15,7 @@ func newReport(jsonFile string) (*report, error) {
 	if err != nil {
 		return nil, err
 	}
+	InitLog(r.conf.RootDir)
 	r.confGroups = newLogConfGroups(r.conf)
 	return r, nil
 }
@@ -50,6 +53,9 @@ func (r *report) analyzeAndCreateReport(node *LogNode) error {
 	}
 
 	if !node.isCategory && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
+		log.Printf("[%s] blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
+			node.Name, a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
+
 		err = a.analyze(0)
 		if err != nil {
 			return err
@@ -117,7 +123,7 @@ func (r *report) getStartEndEpoch(node *LogNode) (int64, int64, error) {
 			return 0, 0, err
 		}
 	}
-	if node.FromDate == "" && node.ToDate == "" {
+	if node.FromDate == "" && node.ToDate == "" && node.DatetimeLayout != "" {
 		end = getCurrentEpoch()
 		start = end - 3600*24*CDefaultDaysToReport
 	}
@@ -126,12 +132,14 @@ func (r *report) getStartEndEpoch(node *LogNode) (int64, int64, error) {
 
 func (r *report) insertHtmlTag(te string, emp map[string][]string) string {
 	for k, l := range emp {
-		if k == "" {
-			continue
-		}
 		for _, v := range l {
 			a := strings.Split(v, " ")
-			te = strings.Replace(te, k, fmt.Sprintf("<%s>%s</%s>", v, k, a[0]), -1)
+			re := regexp.MustCompile(fmt.Sprintf("(?i)%s", k))
+			matches := re.FindAllString(te, -1)
+			matches = UniqueStringSplit(matches)
+			for _, s := range matches {
+				te = strings.ReplaceAll(te, s, fmt.Sprintf("<%s>%s</%s>", v, s, a[0]))
+			}
 		}
 	}
 	return te
@@ -171,9 +179,12 @@ func (r *report) createDigestReport() error {
 			records := ar.getRecords2()
 			keyRareTerms := make(map[string][]string, 0)
 			for _, term := range ar.getRareTerms(a.NRareTerms, records) {
+				if term == "" {
+					continue
+				}
 				keyRareTerms[term] = []string{cHtmlRareEmphTag}
 			}
-			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", ar.getLen(), node.Name)
+			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", len(records), node.Name)
 			for _, rec := range records {
 				if rec == nil {
 					break
@@ -211,12 +222,16 @@ func (r *report) createDigestReport() error {
 func (r *report) run() error {
 	// analyze and save report per logs
 	for _, child := range r.conf.Children {
+		if child.Name != "" {
+			log.Printf("Processing %s", child.Name)
+		}
 		if err := r.analyzeAndCreateReport(child); err != nil {
 			return err
 		}
 	}
 
 	// create digests
+	log.Printf("Creating reports")
 	if err := r.createDigestReport(); err != nil {
 		return err
 	}

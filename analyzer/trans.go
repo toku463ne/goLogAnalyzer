@@ -25,7 +25,13 @@ func newTrans(dataDir string, maxBlocks, blockSize int,
 	t.datetimeLayout = datetimeLayout
 	t.datetimeEndPos = datetimeStartPos + len(datetimeLayout)
 	t.scoreStyle = scoreStyle
+	if t.scoreStyle == 0 {
+		t.scoreStyle = CDefaultScoreStyle
+	}
 	t.scoreNSize = scoreNSize
+	if t.scoreNSize == 0 {
+		t.scoreNSize = CDefaultScoreNSize
+	}
 	return t, nil
 }
 
