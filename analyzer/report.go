@@ -51,79 +51,6 @@ func (r *report) getAnalyzer(node *LogNode) (*rarityAnalyzer, error) {
 	return a, nil
 }
 
-func (r *report) analyzeAndCreateReport(node *LogNode) error {
-	a, err := r.getAnalyzer(node)
-	if err != nil {
-		return err
-	}
-
-	if !node.isCategory && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
-		log.Printf("[%s] blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
-			node.Name, a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
-
-		err = a.analyze(0)
-		if err != nil {
-			return err
-		}
-	}
-	if node.isEnd {
-		start, end, err := r.getStartEndEpoch(node)
-		if err != nil {
-			return err
-		}
-		log.Printf("Creating [%s] report", node.Name)
-		ar, err := a.getNTop(node.Name, node.TopN, start, end,
-			node.Search, node.Exclude, node.MinScore, node.MaxScore, node.NRareTerms)
-		if err != nil {
-			return err
-		}
-		if ar.getLen() == 0 {
-			return nil
-		}
-		out := "<html>"
-
-		// count per stats
-		ost, _, err := a.stats.getCountPerStatsHtml(0)
-		if err != nil {
-			return err
-		}
-		out += ost
-		out += "<br>"
-
-		out += fmt.Sprintf("<h3>Top %d rare %s records</h3><br>", node.TopN, node.Name)
-		tmp, _, err := ar.getHtmlTable(node.TopN)
-		if err != nil {
-			return err
-		}
-		out += tmp
-		out += "</html>"
-		if err := ensureDir(node.reportDir); err != nil {
-			return err
-		}
-		filePath := fmt.Sprintf("%s/%s.html", node.reportDir, node.Name)
-		fw, err := os.Create(filePath)
-		if err != nil {
-			return err
-		}
-		defer fw.Close()
-		if _, err := fw.WriteString(out); err != nil {
-			return err
-		}
-	} else {
-		for _, child := range node.Children {
-			if err := r.analyzeAndCreateReport(child); err != nil {
-				return err
-			}
-		}
-		for _, cat := range node.Categories {
-			if err := r.analyzeAndCreateReport(cat); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (r *report) getStartEndEpoch(node *LogNode) (int64, int64, error) {
 	end := int64(0)
 	start := int64(0)
@@ -160,7 +87,72 @@ func (r *report) insertHtmlTag(te string, emp map[string][]string) string {
 	return te
 }
 
-func (r *report) createDigestReport() error {
+func (r *report) createDetailedReport(node *LogNode,
+	stats *stats, n int,
+	keyRareTerms map[string][]string,
+	records []*colLogRecord) error {
+	out := "<html>"
+
+	// count per stats
+	ost, _, err := stats.getCountPerStatsHtml(0)
+	if err != nil {
+		return err
+	}
+	out += ost
+	out += "<br>"
+
+	out += fmt.Sprintf("<h3>Top %d rare %s records</h3><br>", node.TopN, node.Name)
+	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
+	out += "<tr><td width=4%>count</td><td width=10%>lastUpdate</td><td width=6%>score</td><td width=10%>rowID</td><td>text</td></tr>"
+	topScore := 0.0
+	for i, logr := range records {
+		if logr == nil {
+			break
+		}
+		if topScore == 0 {
+			topScore = logr.score
+		}
+		te := ""
+		if len(logr.record) > cMaxCharsToShowInTopN {
+			te = string([]rune(logr.record)[:cMaxCharsToShowInTopN])
+		} else {
+			te = logr.record
+		}
+
+		te = r.insertHtmlTag(te, keyRareTerms)
+		te = r.insertHtmlTag(te, node.KeyEmphasize)
+
+		out += fmt.Sprintf("<tr><td>%d</td><td>%s</td><td>%8.2f</td><td>%10d</td><td>%s</td></tr>",
+			logr.count, logr.lastDate, logr.score, logr.rowid, te)
+
+		if logr.score == 0 {
+			break
+		}
+
+		if i+1 >= n {
+			break
+		}
+	}
+	out += "</table>"
+	out += "</html>"
+	if err := ensureDir(node.reportDir); err != nil {
+		return err
+	}
+	filePath := fmt.Sprintf("%s/%s.html", node.reportDir, node.Name)
+	fw, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer fw.Close()
+	if _, err := fw.WriteString(out); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *report) run() error {
+	log.Printf("Creating reports")
+	done := make(map[string]bool, 0)
 	for groupName, g := range r.confGroups.g {
 		out := "<html>"
 		out += fmt.Sprintf("<head><title>%s</title></head>", groupName)
@@ -169,8 +161,6 @@ func (r *report) createDigestReport() error {
 		out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
 		out += "<tr><td width=10%>name</td>"
 		out += "<td width=4%>count</td>"
-		//out += "<td width=6%>score</td>"
-		//out += "<td width=10%>lastUpdate</td>"
 		out += "<td>text</td></tr>"
 
 		for _, node := range g {
@@ -178,22 +168,35 @@ func (r *report) createDigestReport() error {
 			if err != nil {
 				return err
 			}
+			if !done[node.Name] && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
+				log.Printf("[%s] blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
+					node.Name, a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
+				err = a.analyze(0)
+				if err != nil {
+					return err
+				}
+				done[node.Name] = true
+				if len(node.Categories) > 0 {
+					for _, cat := range node.Categories {
+						done[cat.Name] = true
+					}
+				}
+			}
 			start, end, err := r.getStartEndEpoch(node)
 			if err != nil {
 				return err
 			}
-
-			ar, err := a.getNTop(node.Name, node.TopN, start, end,
+			ntop, err := a.getNTop(node.Name, node.TopN, start, end,
 				node.Search, node.Exclude, node.MinScore, node.MaxScore, node.NRareTerms)
 			if err != nil {
 				return err
 			}
-			if ar.getLen() == 0 {
+			if ntop.getLen() == 0 {
 				continue
 			}
-			records := ar.getRecords2()
+			records := ntop.getRecords2()
 			keyRareTerms := make(map[string][]string, 0)
-			rareTerms := ar.getRareTerms()
+			rareTerms := ntop.getRareTerms()
 			for _, term := range rareTerms {
 				if term == "" {
 					continue
@@ -210,13 +213,16 @@ func (r *report) createDigestReport() error {
 				}
 
 				out += fmt.Sprintf("<td>%d</td>", rec.count)
-				//out += fmt.Sprintf("<td>%5.2f</td>", rec.score)
-				//out += fmt.Sprintf("<td>%s</td>", rec.lastDate)
 				txt := rec.record
 				txt = r.insertHtmlTag(txt, keyRareTerms)
 				txt = r.insertHtmlTag(txt, node.KeyEmphasize)
 				out += fmt.Sprintf("<td>%s</td>", txt)
 				out += "</tr>"
+			}
+
+			if err := r.createDetailedReport(node,
+				a.stats, ntop.n, keyRareTerms, records); err != nil {
+				log.Printf("%+v", err)
 			}
 		}
 
@@ -235,24 +241,6 @@ func (r *report) createDigestReport() error {
 			return err
 		}
 	}
-	return nil
-}
 
-func (r *report) run() error {
-	// analyze and save report per logs
-	for _, child := range r.conf.Children {
-		if child.Name != "" {
-			log.Printf("Processing %s", child.Name)
-		}
-		if err := r.analyzeAndCreateReport(child); err != nil {
-			return err
-		}
-	}
-
-	// create digests
-	log.Printf("Creating digest reports")
-	if err := r.createDigestReport(); err != nil {
-		return err
-	}
 	return nil
 }

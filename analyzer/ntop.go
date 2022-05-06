@@ -371,41 +371,6 @@ func (ntop *nTopRecords) getString(msg string, recordsToShow, nRareTerms int) (s
 	return out, topScore, nil
 }
 
-func (ntop *nTopRecords) getHtmlTable(recordsToShow int) (string, float64, error) {
-	//println(a.trans.items.totalCount)
-	out := ""
-	out += "<table border=1 ~~~ style='table-layout:fixed;width:100%;'>"
-	out += "<tr><td width=4%>count</td><td width=10%>lastUpdate</td><td width=6%>score</td><td width=10%>rowID</td><td>text</td></tr>"
-	topScore := 0.0
-	for i, logr := range ntop.getRecords2() {
-		if logr == nil {
-			break
-		}
-		if topScore == 0 {
-			topScore = logr.score
-		}
-		te := ""
-		if len(logr.record) > cMaxCharsToShowInTopN {
-			te = string([]rune(logr.record)[:cMaxCharsToShowInTopN])
-		} else {
-			te = logr.record
-		}
-
-		out += fmt.Sprintf("<tr><td>%d</td><td>%s</td><td>%8.2f</td><td>%10d</td><td>%s</td></tr>",
-			logr.count, logr.lastDate, logr.score, logr.rowid, te)
-
-		if logr.score == 0 {
-			break
-		}
-
-		if i+1 >= recordsToShow {
-			break
-		}
-	}
-	out += "</table>"
-	return out, topScore, nil
-}
-
 func (ntop *nTopRecords) getJson(msg string, recordsToShow int) ([]*nTopOutRec,
 	float64, error) {
 	topScore := 0.0
