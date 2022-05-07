@@ -118,6 +118,8 @@ func (cdb *circuitDB) nextBlock() error {
 
 	cdb.writeMode = "w"
 
+	cdb.currTable.Close()
+
 	t, err := cdb.getBlockTable(cdb.blockNo)
 	if err != nil {
 		return err

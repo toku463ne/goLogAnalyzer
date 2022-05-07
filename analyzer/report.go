@@ -224,6 +224,9 @@ func (r *report) run() error {
 				a.stats, ntop.n, keyRareTerms, records); err != nil {
 				log.Printf("%+v", err)
 			}
+
+			a.close()
+			a = nil
 		}
 
 		out += "</table>"
