@@ -166,7 +166,9 @@ func (r *report) run() error {
 		for _, node := range g {
 			a, err := r.getAnalyzer(node)
 			if err != nil {
-				return err
+				log.Printf("%+v", err)
+				a.close()
+				continue
 			}
 			if !done[node.Name] && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
 				log.Printf("[%s] blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",

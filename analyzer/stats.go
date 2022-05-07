@@ -138,7 +138,7 @@ func (s *stats) prepareTables() error {
 		s.statsTable = t
 	}
 	if t, err := s.CreateTableIfNotExists("scores",
-		tableDefs["scores"], false, s.maxBlocks); err != nil {
+		tableDefs["scores"], false, cDefaultBuffSize); err != nil {
 		return err
 	} else {
 		s.scoresTable = t
