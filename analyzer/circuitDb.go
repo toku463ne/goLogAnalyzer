@@ -25,7 +25,7 @@ func newCircuitDB(rootDir, name string, columns []string,
 	if err != nil {
 		return nil, err
 	}
-	_, err = db.CreateGroup(name, columns, useGzipInCircuitTables, blockSize)
+	_, err = db.CreateGroup(name, columns, useGzipInCircuitTables, blockSize, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func newCircuitDB(rootDir, name string, columns []string,
 	cdb.writeMode = csvdb.CWriteModeAppend
 
 	st, err := db.CreateTableIfNotExists("circuitDBStatus",
-		tableDefs["circuitDBStatus"], false, maxBlocks)
+		tableDefs["circuitDBStatus"], false, maxBlocks, 0)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

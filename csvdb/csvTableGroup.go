@@ -12,7 +12,7 @@ import (
 
 func newCsvTableGroup(groupName, rootDir string,
 	columns []string,
-	useGzip bool, bufferSize int) (*CsvTableGroup, error) {
+	useGzip bool, bufferSize, readBufferSize int) (*CsvTableGroup, error) {
 	g := new(CsvTableGroup)
 	g.groupName = groupName
 	g.rootDir = rootDir
@@ -24,7 +24,7 @@ func newCsvTableGroup(groupName, rootDir string,
 	//g.iniFile = fmt.Sprintf("%s/%s.%s", g.dataDir, groupName, cTblIniExt)
 	g.iniFile = fmt.Sprintf("%s/%s.%s", g.rootDir, groupName, cTblIniExt)
 	g.tableDefs = make(map[string]*CsvTableDef)
-	g.init(columns, useGzip, bufferSize)
+	g.init(columns, useGzip, bufferSize, readBufferSize)
 	return g, nil
 }
 
@@ -38,11 +38,12 @@ func (g *CsvTableGroup) getTablePath(tableName string) string {
 }
 
 func (g *CsvTableGroup) init(columns []string,
-	useGzip bool, bufferSize int) {
+	useGzip bool, bufferSize, readBufferSize int) {
 
 	g.columns = columns
 	g.useGzip = useGzip
 	g.bufferSize = bufferSize
+	g.readBufferSize = readBufferSize
 
 }
 
@@ -77,6 +78,7 @@ func (g *CsvTableGroup) load(iniFile string) error {
 	columns := make([]string, 0)
 	useGzip := false
 	bufferSize := cDefaultBuffSize
+	readBufferSize := 0
 	for _, k := range cfg.Section("conf").Keys() {
 		switch k.Name() {
 		case "tableNames":
@@ -91,10 +93,12 @@ func (g *CsvTableGroup) load(iniFile string) error {
 			useGzip = k.MustBool(false)
 		case "bufferSize":
 			bufferSize = k.MustInt(cDefaultBuffSize)
+		case "readBufferSize":
+			readBufferSize = k.MustInt(0)
 		}
 	}
 
-	g.init(columns, useGzip, bufferSize)
+	g.init(columns, useGzip, bufferSize, readBufferSize)
 	tableDefs := make(map[string]*CsvTableDef, len(tableNames))
 	for _, tableName := range tableNames {
 		tableDefs[tableName] = newCsvTableDef(g.groupName,
@@ -132,6 +136,7 @@ func (g *CsvTableGroup) save() error {
 	cfg.Section("conf").Key("tableNames").SetValue(strings.Join(tableNames, ","))
 	cfg.Section("conf").Key("useGzip").SetValue(strconv.FormatBool(g.useGzip))
 	cfg.Section("conf").Key("bufferSize").SetValue(strconv.Itoa(g.bufferSize))
+	cfg.Section("conf").Key("readBufferSize").SetValue(strconv.Itoa(g.readBufferSize))
 
 	if err := cfg.SaveTo(g.iniFile); err != nil {
 		return errors.WithStack(err)
@@ -188,8 +193,10 @@ func (g *CsvTableGroup) GetTable(tableName string) (*CsvTable, error) {
 	if err := ensureDir(g.dataDir); err != nil {
 		return nil, err
 	}
-	if td, ok := g.tableDefs[tableName]; ok {
-		return newCsvTable(g.groupName, tableName, td.path, g.columns, g.useGzip, g.bufferSize), nil
+	if _, ok := g.tableDefs[tableName]; ok {
+		path := g.getTablePath(tableName)
+		return newCsvTable(g.groupName, tableName,
+			path, g.columns, g.useGzip, g.bufferSize, g.readBufferSize)
 	} else {
 		return g.CreateTable(tableName)
 	}
@@ -200,8 +207,11 @@ func (g *CsvTableGroup) CreateTable(tableName string) (*CsvTable, error) {
 	if g.TableExists(tableName) {
 		return nil, errors.New(fmt.Sprintf("The table %s exists", tableName))
 	}
-	t := newCsvTable(g.groupName, tableName, g.getTablePath(tableName),
-		g.columns, g.useGzip, g.bufferSize)
+	t, err := newCsvTable(g.groupName, tableName, g.getTablePath(tableName),
+		g.columns, g.useGzip, g.bufferSize, g.readBufferSize)
+	if err != nil {
+		return nil, err
+	}
 
 	g.tableDefs[tableName] = t.CsvTableDef
 	if err := t.Flush(); err != nil {

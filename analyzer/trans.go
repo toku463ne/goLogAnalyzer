@@ -71,8 +71,9 @@ func (t *trans) calcScore(tran []int) float64 {
 		tranSize := len(tran)
 		scores := make([]float64, tranSize)
 		for i, itemID := range tran {
-			adjScore := t.items.calcAdjScore(itemID)
-			scores[i] = adjScore
+			//adjScore := t.items.calcAdjScore(itemID)
+			//scores[i] = adjScore
+			scores[i] = t.items.getScore(itemID)
 			//t.items.topNItems.register(itemID, adjScore)
 		}
 		score = calcNAvgScore(scores, t.scoreStyle, t.scoreNSize)

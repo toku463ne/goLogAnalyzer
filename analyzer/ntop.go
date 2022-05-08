@@ -234,7 +234,7 @@ func (ntop *nTopRecords) getTableName() string {
 
 func (ntop *nTopRecords) prepareTables() error {
 	ntopTable, err := ntop.CreateTableIfNotExists(ntop.getTableName(),
-		tableDefs["lastTopN"], false, cDefaultBuffSize)
+		tableDefs["lastTopN"], false, cDefaultBuffSize, 0)
 	if err != nil {
 		return err
 	}

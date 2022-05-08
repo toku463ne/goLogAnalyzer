@@ -35,8 +35,8 @@ func NewCsvDB(baseDir string) (*CsvDB, error) {
 }
 
 func (db *CsvDB) CreateGroup(groupName string,
-	columns []string, useGzip bool, bufferSize int) (*CsvTableGroup, error) {
-	g, err := newCsvTableGroup(groupName, db.baseDir, columns, useGzip, bufferSize)
+	columns []string, useGzip bool, bufferSize, readBufferSize int) (*CsvTableGroup, error) {
+	g, err := newCsvTableGroup(groupName, db.baseDir, columns, useGzip, bufferSize, readBufferSize)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (db *CsvDB) GetGroup(groupName string) (*CsvTableGroup, error) {
 }
 
 func (db *CsvDB) createTable(groupName, tableName string,
-	columns []string, useGzip bool, bufferSize int) (*CsvTable, error) {
+	columns []string, useGzip bool, bufferSize, readBufferSize int) (*CsvTable, error) {
 
 	if groupName == "" {
 		groupName = tableName
@@ -66,7 +66,7 @@ func (db *CsvDB) createTable(groupName, tableName string,
 			return nil, errors.New(fmt.Sprintf("The table %s exists", tableName))
 		}
 	} else {
-		g, err = newCsvTableGroup(groupName, db.baseDir, columns, useGzip, bufferSize)
+		g, err = newCsvTableGroup(groupName, db.baseDir, columns, useGzip, bufferSize, readBufferSize)
 		if err != nil {
 			return nil, err
 		}
@@ -82,8 +82,8 @@ func (db *CsvDB) createTable(groupName, tableName string,
 }
 
 func (db *CsvDB) CreateTable(tableName string,
-	columns []string, useGzip bool, bufferSize int) (*CsvTable, error) {
-	return db.createTable("", tableName, columns, useGzip, bufferSize)
+	columns []string, useGzip bool, bufferSize, readBufferSize int) (*CsvTable, error) {
+	return db.createTable("", tableName, columns, useGzip, bufferSize, readBufferSize)
 }
 
 func (db *CsvDB) GetTable(tableName string) (*CsvTable, error) {
@@ -155,19 +155,19 @@ func (db *CsvDB) tableExists(groupName, tableName string) bool {
 }
 
 func (db *CsvDB) CreateTableIfNotExists(tableName string,
-	columns []string, useGzip bool, bufferSize int) (*CsvTable, error) {
-	return db.createTableIfNotExists("", tableName, columns, useGzip, bufferSize)
+	columns []string, useGzip bool, bufferSize, readBufferSize int) (*CsvTable, error) {
+	return db.createTableIfNotExists("", tableName, columns, useGzip, bufferSize, readBufferSize)
 }
 
 func (db *CsvDB) createTableIfNotExists(groupName, tableName string,
-	columns []string, useGzip bool, bufferSize int) (*CsvTable, error) {
+	columns []string, useGzip bool, bufferSize, readBufferSize int) (*CsvTable, error) {
 	if groupName == "" {
 		groupName = tableName
 	}
 	g, ok := db.Groups[groupName]
 	var err error
 	if !ok {
-		g, err = db.CreateGroup(groupName, columns, useGzip, bufferSize)
+		g, err = db.CreateGroup(groupName, columns, useGzip, bufferSize, readBufferSize)
 		if err != nil {
 			return nil, err
 		}

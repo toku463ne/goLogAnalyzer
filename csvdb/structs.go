@@ -12,14 +12,15 @@ type CsvDB struct {
 }
 
 type CsvTableGroup struct {
-	groupName  string
-	rootDir    string
-	dataDir    string
-	iniFile    string
-	tableDefs  map[string]*CsvTableDef
-	columns    []string
-	useGzip    bool
-	bufferSize int
+	groupName      string
+	rootDir        string
+	dataDir        string
+	iniFile        string
+	tableDefs      map[string]*CsvTableDef
+	columns        []string
+	useGzip        bool
+	bufferSize     int
+	readBufferSize int
 }
 
 type CsvTableDef struct {
@@ -30,11 +31,14 @@ type CsvTableDef struct {
 
 type CsvTable struct {
 	*CsvTableDef
-	columns    []string
-	colMap     map[string]int
-	useGzip    bool
-	bufferSize int
-	buff       *insertBuff
+	columns        []string
+	colMap         map[string]int
+	useGzip        bool
+	bufferSize     int
+	readBufferSize int
+	path           string
+	iBuff          *insertBuff
+	reader         *CsvReader
 }
 
 type CsvRows struct {
@@ -55,6 +59,15 @@ type insertBuff struct {
 	size   int
 }
 
+type readBuff struct {
+	path    string
+	rows    [][]string
+	pos     int
+	readPos int
+	size    int
+	values  []string
+}
+
 type CsvReader struct {
 	fr       *os.File
 	zr       *gzip.Reader
@@ -63,6 +76,7 @@ type CsvReader struct {
 	err      error
 	filename string
 	mode     string
+	readBuff *readBuff
 }
 
 type CsvWriter struct {

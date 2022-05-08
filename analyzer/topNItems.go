@@ -10,6 +10,9 @@ func newTopNItems(n int) *topNItems {
 }
 
 func (t *topNItems) register(itemID int, score float64, term string) {
+	if t.n == 0 {
+		return
+	}
 	if score <= 0 || t.scores[t.n-1] > 0 && t.minScoreInTopN > score {
 		return
 	}

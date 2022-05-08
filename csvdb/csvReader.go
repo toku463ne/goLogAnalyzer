@@ -10,23 +10,63 @@ import (
 	"github.com/pkg/errors"
 )
 
-func newCsvReader(filename string) (*CsvReader, error) {
-	ext := filepath.Ext(filename)
+func newCsvReader(filename string, buffSize int) (*CsvReader, error) {
+	c := new(CsvReader)
+	c.filename = filename
+	if err := c.open(); err != nil {
+		return nil, err
+	}
+
+	if buffSize > 0 {
+		buff := newReadBuffer(filename, buffSize)
+		if c.reader == nil {
+			c.readBuff = buff
+			return c, nil
+		}
+		for {
+			values, err := c.reader.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+			if err := buff.append(values); err != nil {
+				return nil, err
+			}
+		}
+		c.readBuff = buff
+		c.close()
+	}
+
+	return c, nil
+}
+
+func (c *CsvReader) open() error {
+	if c.readBuff != nil {
+		c.initPos()
+		return nil
+	}
+	ext := filepath.Ext(c.filename)
 	var fr *os.File
 	var zr *gzip.Reader
 	var r *csv.Reader
 	var err error
 	mode := ""
 
-	fr, err = os.Open(filename)
+	if !pathExist(c.filename) {
+		return nil
+	}
+
+	fr, err = os.Open(c.filename)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 
 	if ext == ".gz" || ext == ".gzip" {
 		zr, err = gzip.NewReader(fr)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return errors.WithStack(err)
 		}
 		r = csv.NewReader(zr)
 		mode = cRModeGZip
@@ -35,17 +75,37 @@ func newCsvReader(filename string) (*CsvReader, error) {
 		mode = cRModePlain
 	}
 
-	c := new(CsvReader)
 	c.fr = fr
 	c.zr = zr
 	c.reader = r
-	c.filename = filename
 	c.mode = mode
-	return c, nil
+	return nil
+}
+
+func (c *CsvReader) initPos() error {
+	if c.readBuff == nil {
+		return errors.New("initPos() can use only when readBuff is enabled")
+	}
+	c.readBuff.initReadPos()
+	return nil
 }
 
 func (c *CsvReader) next() bool {
-	values, err := c.reader.Read()
+	var values []string
+	var err error
+	if c.readBuff == nil {
+		if c.reader == nil {
+			err = io.EOF
+		} else {
+			values, err = c.reader.Read()
+		}
+	} else {
+		if c.readBuff.next() {
+			values = c.readBuff.values
+		} else {
+			err = io.EOF
+		}
+	}
 	c.err = err
 	if err == io.EOF {
 		return false
@@ -67,4 +127,21 @@ func (c *CsvReader) close() {
 		c.fr.Close()
 		c.fr = nil
 	}
+}
+
+func (c *CsvReader) append(row []string) error {
+	if err := c.readBuff.append(row); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *CsvReader) hasRows() bool {
+	if c.readBuff != nil && c.readBuff.pos >= 0 {
+		return true
+	}
+	if c.readBuff == nil && pathExist(c.filename) {
+		return true
+	}
+	return false
 }

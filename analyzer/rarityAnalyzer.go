@@ -42,6 +42,9 @@ func (a *rarityAnalyzer) open() error {
 			if err := a.init(); err != nil {
 				return err
 			}
+			if err := a.saveLastStatus(); err != nil {
+				return err
+			}
 			if err := a.saveConfig(); err != nil {
 				return err
 			}
@@ -222,13 +225,13 @@ func (a *rarityAnalyzer) prepareDB() error {
 	if err != nil {
 		return err
 	}
-	ct, err := d.CreateTableIfNotExists("config", tableDefs["config"], false, 1)
+	ct, err := d.CreateTableIfNotExists("config", tableDefs["config"], false, 1, 1)
 	if err != nil {
 		return err
 	}
 	a.configTable = ct
 
-	ls, err := d.CreateTableIfNotExists("lastStatus", tableDefs["lastStatus"], false, 1)
+	ls, err := d.CreateTableIfNotExists("lastStatus", tableDefs["lastStatus"], false, 1, 1)
 	if err != nil {
 		return err
 	}

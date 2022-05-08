@@ -9,9 +9,9 @@ import (
 )
 
 func newCsvRows(conditionCheckFunc func([]string) bool,
-	path string, tableCols, selectedCols []string) (*CsvRows, error) {
-	reader, err := newCsvReader(path)
-	if err != nil {
+	path string, tableCols, selectedCols []string, reader *CsvReader) (*CsvRows, error) {
+	//reader, err := newCsvReader(path, 0)
+	if err := reader.open(); err != nil {
 		return nil, err
 	}
 	r := new(CsvRows)

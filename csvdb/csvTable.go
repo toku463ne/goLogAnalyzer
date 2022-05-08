@@ -11,7 +11,7 @@ import (
 
 func newCsvTable(groupName, tableName, path string,
 	columns []string, useGzip bool,
-	bufferSize int) *CsvTable {
+	bufferSize, readBufferSize int) (*CsvTable, error) {
 	t := new(CsvTable)
 	t.CsvTableDef = new(CsvTableDef)
 	t.groupName = groupName
@@ -25,12 +25,19 @@ func newCsvTable(groupName, tableName, path string,
 	t.colMap = colMap
 	t.useGzip = useGzip
 	t.bufferSize = bufferSize
-	t.buff = newInsertBuffer(bufferSize)
-	return t
+	t.iBuff = newInsertBuffer(bufferSize)
+	t.readBufferSize = readBufferSize
+	var err error
+	t.reader, err = newCsvReader(path, readBufferSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
 }
 
 func (t *CsvTable) Close() {
-	t.buff = nil
+	t.iBuff = nil
 }
 
 func (t *CsvTable) Drop() error {
@@ -41,15 +48,19 @@ func (t *CsvTable) Drop() error {
 }
 
 func (t *CsvTable) Count(conditionCheckFunc func([]string) bool) int {
-	if !pathExist(t.path) {
-		return 0
-	}
+	//if !pathExist(t.path) {
+	//	return 0
+	//}
 
-	reader, err := newCsvReader(t.path)
-	if err != nil {
+	//reader, err := newCsvReader(t.path)
+	//if err != nil {
+	//	return -1
+	//}
+	cnt := 0
+	reader := t.reader
+	if err := reader.open(); err != nil {
 		return -1
 	}
-	cnt := 0
 	defer reader.close()
 	for reader.next() {
 		v := reader.values
@@ -67,18 +78,22 @@ func (t *CsvTable) Count(conditionCheckFunc func([]string) bool) int {
 
 func (t *CsvTable) Sum(conditionCheckFunc func([]string) bool,
 	column string, s interface{}) error {
-	if !pathExist(t.path) {
-		convFromString("0", s)
-		return nil
-	}
+	//if !pathExist(t.path) {
+	//	convFromString("0", s)
+	//	return nil
+	//}
 
 	idx, ok := t.colMap[column]
 	if !ok {
 		return errors.New(fmt.Sprintf("Column %s does not exist", column))
 	}
 
-	reader, err := newCsvReader(t.path)
-	if err != nil {
+	//reader, err := newCsvReader(t.path)
+	//if err != nil {
+	//	return err
+	//}
+	reader := t.reader
+	if err := reader.open(); err != nil {
 		return err
 	}
 	res := 0.0
@@ -107,18 +122,18 @@ func (t *CsvTable) Sum(conditionCheckFunc func([]string) bool,
 
 func (t *CsvTable) SelectRows(conditionCheckFunc func([]string) bool,
 	colNames []string) (*CsvRows, error) {
-	if !pathExist(t.path) {
-		return nil, errors.New(cErrPathNotExists)
-	}
+	//if !pathExist(t.path) {
+	//	return nil, errors.New(cErrPathNotExists)
+	//}
 	return newCsvRows(conditionCheckFunc,
-		t.path, t.columns, colNames)
+		t.path, t.columns, colNames, t.reader)
 }
 
 func (t *CsvTable) Select1Row(conditionCheckFunc func([]string) bool,
 	colNames []string, args ...interface{}) error {
-	if !pathExist(t.path) {
-		return errors.New(cErrPathNotExists)
-	}
+	//if !pathExist(t.path) {
+	//	return errors.New(cErrPathNotExists)
+	//}
 	r, err := t.SelectRows(conditionCheckFunc, colNames)
 	if err != nil {
 		return err
@@ -130,12 +145,16 @@ func (t *CsvTable) Select1Row(conditionCheckFunc func([]string) bool,
 }
 
 func (t *CsvTable) readRows(conditionCheckFunc func([]string) bool) ([][]string, error) {
-	if !pathExist(t.path) {
-		return nil, errors.New(cErrPathNotExists)
-	}
+	//if !pathExist(t.path) {
+	//	return nil, errors.New(cErrPathNotExists)
+	//}
 
-	reader, err := newCsvReader(t.path)
-	if err != nil {
+	//reader, err := newCsvReader(t.path)
+	//if err != nil {
+	//	return nil, err
+	//}
+	reader := t.reader
+	if err := reader.open(); err != nil {
 		return nil, err
 	}
 	found := [][]string{}
@@ -177,8 +196,14 @@ func (t *CsvTable) InsertRow(columns []string, args ...interface{}) error {
 		}
 	}
 
-	if t.buff.register(row) {
+	if t.iBuff.register(row) {
 		t.Flush()
+	}
+
+	if t.readBufferSize > 0 {
+		if err := t.reader.append(row); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -193,7 +218,7 @@ func (t *CsvTable) FlushOverwrite() error {
 }
 
 func (t *CsvTable) flush(wmode string) error {
-	if t.buff.pos < 0 {
+	if t.iBuff.pos < 0 {
 		return nil
 	}
 	writer, err := t.openW(wmode)
@@ -201,16 +226,16 @@ func (t *CsvTable) flush(wmode string) error {
 		return err
 	}
 	defer writer.close()
-	for i, row := range t.buff.rows {
+	for i, row := range t.iBuff.rows {
 		if err := writer.write(row); err != nil {
-			t.buff.init()
+			t.iBuff.init()
 			return err
 		}
-		if i >= t.buff.pos {
+		if i >= t.iBuff.pos {
 			break
 		}
 	}
-	t.buff.init()
+	t.iBuff.init()
 	writer.flush()
 	return nil
 }
@@ -287,12 +312,16 @@ func (t *CsvTable) Update(conditionCheckFunc func([]string) bool,
 }
 
 func (t *CsvTable) Truncate() error {
-	writer, err := t.openW(CWriteModeWrite)
-	if err != nil {
-		return err
+	if t.reader.readBuff != nil {
+		t.reader.readBuff.init()
+	} else {
+		writer, err := t.openW(CWriteModeWrite)
+		if err != nil {
+			return err
+		}
+		defer writer.close()
+		writer.flush()
 	}
-	defer writer.close()
-	writer.flush()
 	return nil
 }
 
@@ -302,17 +331,17 @@ func (t *CsvTable) update(conditionCheckFunc func([]string) bool,
 		return t.Truncate()
 	}
 
-	var reader *CsvReader
-	var err error
-	if pathExist(t.path) {
-		reader, err = newCsvReader(t.path)
-		if err != nil {
-			return err
-		}
-		defer reader.close()
-	} else if !isUpsert {
+	if !t.reader.hasRows() && !isUpsert {
 		return nil
 	}
+
+	//var reader *CsvReader
+	reader := t.reader
+	if err := reader.open(); err != nil {
+		return err
+	}
+	defer reader.close()
+
 	rows := make([][]string, 0)
 	isUpdated := false
 	cnt := 0
@@ -346,10 +375,17 @@ func (t *CsvTable) update(conditionCheckFunc func([]string) bool,
 	if isUpdated {
 		buff := newInsertBuffer(len(rows))
 		buff.setBuff(rows)
-		t.buff = buff
+		t.iBuff = buff
 
 		if err := t.flush(CWriteModeWrite); err != nil {
 			return err
+		}
+		if t.reader.readBuff != nil {
+			//t.reader.readBuff.rows = rows
+			t.reader.readBuff.init()
+			for _, row := range rows {
+				t.reader.readBuff.append(row)
+			}
 		}
 	} else if isUpsert {
 		columns := make([]string, len(updates))
@@ -363,7 +399,7 @@ func (t *CsvTable) update(conditionCheckFunc func([]string) bool,
 		if err := t.InsertRow(columns, args...); err != nil {
 			return err
 		}
-		if t.buff.pos != -1 {
+		if t.iBuff.pos != -1 {
 			t.flush(CWriteModeAppend)
 		}
 	}

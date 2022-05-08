@@ -47,7 +47,7 @@ func TestCsvDb(t *testing.T) {
 	}
 
 	tb, err := db.CreateTable(name,
-		[]string{"id", "name", "class"}, false, bufferSize)
+		[]string{"id", "name", "class"}, false, bufferSize, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

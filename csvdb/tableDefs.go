@@ -5,6 +5,7 @@ var (
 name TEXT,
 columns TEXT,
 useGzip NUMBER,
-bufferSize NUMBER
+bufferSize NUMBER,
+readBufferSize NUMBER
 );`
 )
