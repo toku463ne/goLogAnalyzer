@@ -382,15 +382,17 @@ func calcNAvgScore(scores []float64, scoreStyle, scoreNSize int) float64 {
 		}
 
 	} else {
-		minScore := 0.0
+		//minScore := 0.0
 		scoreTotal := 0.0
 		for _, s := range scores {
-			if minScore == 0 || s < minScore {
-				minScore = s
-			}
+			//if minScore == 0 || s < minScore {
+			//	minScore = s
+			//}
 			scoreTotal += s
 		}
-		score = scoreTotal + minScore*float64(scoreNSize-tranSize)/2.0
+		//score = scoreTotal + minScore*float64(scoreNSize-tranSize)/2.0
+		score = scoreTotal
+		scoreNSize = tranSize
 	}
 	score /= float64(scoreNSize)
 	return score
