@@ -294,6 +294,13 @@ func (a *rarityAnalyzer) calcBlocks(totalCount int, nFiles int) {
 }
 
 func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
+	if IsDebug {
+		msg := "rarityAnalyzer.analyze(): "
+		msg += fmt.Sprintf("blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
+			a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
+		ShowDebug(msg)
+	}
+
 	linesProcessed := 0
 	var err error
 

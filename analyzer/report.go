@@ -188,8 +188,7 @@ func (r *report) run() error {
 			}
 			ok := done[node.dataDir]
 			if !ok && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
-				log.Printf("[%s] blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
-					node.Name, a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
+				log.Printf("[%s] starting analyzing", node.Name)
 				err = a.analyze(0)
 				if err != nil {
 					return err
@@ -222,8 +221,8 @@ func (r *report) run() error {
 				}
 				keyRareTerms[term] = []string{cHtmlRareEmphTag}
 			}
-			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", len(records), node.Name)
 			cnt := 0
+			out2 := ""
 			for _, rec := range records {
 				if rec == nil {
 					break
@@ -232,14 +231,16 @@ func (r *report) run() error {
 					break
 				}
 
-				out += fmt.Sprintf("<td>%d</td>", rec.count)
+				out2 += fmt.Sprintf("<td>%d</td>", rec.count)
 				txt := rec.record
 				txt = r.insertHtmlTag(txt, keyRareTerms)
 				txt = r.insertHtmlTag(txt, node.KeyEmphasize)
-				out += fmt.Sprintf("<td>%s</td>", txt)
-				out += "</tr>"
+				out2 += fmt.Sprintf("<td>%s</td>", txt)
+				out2 += "</tr>"
 				cnt++
 			}
+			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", cnt, node.Name)
+			out += out2
 
 			if err := r.createDetailedReport(node,
 				a.stats, ntop.n, keyRareTerms, records); err != nil {
