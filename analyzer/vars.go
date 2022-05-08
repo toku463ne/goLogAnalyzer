@@ -17,4 +17,5 @@ var (
 		},
 	}
 	IsDebug = false
+	Name    string
 )

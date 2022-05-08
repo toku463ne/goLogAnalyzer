@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func newReport(jsonFile string, nDays int) (*report, error) {
@@ -180,6 +181,7 @@ func (r *report) run() error {
 		out += "<td>text</td></tr>"
 
 		for _, node := range g {
+			SetNamespace(node.LogPath)
 			a, err := r.getAnalyzer(node)
 			if err != nil {
 				log.Printf("%+v", err)
@@ -224,6 +226,7 @@ func (r *report) run() error {
 			cnt := 0
 			out2 := ""
 			for _, rec := range records {
+				cnt++
 				if rec == nil {
 					break
 				}
@@ -237,7 +240,6 @@ func (r *report) run() error {
 				txt = r.insertHtmlTag(txt, node.KeyEmphasize)
 				out2 += fmt.Sprintf("<td>%s</td>", txt)
 				out2 += "</tr>"
-				cnt++
 			}
 			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", cnt, node.Name)
 			out += out2
@@ -249,6 +251,8 @@ func (r *report) run() error {
 
 			a.close()
 			a = nil
+			time.Sleep(1000)
+
 		}
 
 		out += "</table>"

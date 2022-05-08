@@ -9,6 +9,7 @@ import (
 )
 
 func Clean(rootDir string) error {
+	SetNamespace(rootDir)
 	if PathExist(rootDir) {
 		log.Printf("removing '%s'", rootDir)
 		if err := os.RemoveAll(rootDir); err != nil {
@@ -23,6 +24,7 @@ func Clean(rootDir string) error {
 }
 
 func Run(c *AnalConf) error {
+	SetNamespace(c.LogPathRegex)
 	a, err := newRarityAnalyzer(c)
 	if err != nil {
 		return err
@@ -55,6 +57,7 @@ func PrintTopN(rootDir string, n int,
 	filterRe, xFilterRe string,
 	startEpoch, endEpoch int64,
 	minScore, maxScore float64, nRareTerms int) error {
+	SetNamespace(rootDir)
 	if rootDir == "" {
 		return errors.New("rootDir cannot be empty")
 	}
@@ -88,7 +91,7 @@ func RarStats(rootDir string, histSize int) error {
 	if err != nil {
 		return err
 	}
-
+	SetNamespace(rootDir)
 	out, err := a.getRarStatsString(rootDir, histSize)
 	if err != nil {
 		return err

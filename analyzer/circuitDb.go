@@ -33,7 +33,7 @@ func newCircuitDB(rootDir, name string, columns []string,
 	cdb.writeMode = csvdb.CWriteModeAppend
 
 	st, err := db.CreateTableIfNotExists("circuitDBStatus",
-		tableDefs["circuitDBStatus"], false, maxBlocks, 0)
+		tableDefs["circuitDBStatus"], false, maxBlocks, maxBlocks)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

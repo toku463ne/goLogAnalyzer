@@ -26,9 +26,13 @@ func InitLog(rootDir string) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
 
+func SetNamespace(path string) {
+	Name = filepath.Base(path)
+}
+
 func ShowDebug(msg string) {
 	if IsDebug {
-		log.Printf("[DEBUG] %s", msg)
+		log.Printf("[DEBUG][%s] %s", msg, Name)
 	}
 }
 
