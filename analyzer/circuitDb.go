@@ -179,6 +179,10 @@ func (cdb *circuitDB) updateBlockStatus(completed bool) error {
 }
 
 func (cdb *circuitDB) commit(completed bool) error {
+	if IsDebug {
+		msg := fmt.Sprintf("circuitDB.commit() [%s]: start", cdb.name)
+		ShowDebug(msg)
+	}
 	if cdb.dataDir == "" {
 		return nil
 	}
@@ -187,6 +191,10 @@ func (cdb *circuitDB) commit(completed bool) error {
 	}
 	if err := cdb.updateBlockStatus(false); err != nil {
 		return err
+	}
+	if IsDebug {
+		msg := fmt.Sprintf("circuitDB.commit() [%s]: completed", cdb.name)
+		ShowDebug(msg)
 	}
 	return nil
 }

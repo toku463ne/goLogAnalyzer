@@ -206,6 +206,10 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	if a.RootDir == "" {
 		return nil
 	}
+	if IsDebug {
+		msg := "rarityAnalyzer.commit(): started"
+		ShowDebug(msg)
+	}
 	if err := a.trans.commit(completed); err != nil {
 		return err
 	}
@@ -220,6 +224,10 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	}
 	if err := a.saveLastStatus(); err != nil {
 		return err
+	}
+	if IsDebug {
+		msg := "rarityAnalyzer.commit(): completed"
+		ShowDebug(msg)
 	}
 	return nil
 }
