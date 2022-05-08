@@ -151,7 +151,7 @@ func (r *report) createDetailedReport(node *LogNode,
 	if err := ensureDir(node.reportDir); err != nil {
 		return err
 	}
-	filePath := fmt.Sprintf("%s/%s.html", node.reportDir, node.Name)
+	filePath := r.getReportPath(node)
 	fw, err := os.Create(filePath)
 	if err != nil {
 		return err
@@ -161,6 +161,10 @@ func (r *report) createDetailedReport(node *LogNode,
 		return err
 	}
 	return nil
+}
+
+func (r *report) getReportPath(node *LogNode) string {
+	return fmt.Sprintf("%s/%s.html", node.reportDir, node.Name)
 }
 
 func (r *report) run() error {
@@ -226,7 +230,6 @@ func (r *report) run() error {
 			cnt := 0
 			out2 := ""
 			for _, rec := range records {
-				cnt++
 				if rec == nil {
 					break
 				}
@@ -240,9 +243,15 @@ func (r *report) run() error {
 				txt = r.insertHtmlTag(txt, node.KeyEmphasize)
 				out2 += fmt.Sprintf("<td>%s</td>", txt)
 				out2 += "</tr>"
+				cnt++
+
 			}
-			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", cnt, node.Name)
-			out += out2
+			if cnt > 0 {
+				filePath := r.getReportPath(node)
+				out += fmt.Sprintf("<tr><td rowspan='%d'><a href='%s'>%s</a></td>",
+					cnt, filePath, node.Name)
+				out += out2
+			}
 
 			if err := r.createDetailedReport(node,
 				a.stats, ntop.n, keyRareTerms, records); err != nil {
