@@ -231,9 +231,6 @@ func (r *report) run() error {
 				if rec.count > cMaxCountToShowInDigest {
 					break
 				}
-				if cnt > ntop.n {
-					break
-				}
 
 				out += fmt.Sprintf("<td>%d</td>", rec.count)
 				txt := rec.record

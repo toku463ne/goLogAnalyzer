@@ -57,4 +57,20 @@ func Test_newLogConfRoot(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+	if err := getGotExpErr("child.BlockSize", lcr.Children[0].Categories[0].BlockSize, 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("child.MaxItemBlocks", lcr.Children[0].Categories[0].MaxItemBlocks, 99); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("child.BlockSize", lcr.Children[1].BlockSize, 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := getGotExpErr("child.MaxItemBlocks", lcr.Children[1].MaxItemBlocks, 99); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 }

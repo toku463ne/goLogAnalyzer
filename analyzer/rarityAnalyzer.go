@@ -270,7 +270,7 @@ func (a *rarityAnalyzer) calcBlocks(totalCount int, nFiles int) {
 		a.ModeblockPerFile = true
 		a.MinGapToRecord = 0.3
 		a.MaxBlocks = cLogCycle * 2
-		a.BlockSize = 0
+		a.BlockSize = 3000
 		return
 	} else {
 		a.ModeblockPerFile = false
