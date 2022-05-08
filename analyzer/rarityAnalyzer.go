@@ -184,6 +184,10 @@ func (a *rarityAnalyzer) saveConfig() error {
 }
 
 func (a *rarityAnalyzer) close() {
+	if a == nil {
+		return
+	}
+
 	if a.fp != nil {
 		a.fp.close()
 	}

@@ -153,6 +153,10 @@ func (r *report) createDetailedReport(node *LogNode,
 func (r *report) run() error {
 	log.Printf("Creating reports")
 	done := make(map[string]bool, 0)
+	if err := ensureDir(r.confGroups.reportDir); err != nil {
+		return err
+	}
+
 	for groupName, g := range r.confGroups.g {
 		out := "<html>"
 		out += fmt.Sprintf("<head><title>%s</title></head>", groupName)
@@ -170,14 +174,15 @@ func (r *report) run() error {
 				a.close()
 				continue
 			}
-			if !done[node.Name] && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
+			ok := done[node.dataDir]
+			if !ok && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
 				log.Printf("[%s] blockSize=%d maxBlocks=%d maxItemBlocks=%d minGap=%1.1f",
 					node.Name, a.BlockSize, a.MaxBlocks, a.MaxItemBlocks, a.MinGapToRecord)
 				err = a.analyze(0)
 				if err != nil {
 					return err
 				}
-				done[node.Name] = true
+				done[node.dataDir] = true
 				if len(node.Categories) > 0 {
 					for _, cat := range node.Categories {
 						done[cat.Name] = true
@@ -233,9 +238,7 @@ func (r *report) run() error {
 
 		out += "</table>"
 		out += "</body></html>"
-		if err := ensureDir(r.confGroups.reportDir); err != nil {
-			return err
-		}
+
 		reportPath := fmt.Sprintf("%s/%s.html", r.confGroups.reportDir, groupName)
 		fw, err := os.Create(reportPath)
 		if err != nil {
