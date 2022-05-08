@@ -248,6 +248,7 @@ func (r *report) run() error {
 			}
 			if cnt > 0 {
 				filePath := r.getReportPath(node)
+				filePath = strings.Replace(filePath, r.conf.ReportDir+"/", "", -1)
 				out += fmt.Sprintf("<tr><td rowspan='%d'><a href='%s'>%s</a></td>",
 					cnt, filePath, node.Name)
 				out += out2

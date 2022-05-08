@@ -23,7 +23,9 @@ func InitLog(rootDir string) {
 		multiLogFile := io.MultiWriter(os.Stdout, w)
 		log.SetOutput(multiLogFile)
 	}
+	//log.SetPrefix(fmt.Sprintf("[%s]", Name))
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 }
 
 func SetNamespace(path string) {
