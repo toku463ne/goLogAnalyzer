@@ -91,6 +91,12 @@ func (r *report) createDetailedReport(node *LogNode,
 	stats *stats, n int,
 	keyRareTerms map[string][]string,
 	records []*colLogRecord) error {
+	if IsDebug {
+		msg := "report.createDetailedReport(): "
+		msg += fmt.Sprintf("reportDir=%s name=%s",
+			node.reportDir, node.Name)
+		ShowDebug(msg)
+	}
 	out := "<html>"
 
 	// count per stats
@@ -108,6 +114,12 @@ func (r *report) createDetailedReport(node *LogNode,
 	for i, logr := range records {
 		if logr == nil {
 			break
+		}
+		if IsDebug {
+			msg := "report.createDetailedReport(): "
+			msg += fmt.Sprintf("record=%d score=%5.2f %s",
+				logr.rowid, logr.score, logr.record)
+			ShowDebug(msg)
 		}
 		if topScore == 0 {
 			topScore = logr.score
