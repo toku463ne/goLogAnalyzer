@@ -308,9 +308,13 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 	}
 	var lastEpoch int64
 	for a.fp.next() {
+		if linesProcessed > 0 && linesProcessed%cLogPerLines == 0 {
+			log.Printf("processed %d lines", linesProcessed)
+		}
 
 		te := a.fp.text()
 		if te == "" {
+			linesProcessed++
 			continue
 		}
 
@@ -322,6 +326,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 		lineEpoch := dt.Unix()
 		tran = append(tran, timeTran...)
 		if len(tran) == 0 {
+			linesProcessed++
 			continue
 		}
 		if lineEpoch > 0 {
@@ -355,10 +360,6 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 				a.linesProcessed = linesProcessed
 				return err
 			}
-		}
-
-		if linesProcessed > 0 && linesProcessed%cLogPerLines == 0 {
-			log.Printf("processed %d lines", linesProcessed)
 		}
 		linesProcessed++
 
@@ -479,6 +480,12 @@ func (a *rarityAnalyzer) getNTop(nTopName string, recordsToShow int, startEpoch,
 	minScore float64, maxScore float64, itemsToShow int) (*nTopRecords, error) {
 	var err error
 	var ntop *nTopRecords
+	if IsDebug {
+		msg := "rarityAnalyzer.getNTop(): "
+		msg += fmt.Sprintf("nTopName=%s recordsToShow=%d filterReStr=%s xFilterReStr=%s",
+			nTopName, recordsToShow, filterReStr, xFilterReStr)
+		ShowDebug(msg)
+	}
 	if a.RootDir == "" {
 		ntop = a.nTopRareLogs
 	} else {
