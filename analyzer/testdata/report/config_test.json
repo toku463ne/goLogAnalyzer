@@ -5,7 +5,7 @@
     "scoreStyle": 1,
     "search": "rootSearch",
     "exclude": "rootExclude",
-    "blockSize": 99,
+    "blockSize": 5,
     "maxBlocks": 9,
     "maxItemBlocks": 99,
     "minGapToRecord": 1,
@@ -27,7 +27,6 @@
             "name": "logA",
             "path": "testdata/report/samples/a/A.log*",
             "search": "test333",
-            "BlockSize": 5,
             "categories": [
                 {
                     "name": "a_test333",
@@ -45,7 +44,6 @@
             "name": "logB",
             "path": "testdata/report/samples/b/B.log*",
             "search": "test",
-            "BlockSize": 5,
             "groupNames": ["test333"]
         }
     ]

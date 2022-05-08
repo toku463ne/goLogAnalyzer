@@ -86,7 +86,7 @@ func Test_rarityAnalyzerInit(t *testing.T) {
 
 	// test calc block
 	a.calcBlocks(4000, 2)
-	if err := getGotExpErr("blockSize", a.BlockSize, 0); err != nil {
+	if err := getGotExpErr("blockSize", a.BlockSize, 3000); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}

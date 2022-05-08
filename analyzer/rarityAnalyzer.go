@@ -29,6 +29,9 @@ func (a *rarityAnalyzer) open() error {
 		}
 	} else {
 		if PathExist(a.RootDir) {
+			if err := a.loadStatus(); err != nil {
+				return err
+			}
 			if err := a.init(); err != nil {
 				return err
 			}
@@ -40,6 +43,9 @@ func (a *rarityAnalyzer) open() error {
 				return err
 			}
 			if err := a.init(); err != nil {
+				return err
+			}
+			if err := a.prepareDB(); err != nil {
 				return err
 			}
 			if err := a.saveLastStatus(); err != nil {
@@ -60,7 +66,12 @@ func (a *rarityAnalyzer) open() error {
 	return nil
 }
 
-func (a *rarityAnalyzer) load() error {
+func (a *rarityAnalyzer) loadStatus() error {
+	if a.RootDir != "" {
+		if err := a.prepareDB(); err != nil {
+			return err
+		}
+	}
 	filterReStr := ""
 	xFilterReStr := ""
 	if err := a.configTable.Select1Row(nil,
@@ -83,6 +94,10 @@ func (a *rarityAnalyzer) load() error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (a *rarityAnalyzer) load() error {
 
 	if err := a.trans.load(); err != nil {
 		return err
@@ -128,12 +143,6 @@ func (a *rarityAnalyzer) init() error {
 		return err
 	}
 	a.logRecs = logRecs
-
-	if a.RootDir != "" {
-		if err := a.prepareDB(); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -329,7 +338,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 
 		te := a.fp.text()
 		if te == "" {
-			linesProcessed++
+			//linesProcessed++
 			continue
 		}
 
