@@ -1,7 +1,9 @@
 package analyzer
 
 import (
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -27,6 +29,12 @@ func newFilePointer(pathRegex string,
 				targetEpochs = append(targetEpochs, epoch)
 			}
 		}
+	}
+	if IsDebug {
+		msg := "filePointer.newFilePointer(): "
+		msg += fmt.Sprintf("targets=%s lastRow=%d",
+			strings.Join(targetFiles, ";"), lastRow)
+		ShowDebug(msg)
 	}
 
 	fp.files = targetFiles
@@ -68,6 +76,11 @@ func (fp *filePointer) open() error {
 
 	row := 0
 	if currRow > 0 {
+		if IsDebug {
+			msg := "filePointer.open(): "
+			msg += fmt.Sprintf("Moving to row=%d", currRow)
+			ShowDebug(msg)
+		}
 		for r.next() {
 			row++
 			if row >= currRow {
@@ -79,6 +92,10 @@ func (fp *filePointer) open() error {
 		}
 	}
 	fp.r = r
+	if IsDebug {
+		msg := "filePointer.open(): completed"
+		ShowDebug(msg)
+	}
 	return nil
 }
 
