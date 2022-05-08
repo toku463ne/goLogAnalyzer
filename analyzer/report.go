@@ -223,11 +223,15 @@ func (r *report) run() error {
 				keyRareTerms[term] = []string{cHtmlRareEmphTag}
 			}
 			out += fmt.Sprintf("<tr><td rowspan='%d'>%s</td>", len(records), node.Name)
+			cnt := 0
 			for _, rec := range records {
 				if rec == nil {
 					break
 				}
 				if rec.count > cMaxCountToShowInDigest {
+					break
+				}
+				if cnt > ntop.n {
 					break
 				}
 
@@ -237,6 +241,7 @@ func (r *report) run() error {
 				txt = r.insertHtmlTag(txt, node.KeyEmphasize)
 				out += fmt.Sprintf("<td>%s</td>", txt)
 				out += "</tr>"
+				cnt++
 			}
 
 			if err := r.createDetailedReport(node,

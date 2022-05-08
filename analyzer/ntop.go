@@ -183,6 +183,13 @@ func (ntop *nTopRecords) registerRareItems(tran []int) {
 }
 
 func (ntop *nTopRecords) getRareTerms() []string {
+	if IsDebug {
+		msg := "ntop.getRareTerms()"
+		msg += fmt.Sprintf("n=%d",
+			ntop.ntopi.n)
+		ShowDebug(msg)
+	}
+
 	items := ntop.t.items
 	terms := make([]string, ntop.ntopi.n)
 	for j, itemID := range ntop.ntopi.itemIDs {
