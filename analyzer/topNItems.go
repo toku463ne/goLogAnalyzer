@@ -36,11 +36,17 @@ func (t *topNItems) register(itemID int, score float64, term string) {
 		}
 		if t.itemIDs[j] == itemID {
 			j++
+			if j >= t.n {
+				break
+			}
 		}
 		newScores[i] = t.scores[j]
 		newItemIDs[i] = t.itemIDs[j]
 		newTerms[i] = t.terms[j]
 		j++
+		if j >= t.n {
+			break
+		}
 	}
 	t.itemIDs = newItemIDs
 	t.scores = newScores

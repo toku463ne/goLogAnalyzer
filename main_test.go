@@ -34,8 +34,7 @@ func Test_main4(t *testing.T) {
 	main()
 }
 
-func Test_reportipx(t *testing.T) {
-	jconf := "ipx.json"
-	os.Args = []string{"test", "report", "-c", jconf}
+func Test_realtest(t *testing.T) {
+	os.Args = []string{"test", "run", "-f", "/mnt/c/Users/kot/loganal/realtest/test.log*"}
 	main()
 }

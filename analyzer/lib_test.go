@@ -120,7 +120,7 @@ func Test_calcNAvgScore(t *testing.T) {
 	}
 
 	scores = []float64{10.0, 10.0, 10.0, 10.0, 1.0}
-	if err := assertScore("4 scores", scores, cScoreNDistAvg, 20, 2.425); err != nil {
+	if err := assertScore("4 scores", scores, cScoreNDistAvg, 20, 8.2); err != nil {
 		t.Errorf("%+v", err)
 		return
 	}
