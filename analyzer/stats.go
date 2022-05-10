@@ -131,15 +131,14 @@ func (s *stats) nextBlock() error {
 }
 
 func (s *stats) prepareTables() error {
-	buffSize := s.blockSize * s.maxBlocks
 	if t, err := s.CreateTableIfNotExists("statistics",
-		tableDefs["statistics"], false, s.blockSize, buffSize); err != nil {
+		tableDefs["statistics"], false, s.blockSize, s.maxBlocks); err != nil {
 		return err
 	} else {
 		s.statsTable = t
 	}
 	if t, err := s.CreateTableIfNotExists("scores",
-		tableDefs["scores"], false, s.blockSize, buffSize); err != nil {
+		tableDefs["scores"], false, s.blockSize, s.maxBlocks); err != nil {
 		return err
 	} else {
 		s.scoresTable = t

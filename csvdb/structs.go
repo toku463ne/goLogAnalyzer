@@ -60,12 +60,12 @@ type insertBuff struct {
 }
 
 type readBuff struct {
-	path    string
-	rows    [][]string
-	pos     int
-	readPos int
-	size    int
-	values  []string
+	path     string
+	rows     [][]string
+	pos      int
+	readPos  int
+	pageSize int
+	values   []string
 }
 
 type CsvReader struct {

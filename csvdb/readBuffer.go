@@ -1,29 +1,24 @@
 package csvdb
 
-import (
-	"fmt"
-
-	"github.com/pkg/errors"
-)
-
-func newReadBuffer(path string, bufferSize int) *readBuff {
+func newReadBuffer(path string, pageSize int) *readBuff {
 	b := new(readBuff)
-	b.size = bufferSize
+	b.pageSize = pageSize
 	b.path = path
 	b.init()
 	return b
 }
 
 func (b *readBuff) init() {
-	b.rows = make([][]string, b.size)
+	b.rows = make([][]string, b.pageSize)
 	b.pos = -1
 	b.readPos = 0
 }
 
 func (b *readBuff) append(row []string) error {
 	b.pos++
-	if b.pos >= b.size {
-		return errors.WithStack(errors.New(fmt.Sprintf("read buffer over flow: max size=%d", b.size)))
+	if b.pos >= len(b.rows) {
+		b.rows = append(b.rows, make([][]string, b.pageSize)...)
+		//return errors.WithStack(errors.New(fmt.Sprintf("read buffer over flow: max size=%d", b.size)))
 	}
 	b.rows[b.pos] = row
 	b.values = row
