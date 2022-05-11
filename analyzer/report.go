@@ -160,6 +160,8 @@ func (r *report) createDetailedReport(node *LogNode,
 	if _, err := fw.WriteString(out); err != nil {
 		return err
 	}
+	log.Printf("[%s] completed report", node.Name)
+
 	return nil
 }
 
@@ -194,7 +196,7 @@ func (r *report) run() error {
 			}
 			ok := done[node.dataDir]
 			if !ok && node.LogPath != "" && (len(node.Categories) > 0 || node.isEnd) {
-				log.Printf("[%s] starting analyzing", node.Name)
+				log.Printf("[%s] analyzing...", node.Name)
 				err = a.analyze(0)
 				if err != nil {
 					return err
@@ -210,6 +212,7 @@ func (r *report) run() error {
 			if err != nil {
 				return err
 			}
+			log.Printf("[%s] searching top rare records...", node.Name)
 			ntop, err := a.getNTop(node.Name, node.TopN, start, end,
 				node.Search, node.Exclude, node.MinScore, node.MaxScore, node.NRareTerms)
 			if err != nil {
@@ -278,6 +281,7 @@ func (r *report) run() error {
 			return err
 		}
 	}
+	log.Printf("Finished")
 
 	return nil
 }
