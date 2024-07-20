@@ -3,6 +3,7 @@ package analyzer
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -45,6 +46,7 @@ func (p *phrases) register(phrase string, addCount int, tranScore float64, isNew
 	if phrase == "" {
 		return -1
 	}
+	phrase = strings.TrimSpace(phrase)
 	phraseID, ok := p.phrases[phrase]
 	if !ok {
 		p.maxPhraseID++
@@ -167,10 +169,10 @@ func (p *phrases) flush() error {
 		return nil
 	}
 	for phraseID, cnt := range p.currCounts {
-		term := p.getPhrase(phraseID)
+		phrase := p.getPhrase(phraseID)
 		avg := p.tranScoreAvg[phraseID]
-		if err := p.insertRow([]string{"item", "itemCount", "tranScoreAvg"},
-			term, cnt, avg); err != nil {
+		if err := p.insertRow([]string{"phrase", "phraseCount", "tranScoreAvg"},
+			phrase, cnt, avg); err != nil {
 			return err
 		}
 	}

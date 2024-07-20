@@ -38,3 +38,13 @@ func Test_realtest(t *testing.T) {
 	os.Args = []string{"test", "run", "-f", "/mnt/c/Users/kot/loganal/realtest/test.log*"}
 	main()
 }
+
+func Test_pfsense(t *testing.T) {
+	rootDir := "/home/ubuntu/logan/openvpn"
+	logPathRegex := "/home/ubuntu/openvpn_logs/pfsense67051_openvpn.log*"
+	os.Args = []string{"pfsense", "clean", "-d", rootDir}
+	main()
+
+	os.Args = []string{"pfsense", "run", "-d", rootDir, "-f", logPathRegex, "-save", "yes"}
+	main()
+}

@@ -189,7 +189,8 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, []int,
 			}
 			tokens = append(tokens, itemID)
 
-			if t.items.getCount(itemID) >= cMinTermApparenceInPhrases {
+			cnt := t.items.getCount(itemID)
+			if cnt >= cMinTermApparenceInPhrases {
 				itemCnt++
 				phrase += " " + word
 			} else {

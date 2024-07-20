@@ -357,9 +357,10 @@ func getBottoms(n []int, baseLine int) []int {
 }
 
 func calcConstSizeAvgScore(pscores []float64, tscores []float64, scoreNSize int, blankScore float64) float64 {
-	sort.Slice(pscores, func(i, j int) bool { return pscores[i] > pscores[j] })
-	sort.Slice(tscores, func(i, j int) bool { return tscores[i] > tscores[j] })
+	//sort.Slice(pscores, func(i, j int) bool { return pscores[i] > pscores[j] })
+	//sort.Slice(tscores, func(i, j int) bool { return tscores[i] > tscores[j] })
 	scores := append(pscores, tscores...)
+	sort.Slice(scores, func(i, j int) bool { return scores[i] > scores[j] })
 	tranSize := len(scores)
 	score := 0.0
 	for i := 0; i < scoreNSize; i++ {
