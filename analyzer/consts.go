@@ -5,19 +5,22 @@ const (
 	CDefaultBlockSize       = 0
 	CDefaultNBlocks         = 0
 	CDefaultNItemBlocks     = 0
-	CDefaultScoreStyle      = cScoreNDistAvg
+	CDefaultScoreStyle      = cScoreConstSizeAvg
 	CDefaultScoreNSize      = 10
 	CDefaultTimestampLayout = "2006-01-02 15:04:05"
 	CDefaultMinGap          = 0
 	CDefaultDaysToReport    = 3
 	CDefaultNRareTerms      = 20
+	CDefaultIgnoreCount     = 1
 
 	cDefaultGroupName = "default"
 	cIntTrue          = 1
 	cIntFalse         = 2
 
-	cMinNTopItemCount   = 2
-	cMinNTopItemTermLen = 3
+	cMinNTopItemCount          = 2
+	cMinNTopItemTermLen        = 3
+	cMinTermApparenceInPhrases = 10
+	cMinTermInPhrases          = 3
 
 	cErrPathNotExists     = "path not exists"
 	cRModePlain           = "plain"
@@ -45,6 +48,7 @@ const (
 	cScoreSimpleAvg       = 1
 	cScoreNAvg            = 2
 	cScoreNDistAvg        = 3
+	cScoreConstSizeAvg    = 4
 	cMaxCharsToShowInTopN = 400
 	cNTopMultiplier       = 10
 	cNFilesToCheckCount   = 5

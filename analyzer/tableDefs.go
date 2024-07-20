@@ -8,6 +8,7 @@ var (
 			"datetimeStartPos", "datetimeLayout", "scoreStyle"},
 		"lastStatus": {"lastRowID", "lastFileEpoch", "lastFileRow"},
 		"items":      {"item", "itemCount", "tranScoreAvg"},
+		"phrases":    {"phrase", "phraseCount", "tranScoreAvg"},
 		"logRecords": {"rowID", "score", "epoch", "record"},
 		"scores": {"seqNo", "blockNo", "rowCount", "scoreSum",
 			"scoreSqrSum", "scoreMax", "completed", "lastFileEpoch"},

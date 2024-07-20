@@ -57,8 +57,8 @@ func (a *rarityAnalyzer) open() error {
 		}
 		if IsDebug {
 			msg := "alanyzer.open(): "
-			msg += fmt.Sprintf("rootDir=%s LogPathRegex=%s ScoreStyle=%d ScoreNSize=%d",
-				a.RootDir, a.LogPathRegex, a.ScoreStyle, a.ScoreNSize)
+			msg += fmt.Sprintf("rootDir=%s LogPathRegex=%s ScoreStyle=%d ScoreNSize=%d ignoreCount=%d",
+				a.RootDir, a.LogPathRegex, a.ScoreStyle, a.ScoreNSize, a.ignoreCount)
 			ShowDebug(msg)
 		}
 	}
@@ -119,7 +119,7 @@ func (a *rarityAnalyzer) init() error {
 	}
 
 	trans, err := newTrans(a.RootDir, a.MaxItemBlocks, a.BlockSize,
-		a.DatetimeStartPos, a.DatetimeLayout, a.ScoreStyle, a.ScoreNSize)
+		a.DatetimeStartPos, a.DatetimeLayout, a.ScoreStyle, a.ScoreNSize, a.ignoreCount)
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 			continue
 		}
 
-		timeTran, tran, dt, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
+		timeTran, tran, prh, dt, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
 		if err != nil {
 			a.linesProcessed = linesProcessed
 			return err
@@ -361,8 +361,8 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 		a.trans.items.lastEpoch = lastEpoch
 		a.logRecs.lastEpoch = lastEpoch
 
-		score := a.trans.calcScore(tran)
-		err = a.stats.registerScore(score, int64(len(tran)), lastEpoch)
+		score := a.trans.calcScore(prh, tran)
+		err = a.stats.registerScore(score, lastEpoch)
 		if err != nil {
 			a.linesProcessed = linesProcessed
 			return err

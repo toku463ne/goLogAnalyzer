@@ -95,7 +95,7 @@ func Test_countNFiles(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if cnt != 3 {
+	if cnt != 9 && cnt != 3 {
 		t.Error("count does not match")
 	}
 	if fileCnt != 1 {

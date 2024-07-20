@@ -247,7 +247,7 @@ func removePath(pathRegex string) error {
 	return nil
 }
 
-func checkMatchRate(s1, s2 []int) float64 {
+func checkMatchRate(s1, s2 []int, blankItemID int) float64 {
 	i := 0
 	j := 0
 	cnt := 0
@@ -262,7 +262,9 @@ func checkMatchRate(s1, s2 []int) float64 {
 		} else if s1[i] > s2[j] {
 			j++
 		} else {
-			cnt++
+			if s1[i] != blankItemID {
+				cnt++
+			}
 			i++
 			j++
 		}
@@ -352,6 +354,23 @@ func getBottoms(n []int, baseLine int) []int {
 		prev = n[i]
 	}
 	return bottoms
+}
+
+func calcConstSizeAvgScore(pscores []float64, tscores []float64, scoreNSize int, blankScore float64) float64 {
+	sort.Slice(pscores, func(i, j int) bool { return pscores[i] > pscores[j] })
+	sort.Slice(tscores, func(i, j int) bool { return tscores[i] > tscores[j] })
+	scores := append(pscores, tscores...)
+	tranSize := len(scores)
+	score := 0.0
+	for i := 0; i < scoreNSize; i++ {
+		if i >= tranSize {
+			score += blankScore
+		} else {
+			score += scores[i]
+		}
+	}
+	score /= float64(scoreNSize)
+	return score
 }
 
 // scores: list of term scores in the tran

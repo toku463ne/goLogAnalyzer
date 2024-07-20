@@ -11,14 +11,21 @@ import (
 
 func newTrans(dataDir string, maxBlocks, blockSize int,
 	datetimeStartPos int, datetimeLayout string,
-	scoreStyle, scoreNSize int) (*trans, error) {
+	scoreStyle, scoreNSize int, ignoreCount int) (*trans, error) {
 	t := new(trans)
 	i, err := newItems(dataDir, "items", maxBlocks, blockSize)
 	if err != nil {
 		return nil, err
 	}
+	p, err := newPhrases(dataDir, maxBlocks, blockSize)
+	if err != nil {
+		return nil, err
+	}
+
 	t.items = i
 	t.items.register("", 1, 0, true)
+	t.items.register(" ", 1, 0, true)
+	t.phrases = p
 	t.replacer = getDelimReplacer()
 	t.blockSize = blockSize
 	t.datetimeStartPos = datetimeStartPos
@@ -32,6 +39,7 @@ func newTrans(dataDir string, maxBlocks, blockSize int,
 	if t.scoreNSize == 0 {
 		t.scoreNSize = CDefaultScoreNSize
 	}
+	t.ignoreCount = ignoreCount
 	if IsDebug {
 		msg := "trans.newTrans(): "
 		msg += fmt.Sprintf("dataDir=%s maxBlocks=%d blockSize=%d datetimeStartPos=%d datetimeLayout=%s scoreStyle=%d scoreNSize=%d",
@@ -49,10 +57,14 @@ func (t *trans) close() {
 }
 
 func (t *trans) load() error {
-	return t.items.load()
+	err := t.items.load()
+	if err != nil {
+		return err
+	}
+	return t.phrases.load()
 }
 
-func (t *trans) calcScore(tran []int) float64 {
+func (t *trans) calcScore(prh []int, tran []int) float64 {
 	l := len(tran)
 	if l == 0 {
 		return 0.0
@@ -77,6 +89,19 @@ func (t *trans) calcScore(tran []int) float64 {
 			//t.items.topNItems.register(itemID, adjScore)
 		}
 		score = calcNAvgScore(scores, t.scoreStyle, t.scoreNSize)
+
+	case cScoreConstSizeAvg:
+		pscores := make([]float64, len(prh))
+		tscores := make([]float64, len(tran))
+		blankItemID := t.items.getItemID(" ")
+		blankScore := t.items.getScore(blankItemID)
+		for i, phraseID := range prh {
+			pscores[i] = t.phrases.getScore(phraseID, t.items.totalCount)
+		}
+		for i, itemID := range tran {
+			tscores[i] = t.items.getScore(itemID)
+		}
+		score = calcConstSizeAvgScore(pscores, tscores, t.scoreNSize, blankScore)
 	}
 	for _, itemID := range tran {
 		c := t.items.counts[itemID]
@@ -97,10 +122,11 @@ func (t *trans) calcScore(tran []int) float64 {
 	return score
 }
 
-func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.Time, error) {
+func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, []int, time.Time, error) {
 	var timeResult []int
 	var dt time.Time
 	var err error
+
 	if t.datetimeLayout != "" && len(line) > t.datetimeEndPos {
 		timeResult = make([]int, 5)
 		dt, err = time.Parse(t.datetimeLayout, line[:t.datetimeEndPos])
@@ -115,7 +141,7 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.T
 			t.lastTimeResult = timeResult
 		} else {
 			if len(t.lastTimeResult) == 0 {
-				return nil, nil, dt, err
+				return nil, nil, nil, dt, err
 			}
 			log.Printf("%v\n", err)
 			log.Println("Applying the last parsed time for this line")
@@ -125,7 +151,17 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.T
 
 	line = t.replacer.Replace(line)
 	words := strings.Split(line, " ")
-	result := make([]int, 0)
+
+	//for len(words) < t.scoreNSize {
+	//	words = append(words, " ")
+	//}
+
+	tokens := make([]int, 0)
+	itemID := -1
+	itemCnt := 0
+	phrases := make([]int, 0)
+	phraseID := -1
+	phrase := ""
 	for _, w := range words {
 		if _, ok := enStopWords[w]; ok {
 			continue
@@ -142,48 +178,77 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, time.T
 			word = word[:lenw-1]
 		}
 
-		if len(word) > 2 {
+		if len(word) > 2 || word == " " {
 			if isInt(word) && len(word) > cNumMaxDigits {
 				continue
 			}
 			if registerItem {
-				result = append(result, t.items.register(word, 1, 0, true))
+				itemID = t.items.register(word, 1, 0, true)
 			} else {
-				result = append(result, t.items.register(word, 0, 0, false))
+				itemID = t.items.register(word, 0, 0, false)
+			}
+			tokens = append(tokens, itemID)
+
+			if t.items.getCount(itemID) >= cMinTermApparenceInPhrases {
+				itemCnt++
+				phrase += " " + word
+			} else {
+				if itemCnt >= cMinTermInPhrases {
+					if registerItem {
+						phraseID = t.phrases.register(phrase, 1, 0, true)
+					} else {
+						phraseID = t.phrases.register(phrase, 0, 0, false)
+					}
+					phrases = append(phrases, phraseID)
+				}
+				itemCnt = 0
+				phrase = ""
 			}
 		}
 	}
-	return timeResult, result, dt, nil
+	if itemCnt >= cMinTermInPhrases {
+		if registerItem {
+			phraseID = t.phrases.register(phrase, 1, 0, true)
+		} else {
+			phraseID = t.phrases.register(phrase, 0, 0, false)
+		}
+		phrases = append(phrases, phraseID)
+	}
+	return timeResult, tokens, phrases, dt, nil
 }
 
 func (t *trans) tokenizeLine(line string,
-	filterRe, xFilterRe *regexp.Regexp, registerItem bool) ([]int, []int, time.Time, error) {
-	timeTran, tran, dt, err := t.toTermList(line, registerItem)
+	filterRe, xFilterRe *regexp.Regexp, registerItem bool) ([]int, []int, []int, time.Time, error) {
+	timeTran, tran, phr, dt, err := t.toTermList(line, registerItem)
 	if err != nil {
-		return nil, nil, dt, err
+		return nil, nil, nil, dt, err
 	}
 
 	if line == "" {
-		return nil, nil, dt, err
+		return nil, nil, nil, dt, err
 	}
 	b := []byte(line)
 
 	if filterRe != nil && !filterRe.Match(b) {
-		return nil, nil, dt, err
+		return nil, nil, nil, dt, err
 	}
 	if xFilterRe != nil && xFilterRe.Match(b) {
-		return nil, nil, dt, err
+		return nil, nil, nil, dt, err
 	}
 
 	if registerItem {
 		if err := t.items.next(); err != nil {
-			return nil, nil, dt, err
+			return nil, nil, nil, dt, err
 		}
 	}
 
-	return timeTran, tran, dt, nil
+	return timeTran, tran, phr, dt, nil
 }
 
 func (t *trans) commit(completed bool) error {
-	return t.items.commit(completed)
+	err := t.items.commit(completed)
+	if err != nil {
+		return err
+	}
+	return t.phrases.commit(completed)
 }

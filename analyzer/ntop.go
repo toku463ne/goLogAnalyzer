@@ -20,7 +20,7 @@ func newNTopRecords(name string,
 	ntop.rootDir = rootDir
 	ntop.name = name
 	if t == nil {
-		ntop.t, _ = newTrans("", 0, 0, 0, "", 1, 0)
+		ntop.t, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
 	} else {
 		ntop.t = t
 	}
@@ -51,7 +51,7 @@ func (ntop *nTopRecords) initRecords() {
 }
 
 func (ntop *nTopRecords) tokenizeLine(text string, registerItems bool) ([]int, time.Time) {
-	_, tran, dt, _ := ntop.t.tokenizeLine(text, nil, nil, registerItems)
+	_, tran, _, dt, _ := ntop.t.tokenizeLine(text, nil, nil, registerItems)
 	if dt.Year() == 0 {
 		y := time.Now().Year()
 		m := dt.Month()
@@ -95,6 +95,8 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 	// register rare items
 	ntop.registerRareItems(tran)
 
+	blankItemID := ntop.t.items.getItemID(" ")
+
 	if ntop.isUniqMode {
 		tranlen := len(logr2.tran)
 		for i, logr := range ntop.records {
@@ -102,7 +104,7 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 				break
 			}
 
-			rate := checkMatchRate(logr.tran, logr2.tran)
+			rate := checkMatchRate(logr.tran, logr2.tran, blankItemID)
 			if rate == 1.0 {
 				maxMatchIdx = i
 				break

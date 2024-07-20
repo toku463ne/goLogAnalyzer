@@ -23,6 +23,7 @@ type AnalConf struct {
 	MinGapToRecord   float64
 	NTopRecordsCount int
 	ModeblockPerFile bool // if create block per file
+	IgnoreCount      int
 	NRareTerms       int
 }
 
@@ -122,6 +123,7 @@ type logRecords struct {
 
 type trans struct {
 	items            *items
+	phrases          *phrases
 	blockSize        int
 	replacer         *strings.Replacer
 	datetimeStartPos int
@@ -129,6 +131,7 @@ type trans struct {
 	datetimeLayout   string
 	scoreStyle       int
 	scoreNSize       int
+	ignoreCount      int
 	lastTimeResult   []int
 }
 
@@ -152,6 +155,17 @@ type items struct {
 	totalCount         int
 }
 
+type phrases struct {
+	*circuitDB
+	maxPhraseID    int
+	maxRowsInBlock int
+	phrases        map[string]int
+	phraseMap      map[int]string
+	counts         map[int]int
+	tranScoreAvg   map[int]float64
+	currCounts     map[int]int
+}
+
 type rarityAnalyzer struct {
 	*csvdb.CsvDB
 	*AnalConf
@@ -167,6 +181,7 @@ type rarityAnalyzer struct {
 	lastFileRow     int
 	rowID           int64
 	nTopRareLogs    *nTopRecords
+	ignoreCount     int
 	linesProcessed  int
 }
 

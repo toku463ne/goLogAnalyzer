@@ -68,7 +68,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ := newTrans("", 0, 0, 0, "", 1, 0)
+	tran, _ := newTrans("", 0, 0, 0, "", 1, 0, 0)
 	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -77,7 +77,7 @@ func Test_nTop(t *testing.T) {
 	for i := 1; i <= 9; i++ {
 		rowID := int64(i)
 		score := float64(i) * 2.0
-		text := fmt.Sprintf("i%02d i%02d i%02d i%02d i%02d",
+		text := fmt.Sprintf("i%03d i%03d i%03d i%03d i%03d",
 			i, i+1, i+2, i+3, i+4)
 		ntr.register(rowID, score, text, true)
 	}
@@ -94,7 +94,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
 	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -136,7 +136,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
 	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -177,7 +177,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
 	ntr, err = newNTopRecords("test", 5, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -222,7 +222,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0)
+	tran, _ = newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0, 0)
 	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -262,7 +262,7 @@ func Test_nTop(t *testing.T) {
 }
 
 func Test_nTop2(t *testing.T) {
-	tran, _ := newTrans("", 0, 0, 0, "", 1, 0)
+	tran, _ := newTrans("", 0, 0, 0, "", 1, 0, 0)
 	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -275,7 +275,7 @@ func Test_nTop2(t *testing.T) {
 		if i%3 == 0 {
 			j = 1
 		}
-		text := fmt.Sprintf("i%02d i%02d i%02d i%02d i%02d",
+		text := fmt.Sprintf("i%03d i%03d i%03d i%03d i%03d",
 			i, i+1+j, i+2+j, i+3+j, i+4+j)
 
 		ntr.register(rowID, score, text, true)
@@ -290,7 +290,7 @@ func Test_nTop2(t *testing.T) {
 		return
 	}
 
-	tran, _ = newTrans("", 0, 0, 0, "", 1, 0)
+	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
 	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -332,7 +332,7 @@ func Test_nTop3(t *testing.T) {
 		return
 	}
 
-	tran, _ := newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0)
+	tran, _ := newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0, 0)
 	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir, 0)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -438,7 +438,7 @@ func Test_nTop4(t *testing.T) {
 		return
 	}
 
-	tran, _ := newTrans("", 0, 0, 0, "", 1, 0)
+	tran, _ := newTrans("", 0, 0, 0, "", 1, 0, 0)
 	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir, 0)
 	if err != nil {
 		t.Errorf("%v", err)

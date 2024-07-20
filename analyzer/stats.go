@@ -64,7 +64,7 @@ func (s *stats) getScoreStage(score float64) int {
 
 }
 
-func (s *stats) registerScore(score float64, rowLen int64, fileEpoch int64) error {
+func (s *stats) registerScore(score float64, fileEpoch int64) error {
 	scoreSqr := score * score
 	scoreStage := s.getScoreStage(score)
 

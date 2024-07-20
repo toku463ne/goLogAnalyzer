@@ -128,7 +128,7 @@ func Test_calcNAvgScore(t *testing.T) {
 
 func Test_checkMatchRate(t *testing.T) {
 	assertRate := func(title string, s1 []int, s2 []int, want float64) error {
-		got := checkMatchRate(s1, s2)
+		got := checkMatchRate(s1, s2, 1)
 		if got != want {
 			return errors.New(fmt.Sprintf("%s got=%f want=%f", title, got, want))
 		}

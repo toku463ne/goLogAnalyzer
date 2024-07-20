@@ -2,7 +2,7 @@
 set -e
 
 orgdir=`pwd`
-GOSRC=go1.18.linux-amd64.tar.gz
+GOSRC=go1.22.5.linux-amd64.tar.gz
 if [ ! -d $HOME/go ];then
     cd $HOME
     wget https://go.dev/dl/$GOSRC

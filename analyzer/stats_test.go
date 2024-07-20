@@ -83,7 +83,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{1.0, 1.0, 1.0} {
-		st.registerScore(score, 1, 0)
+		st.registerScore(score, 0)
 	}
 
 	if err := assertScore(st, 3, 3.0, 3.0); err != nil {
@@ -96,7 +96,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{1.0, 1.0, 2.0} {
-		if err := st.registerScore(score, 2, 0); err != nil {
+		if err := st.registerScore(score, 0); err != nil {
 			t.Errorf("%v", err)
 			return
 		}
@@ -119,7 +119,7 @@ func Test_stats(t *testing.T) {
 	for _, score := range []float64{2.0, 2.0, 2.0, 2.0,
 		3.0, 3.0, 3.0, 3.0, 3.0,
 		4.0} {
-		if err := st.registerScore(score, 3, 0); err != nil {
+		if err := st.registerScore(score, 0); err != nil {
 			t.Errorf("%v", err)
 			return
 		}
@@ -181,7 +181,7 @@ func Test_stats(t *testing.T) {
 	}
 
 	for _, score := range []float64{4.0, 4.0, 4.0, 4.0, 5.0} {
-		if err := st.registerScore(score, 3, 0); err != nil {
+		if err := st.registerScore(score, 0); err != nil {
 			t.Errorf("%v", err)
 			return
 		}

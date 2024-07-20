@@ -38,6 +38,7 @@ const (
 	cModeblockPerFileDesc  = "If create blocks per files"
 	cNItemTopDesc          = "Top N rare terms to display"
 	cDebugDesc             = "Run with detailed messages"
+	cIgnoreCountDesc       = "Do not include the term score in the calculation if appearence is equal or less than this number"
 )
 
 var (
@@ -64,6 +65,7 @@ var (
 	runModeblockPerFile  = runFlag.Bool("blockPerFile", false, cModeblockPerFileDesc)
 	runNRareTerms        = runFlag.Int("nRareTerms", analyzer.CDefaultNRareTerms, cNItemTopDesc)
 	runDebug             = runFlag.Bool("debug", false, cDebugDesc)
+	runIgnoreCount       = runFlag.Int("ignoreCount", 1, cIgnoreCountDesc)
 
 	topNRootDir       = topNFlag.String("d", "", cRootDirDesc)
 	topNRecordsToShow = topNFlag.Int("n", 10, cNRecordsToShowDesc)
@@ -83,14 +85,14 @@ var (
 	reportDebug       = reportFlag.Bool("debug", false, cDebugDesc)
 
 	usageTxt = `Usage of logan:  
-logan [rar|clean|topN|stats] OPTIONS  
+logan [run|clean|topN|stats] OPTIONS  
 
 logan -help:
 	Shows this help
 
 logan run:
 	Calculate rarity score of each log records and show the "rare" records.
-	Run "logan rar -help" for details.
+	Run "logan run -help" for details.
 
 logan report:
 	Reads params from json config file.
@@ -149,6 +151,7 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 	c.DatetimeLayout = *runDatetimeLayout
 	c.ScoreStyle = *runScoreStyle
 	c.ScoreNSize = *runScoreNSize
+	c.IgnoreCount = *runIgnoreCount
 	c.MinGapToRecord = *runGap
 	c.NTopRecordsCount = *runTopNRecordsToShow
 	c.ModeblockPerFile = *runModeblockPerFile
