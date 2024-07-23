@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -247,7 +249,7 @@ func removePath(pathRegex string) error {
 	return nil
 }
 
-func checkMatchRate(s1, s2 []int, blankItemID int) float64 {
+func checkMatchRate(s1, s2 []int) float64 {
 	i := 0
 	j := 0
 	cnt := 0
@@ -262,9 +264,7 @@ func checkMatchRate(s1, s2 []int, blankItemID int) float64 {
 		} else if s1[i] > s2[j] {
 			j++
 		} else {
-			if s1[i] != blankItemID {
-				cnt++
-			}
+			cnt++
 			i++
 			j++
 		}
@@ -356,7 +356,7 @@ func getBottoms(n []int, baseLine int) []int {
 	return bottoms
 }
 
-func calcConstSizeAvgScore(pscores []float64, tscores []float64, scoreNSize int, blankScore float64) float64 {
+func calcConstSizeAvgScore(pscores []float64, tscores []float64, scoreNSize int) float64 {
 	//sort.Slice(pscores, func(i, j int) bool { return pscores[i] > pscores[j] })
 	//sort.Slice(tscores, func(i, j int) bool { return tscores[i] > tscores[j] })
 	scores := append(pscores, tscores...)
@@ -365,12 +365,13 @@ func calcConstSizeAvgScore(pscores []float64, tscores []float64, scoreNSize int,
 	score := 0.0
 	for i := 0; i < scoreNSize; i++ {
 		if i >= tranSize {
-			score += blankScore
+			//score += blankScore
+			break
 		} else {
 			score += scores[i]
 		}
 	}
-	score /= float64(scoreNSize)
+	score /= math.Min(float64(scoreNSize), float64(tranSize))
 	return score
 }
 
@@ -421,4 +422,67 @@ func calcNAvgScore(scores []float64, scoreStyle, scoreNSize int) float64 {
 func isNumeric(s string) bool {
 	_, err := strconv.ParseFloat(s, 64)
 	return err == nil
+}
+
+func tail(filePath string, numLines int) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var result []string
+	fileStat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	// Set initial offset to the end of the file
+	offset := fileStat.Size()
+	buffer := make([]byte, 4096)
+	var lineCount int
+
+	for {
+		if offset == 0 {
+			break
+		}
+
+		if offset < int64(len(buffer)) {
+			buffer = buffer[:offset]
+			offset = 0
+		} else {
+			offset -= int64(len(buffer))
+		}
+
+		file.Seek(offset, 0)
+		bytesRead, err := file.Read(buffer)
+		if err != nil {
+			return nil, err
+		}
+
+		scanner := bufio.NewScanner(bufio.NewReader(bytes.NewReader(buffer[:bytesRead])))
+		scanner.Split(bufio.ScanLines)
+		var lines []string
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+
+		for i := len(lines) - 1; i >= 0; i-- {
+			result = append(result, lines[i])
+			lineCount++
+			if lineCount >= numLines {
+				break
+			}
+		}
+		if lineCount >= numLines {
+			break
+		}
+	}
+
+	// Reverse the result to get the correct order
+	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+		result[i], result[j] = result[j], result[i]
+	}
+
+	return result, nil
 }

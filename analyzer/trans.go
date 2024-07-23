@@ -93,15 +93,15 @@ func (t *trans) calcScore(prh []int, tran []int) float64 {
 	case cScoreConstSizeAvg:
 		pscores := make([]float64, len(prh))
 		tscores := make([]float64, len(tran))
-		blankItemID := t.items.getItemID(" ")
-		blankScore := t.items.getScore(blankItemID)
+		//blankItemID := t.items.getItemID(" ")
+		//blankScore := t.items.getScore(blankItemID)
 		for i, phraseID := range prh {
 			pscores[i] = t.phrases.getScore(phraseID, t.items.totalCount)
 		}
 		for i, itemID := range tran {
 			tscores[i] = t.items.getScore(itemID)
 		}
-		score = calcConstSizeAvgScore(pscores, tscores, t.scoreNSize, blankScore)
+		score = calcConstSizeAvgScore(pscores, tscores, t.scoreNSize)
 	}
 	for _, itemID := range tran {
 		c := t.items.counts[itemID]
@@ -156,12 +156,40 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, []int,
 	//	words = append(words, " ")
 	//}
 
+	var phraseIDs []int
 	tokens := make([]int, 0)
 	itemID := -1
 	itemCnt := 0
-	phrases := make([]int, 0)
+	phrases := make([]string, len(termAppearenceInPhrases))
 	phraseID := -1
+	itemCnts := make([]int, len(termAppearenceInPhrases))
 	phrase := ""
+
+	var registerPhrase = func(itemID int, word string) {
+		cnt := 0
+		if itemID >= 0 {
+			cnt = t.items.getCount(itemID)
+		}
+		for i, minCnt := range termAppearenceInPhrases {
+			if cnt >= minCnt {
+				itemCnts[i]++
+				phrases[i] += " " + word
+			} else {
+				if itemCnt >= cMinTermInPhrases {
+					phrase = strings.TrimSpace(phrases[i])
+					if registerItem {
+						phraseID = t.phrases.register(phrase, 1, 0, true)
+					} else {
+						phraseID = t.phrases.register(phrase, 0, 0, false)
+					}
+					phraseIDs = append(phraseIDs, phraseID)
+				}
+				itemCnts[i] = 0
+				phrases[i] = ""
+			}
+		}
+	}
+
 	for _, w := range words {
 		if _, ok := enStopWords[w]; ok {
 			continue
@@ -189,33 +217,11 @@ func (t *trans) toTermList(line string, registerItem bool) ([]int, []int, []int,
 			}
 			tokens = append(tokens, itemID)
 
-			cnt := t.items.getCount(itemID)
-			if cnt >= cMinTermApparenceInPhrases {
-				itemCnt++
-				phrase += " " + word
-			} else {
-				if itemCnt >= cMinTermInPhrases {
-					if registerItem {
-						phraseID = t.phrases.register(phrase, 1, 0, true)
-					} else {
-						phraseID = t.phrases.register(phrase, 0, 0, false)
-					}
-					phrases = append(phrases, phraseID)
-				}
-				itemCnt = 0
-				phrase = ""
-			}
+			registerPhrase(itemID, word)
 		}
 	}
-	if itemCnt >= cMinTermInPhrases {
-		if registerItem {
-			phraseID = t.phrases.register(phrase, 1, 0, true)
-		} else {
-			phraseID = t.phrases.register(phrase, 0, 0, false)
-		}
-		phrases = append(phrases, phraseID)
-	}
-	return timeResult, tokens, phrases, dt, nil
+	registerPhrase(-1, "")
+	return timeResult, tokens, phraseIDs, dt, nil
 }
 
 func (t *trans) tokenizeLine(line string,

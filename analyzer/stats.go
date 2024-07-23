@@ -64,6 +64,17 @@ func (s *stats) getScoreStage(score float64) int {
 
 }
 
+func (s *stats) calcGap(score float64) float64 {
+	cnt := float64(s.scoreCount)
+	sa := s.scoreSum / cnt
+	ss := math.Sqrt((s.scoreSqrSum - 2*s.scoreSum*sa + cnt*sa*sa) / cnt)
+	if ss > 0 {
+		return (score - sa) / (ss)
+	} else {
+		return 0
+	}
+}
+
 func (s *stats) registerScore(score float64, fileEpoch int64) error {
 	scoreSqr := score * score
 	scoreStage := s.getScoreStage(score)

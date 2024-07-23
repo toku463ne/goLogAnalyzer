@@ -47,4 +47,8 @@ func Test_pfsense(t *testing.T) {
 
 	os.Args = []string{"pfsense", "run", "-d", rootDir, "-f", logPathRegex, "-save", "yes"}
 	main()
+
+	logPathRegex = "/home/ubuntu/openvpn_logs_new/new_logs.log"
+	os.Args = []string{"pfsense", "monitor", "-d", rootDir, "-f", logPathRegex}
+	main()
 }

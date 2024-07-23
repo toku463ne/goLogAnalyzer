@@ -23,6 +23,8 @@ const (
 	cMaxItemBlockDesc      = "max blocks to save terms"
 	cMaxLinesDesc          = "max lines to process"
 	cNRecordsToShowDesc    = "Top N rare records to show"
+	cNRecordsToSaveDesc    = "Top N rare records to keep in DB"
+	cMaxAppearanceDesc     = "Only logs that appeared equal or less than this number will be showed up in monitoring mode"
 	cStartDateDesc         = "Start date to collect stats %Y-%m-%d format"
 	cEndDateDesc           = "End date to collect stats %Y-%m-%d format"
 	cDatetimeStartDesc     = "Start position of datetime in the log starting from 0"
@@ -42,11 +44,12 @@ const (
 )
 
 var (
-	clnFlag    = flag.NewFlagSet("clean", flag.ExitOnError)
-	runFlag    = flag.NewFlagSet("run", flag.ExitOnError)
-	topNFlag   = flag.NewFlagSet("topN", flag.ExitOnError)
-	stsFlag    = flag.NewFlagSet("stats", flag.ExitOnError)
-	reportFlag = flag.NewFlagSet("report", flag.ExitOnError)
+	clnFlag     = flag.NewFlagSet("clean", flag.ExitOnError)
+	runFlag     = flag.NewFlagSet("run", flag.ExitOnError)
+	topNFlag    = flag.NewFlagSet("topN", flag.ExitOnError)
+	stsFlag     = flag.NewFlagSet("stats", flag.ExitOnError)
+	reportFlag  = flag.NewFlagSet("report", flag.ExitOnError)
+	monitorFlag = flag.NewFlagSet("monitor", flag.ExitOnError)
 
 	clnRootDir = clnFlag.String("d", "", cRootDirDesc)
 
@@ -58,6 +61,7 @@ var (
 	runMaxBlock          = runFlag.Int("maxBlock", analyzer.CDefaultNBlocks, cMaxBlockDesc)
 	runMaxItemBlock      = runFlag.Int("maxItemBlock", analyzer.CDefaultNItemBlocks, cMaxItemBlockDesc)
 	runTopNRecordsToShow = runFlag.Int("n", analyzer.CDefaultTopNToShow, cNRecordsToShowDesc)
+	runTopNRecordsToSave = runFlag.Int("nSave", analyzer.CDefaultTopNToSave, cNRecordsToSaveDesc)
 	runDatetimeStartPos  = runFlag.Int("dateStart", 0, cDatetimeStartDesc)
 	runDatetimeLayout    = runFlag.String("dateLayout", "", cDatetimeLayoutDesc)
 	runScoreStyle        = runFlag.Int("scoreStyle", analyzer.CDefaultScoreStyle, cScoreStyleDesc)
@@ -84,6 +88,14 @@ var (
 	reportRecentNdays = reportFlag.Int("n", 0, "Recent N days to show the report")
 	reportDebug       = reportFlag.Bool("debug", false, cDebugDesc)
 
+	monitorRootDir        = monitorFlag.String("d", "", cRootDirDesc)
+	monitorPathRegex      = monitorFlag.String("f", "", cPathRegexDesc)
+	monitorNTargetRecords = monitorFlag.Int("n", 10000, cNRecordsToShowDesc)
+	monitornMaxAppearance = monitorFlag.Int("m", 1, cMaxAppearanceDesc)
+	monitorSearch         = monitorFlag.String("s", "", cFilterReDesc)
+	monitorExclude        = monitorFlag.String("x", "", cXfilterReDesc)
+	//rootDir string,	filterRe, xFilterRe string, n int
+
 	usageTxt = `Usage of logan:  
 logan [run|clean|topN|stats] OPTIONS  
 
@@ -97,6 +109,11 @@ logan run:
 logan report:
 	Reads params from json config file.
 	Run "logan report -help" for details.
+
+logan monitor:
+	Check if new log records are rare and just print.
+	Reads params from json config file.
+	Run "logan monitor -help" for details.
 
 logan clean:
 	Cleanups all statistics data.
@@ -154,6 +171,7 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 	c.IgnoreCount = *runIgnoreCount
 	c.MinGapToRecord = *runGap
 	c.NTopRecordsCount = *runTopNRecordsToShow
+	c.NTopRecordsSaveCount = *runTopNRecordsToSave
 	c.ModeblockPerFile = *runModeblockPerFile
 	c.NRareTerms = *runNRareTerms
 
@@ -215,6 +233,14 @@ func report() error {
 	return analyzer.Report(*reportConfig, *reportRecentNdays)
 }
 
+func monitor() error {
+	monitorFlag.Parse(os.Args[2:])
+	//rootDir string,	filterRe, xFilterRe string, n int
+	err := analyzer.Monitor(*monitorRootDir, *monitorPathRegex,
+		*monitorSearch, *monitorExclude, *monitornMaxAppearance, *monitorNTargetRecords)
+	return err
+}
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
@@ -238,6 +264,8 @@ func main() {
 		err = topN()
 	case "report":
 		err = report()
+	case "monitor":
+		monitor()
 	default:
 		flag.Usage()
 	}

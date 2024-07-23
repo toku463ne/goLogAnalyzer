@@ -25,6 +25,7 @@ func Clean(rootDir string) error {
 
 func Run(c *AnalConf) error {
 	SetNamespace(c.LogPathRegex)
+	c.ReadOnly = false
 	a, err := newRarityAnalyzer(c)
 	if err != nil {
 		return err
@@ -37,7 +38,7 @@ func Run(c *AnalConf) error {
 	if c.RootDir == "" {
 		filterReStr := re2str(a.filterRe)
 		xFilterReStr := re2str(a.xFilterRe)
-		ntop, err := a.getNTop("ntop", a.NTopRecordsCount, 0, 0,
+		ntop, err := a.getNTop(a.NTopRecordsCount, 0, 0,
 			filterReStr, xFilterReStr, 0, 0, a.NRareTerms)
 		if err != nil {
 			return err
@@ -71,7 +72,7 @@ func PrintTopN(rootDir string, n int,
 		return err
 	}
 
-	ntop, err := a.getNTop("ntop", n, startEpoch, endEpoch,
+	ntop, err := a.getNTop(n, startEpoch, endEpoch,
 		filterRe, xFilterRe, minScore, maxScore, nRareTerms)
 	if err != nil {
 		return err
@@ -108,5 +109,32 @@ func Report(jsonFile string, nDays int) error {
 	if err := r.run(); err != nil {
 		return err
 	}
+	return nil
+}
+
+func Monitor(rootDir string, logPathRegex string,
+	filterStr, xFilterStr string, nMaxAppearance, nTopRecs int) error {
+
+	SetNamespace(rootDir)
+	if rootDir == "" {
+		return errors.New("rootDir cannot be empty")
+	}
+	if !PathExist(rootDir) {
+		return errors.New("Run analyzation first.")
+	}
+
+	c := NewAnalConf(rootDir)
+	c.ReadOnly = true
+
+	a, err := newRarityAnalyzer(c)
+	if err != nil {
+		return err
+	}
+
+	a.LogPathRegex = logPathRegex
+	a.lastFileEpoch = 0
+	a.lastFileRow = 0
+
+	a.monitor(nMaxAppearance, nTopRecs)
 	return nil
 }

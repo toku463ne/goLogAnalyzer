@@ -112,7 +112,7 @@ func (a *rarityAnalyzer) load() error {
 }
 
 func (a *rarityAnalyzer) init() error {
-	if a.RootDir != "" {
+	if a.RootDir != "" && !a.ReadOnly {
 		if err := ensureDir(a.RootDir); err != nil {
 			return err
 		}
@@ -124,12 +124,14 @@ func (a *rarityAnalyzer) init() error {
 		return err
 	}
 	a.trans = trans
-	if a.RootDir == "" {
-		a.nTopRareLogs, err = newNTopRecords("ntop", a.NTopRecordsCount,
-			0.0, trans, true, "", a.NRareTerms)
-		if err != nil {
-			return err
-		}
+
+	nr := a.NTopRecordsCount
+	if a.RootDir != "" {
+		nr = a.NTopRecordsSaveCount
+	}
+	a.nTopRareLogs, err = newNTopRecords(nr, 0.0, trans, true, a.RootDir, a.NRareTerms)
+	if err != nil {
+		return err
 	}
 
 	stats, err := newStats(a.RootDir, a.MaxBlocks, a.BlockSize)
@@ -147,7 +149,7 @@ func (a *rarityAnalyzer) init() error {
 }
 
 func (a *rarityAnalyzer) saveLastStatus() error {
-	if a.RootDir == "" {
+	if a.RootDir == "" || a.ReadOnly {
 		return nil
 	}
 
@@ -212,7 +214,7 @@ func (a *rarityAnalyzer) close() {
 }
 
 func (a *rarityAnalyzer) commit(completed bool) error {
-	if a.RootDir == "" {
+	if a.RootDir == "" || a.ReadOnly {
 		return nil
 	}
 	if IsDebug {
@@ -233,6 +235,11 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	}
 	if err := a.saveLastStatus(); err != nil {
 		return err
+	}
+	if a.nTopRareLogs != nil {
+		if err := a.nTopRareLogs.save(); err != nil {
+			return err
+		}
 	}
 	if IsDebug {
 		msg := "rarityAnalyzer.commit(): completed"
@@ -372,6 +379,11 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 				a.linesProcessed = linesProcessed
 				return err
 			}
+			if a.RootDir != "" {
+				if !math.IsNaN(score) {
+					a.nTopRareLogs.register(a.rowID, score, te, false)
+				}
+			}
 		}
 		if a.RootDir == "" {
 			if !math.IsNaN(score) {
@@ -400,7 +412,69 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 	return nil
 }
 
-func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, startEpoch, endEpoch int64,
+func (a *rarityAnalyzer) monitor(nMaxAppearance, nTopRecs int) error {
+	ntr, err := newNTopRecords(nTopRecs, 0, a.trans, true, a.RootDir, a.NRareTerms)
+	if err != nil {
+		return err
+	}
+	if err := ntr.load(false); err != nil {
+		return err
+	}
+
+	if a.fp == nil || !a.fp.isOpen() {
+		a.fp, err = newFilePointer(a.LogPathRegex, a.lastFileEpoch, a.lastFileRow)
+		if err != nil {
+			return err
+		}
+		if err := a.fp.open(); err != nil {
+			return err
+		}
+	}
+
+	for a.fp.next() {
+		te := a.fp.text()
+		if te == "" {
+			continue
+		}
+		_, tran, prh, _, err := a.trans.tokenizeLine(te, a.filterRe, a.xFilterRe, true)
+		score := a.trans.calcScore(prh, tran)
+		if err != nil {
+			return err
+		}
+		gap := a.stats.calcGap(score)
+		maxMatchRate := 0.0
+		maxMatchCount := 0
+		tranlen := len(tran)
+		if gap >= a.MinGapToRecord {
+			for _, logr := range ntr.records {
+				if logr == nil {
+					break
+				}
+
+				rate := checkMatchRate(logr.tran, tran)
+				if rate == 1.0 {
+					maxMatchRate = rate
+					maxMatchCount = logr.count
+					break
+				} else if rate > maxMatchRate {
+					for _, tmr := range tranMatchRates {
+						if tranlen >= tmr.matchLen && tmr.matchRate <= rate {
+							maxMatchRate = rate
+							maxMatchCount = logr.count
+							break
+						}
+					}
+				}
+			}
+		}
+		if maxMatchRate == 0 || maxMatchCount <= nMaxAppearance {
+			fmt.Printf("%s\n", te)
+		}
+	}
+	return nil
+}
+
+func (a *rarityAnalyzer) scanAndGetNTop(recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string,
 	minScore float64, maxScore float64, itemsToShow int) (*nTopRecords, error) {
 	var conditionCheckFunc func(v []string) bool
@@ -456,12 +530,11 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 		return nil, err
 	}
 
-	ntop, err := newNTopRecords(nTopname, recordsToShow,
-		minScore, a.trans, true, a.RootDir, itemsToShow)
+	ntop, err := newNTopRecords(recordsToShow, minScore, a.trans, true, a.RootDir, itemsToShow)
 	if err != nil {
 		return nil, err
 	}
-	if err := ntop.load(a.rowID, a.BlockSize*a.MaxBlocks, false); err != nil {
+	if err := ntop.load(false); err != nil {
 		return nil, err
 	}
 
@@ -499,21 +572,21 @@ func (a *rarityAnalyzer) scanAndGetNTop(nTopname string, recordsToShow int, star
 	return ntop, nil
 }
 
-func (a *rarityAnalyzer) getNTop(nTopName string, recordsToShow int, startEpoch, endEpoch int64,
+func (a *rarityAnalyzer) getNTop(recordsToShow int, startEpoch, endEpoch int64,
 	filterReStr, xFilterReStr string,
 	minScore float64, maxScore float64, itemsToShow int) (*nTopRecords, error) {
 	var err error
 	var ntop *nTopRecords
 	if IsDebug {
 		msg := "rarityAnalyzer.getNTop(): "
-		msg += fmt.Sprintf("nTopName=%s recordsToShow=%d filterReStr=%s xFilterReStr=%s",
-			nTopName, recordsToShow, filterReStr, xFilterReStr)
+		msg += fmt.Sprintf("recordsToShow=%d filterReStr=%s xFilterReStr=%s",
+			recordsToShow, filterReStr, xFilterReStr)
 		ShowDebug(msg)
 	}
 	if a.RootDir == "" {
 		ntop = a.nTopRareLogs
 	} else {
-		ntop, err = a.scanAndGetNTop(nTopName, recordsToShow,
+		ntop, err = a.scanAndGetNTop(recordsToShow,
 			startEpoch, endEpoch, filterReStr, xFilterReStr, minScore, maxScore, itemsToShow)
 		if err != nil {
 			return nil, err

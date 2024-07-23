@@ -458,7 +458,7 @@ func Test_scanAndGetNTop(t *testing.T) {
 		return
 	}
 	n := 5
-	nTop, err := a.scanAndGetNTop("test", n, 0, 0, "", "", 0, 0, 0)
+	nTop, err := a.scanAndGetNTop(n, 0, 0, "", "", 0, 0, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

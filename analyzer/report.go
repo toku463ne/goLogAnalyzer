@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 func newReport(jsonFile string, nDays int) (*report, error) {
@@ -16,6 +18,11 @@ func newReport(jsonFile string, nDays int) (*report, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if r.conf.ReportDir == "" {
+		return nil, errors.New("ReportDir is mandatory")
+	}
+
 	InitLog(r.conf.RootDir)
 	r.confGroups = newLogConfGroups(r.conf)
 	if nDays == 0 {
@@ -188,6 +195,7 @@ func (r *report) run() error {
 
 		for _, node := range g {
 			SetNamespace(node.LogPath)
+			node.ReadOnly = false
 			a, err := r.getAnalyzer(node)
 			if err != nil {
 				log.Printf("%+v", err)
@@ -213,7 +221,7 @@ func (r *report) run() error {
 				return err
 			}
 			log.Printf("[%s] searching top rare records...", node.Name)
-			ntop, err := a.getNTop(node.Name, node.TopN, start, end,
+			ntop, err := a.getNTop(node.TopN, start, end,
 				node.Search, node.Exclude, node.MinScore, node.MaxScore, node.NRareTerms)
 			if err != nil {
 				return err

@@ -11,20 +11,22 @@ import (
 )
 
 type AnalConf struct {
-	RootDir          string
-	LogPathRegex     string
-	BlockSize        int
-	MaxBlocks        int
-	MaxItemBlocks    int
-	DatetimeStartPos int
-	DatetimeLayout   string
-	ScoreStyle       int
-	ScoreNSize       int
-	MinGapToRecord   float64
-	NTopRecordsCount int
-	ModeblockPerFile bool // if create block per file
-	IgnoreCount      int
-	NRareTerms       int
+	RootDir              string
+	LogPathRegex         string
+	BlockSize            int
+	MaxBlocks            int
+	MaxItemBlocks        int
+	DatetimeStartPos     int
+	DatetimeLayout       string
+	ScoreStyle           int
+	ScoreNSize           int
+	MinGapToRecord       float64
+	NTopRecordsCount     int
+	NTopRecordsSaveCount int
+	ModeblockPerFile     bool // if create block per file
+	IgnoreCount          int
+	NRareTerms           int
+	ReadOnly             bool
 }
 
 type colStats struct {
@@ -95,7 +97,6 @@ type colLogRecord struct {
 
 type nTopRecords struct {
 	*csvdb.CsvDB
-	name       string
 	rootDir    string
 	ntopTable  *csvdb.CsvTable
 	ntopi      *topNItems
@@ -222,6 +223,12 @@ type report struct {
 	daysToShow int
 }
 
+type monitor struct {
+	st         *stats
+	conf       *LogConfRoot
+	confGroups *logConfGroups
+}
+
 type LogConf struct {
 	LogPath          string              `json:"path"`
 	TopN             int                 `json:"topN"`
@@ -242,6 +249,7 @@ type LogConf struct {
 	MinScore         float64             `json:"minScore"`
 	MaxScore         float64             `json:"maxScore"`
 	NRareTerms       int                 `json:"nRareTerms"`
+	ReadOnly         bool
 }
 
 type LogNode struct {

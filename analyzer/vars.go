@@ -16,6 +16,7 @@ var (
 			matchRate: 0.7,
 		},
 	}
-	IsDebug = false
-	Name    string
+	IsDebug                 = false
+	Name                    string
+	termAppearenceInPhrases = []int{10, 100, 1000}
 )

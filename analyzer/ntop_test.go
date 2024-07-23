@@ -6,7 +6,7 @@ import (
 )
 
 func Test_nTop(t *testing.T) {
-	ntr, err := newNTopRecords("test", 3, 0.0, nil, false, "", 0)
+	ntr, err := newNTopRecords(3, 0.0, nil, false, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -27,7 +27,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	ntr, err = newNTopRecords("test", 3, 0.0, nil, false, "", 0)
+	ntr, err = newNTopRecords(3, 0.0, nil, false, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -48,7 +48,7 @@ func Test_nTop(t *testing.T) {
 		return
 	}
 
-	ntr, err = newNTopRecords("test", 3, 0.0, nil, false, "", 0)
+	ntr, err = newNTopRecords(3, 0.0, nil, false, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -69,7 +69,7 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ := newTrans("", 0, 0, 0, "", 1, 0, 0)
-	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "", 0)
+	ntr, err = newNTopRecords(9, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -95,7 +95,7 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
-	ntr, err = newNTopRecords("test", 9, 0.0, tran, true, "", 0)
+	ntr, err = newNTopRecords(9, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -137,7 +137,7 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
-	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "", 0)
+	ntr, err = newNTopRecords(10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -178,7 +178,7 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
-	ntr, err = newNTopRecords("test", 5, 0.0, tran, true, "", 0)
+	ntr, err = newNTopRecords(5, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -223,7 +223,7 @@ func Test_nTop(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0, 0)
-	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "", 0)
+	ntr, err = newNTopRecords(10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -263,7 +263,7 @@ func Test_nTop(t *testing.T) {
 
 func Test_nTop2(t *testing.T) {
 	tran, _ := newTrans("", 0, 0, 0, "", 1, 0, 0)
-	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, "", 0)
+	ntr, err := newNTopRecords(10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -291,7 +291,7 @@ func Test_nTop2(t *testing.T) {
 	}
 
 	tran, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
-	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, "", 0)
+	ntr, err = newNTopRecords(10, 0.0, tran, true, "", 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -333,7 +333,7 @@ func Test_nTop3(t *testing.T) {
 	}
 
 	tran, _ := newTrans("", 0, 0, 0, "Jan _2 15:04:05", 1, 0, 0)
-	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir, 0)
+	ntr, err := newNTopRecords(10, 0.0, tran, true, dataDir, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -372,12 +372,12 @@ func Test_nTop3(t *testing.T) {
 		return
 	}
 
-	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, dataDir, 0)
+	ntr, err = newNTopRecords(10, 0.0, tran, true, dataDir, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := ntr.load(12, 10, true); err != nil {
+	if err := ntr.load(true); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -439,7 +439,7 @@ func Test_nTop4(t *testing.T) {
 	}
 
 	tran, _ := newTrans("", 0, 0, 0, "", 1, 0, 0)
-	ntr, err := newNTopRecords("test", 10, 0.0, tran, true, dataDir, 0)
+	ntr, err := newNTopRecords(10, 0.0, tran, true, dataDir, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -469,12 +469,12 @@ func Test_nTop4(t *testing.T) {
 		return
 	}
 
-	ntr, err = newNTopRecords("test", 10, 0.0, tran, true, dataDir, 0)
+	ntr, err = newNTopRecords(10, 0.0, tran, true, dataDir, 0)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := ntr.load(200, 1000, true); err != nil {
+	if err := ntr.load(true); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

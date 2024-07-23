@@ -3,13 +3,13 @@ package analyzer
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/pkg/errors"
 )
 
 func newLogConfRoot(jsonFile string) (*LogConfRoot, error) {
-	bytes, err := ioutil.ReadFile(jsonFile)
+	bytes, err := os.ReadFile(jsonFile)
 	if err != nil {
 		return nil, err
 	}
@@ -18,9 +18,9 @@ func newLogConfRoot(jsonFile string) (*LogConfRoot, error) {
 		return nil, err
 	}
 
-	if lcr.ReportDir == "" {
-		return nil, errors.New("ReportDir is mandatory")
-	}
+	//if lcr.ReportDir == "" {
+	//	return nil, errors.New("ReportDir is mandatory")
+	//}
 
 	for i, child := range lcr.Children {
 		lcr.Children[i], err = child.inheritConf(lcr.LogConf,

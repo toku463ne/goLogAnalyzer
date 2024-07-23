@@ -2,6 +2,7 @@ package analyzer
 
 const (
 	CDefaultTopNToShow      = 10
+	CDefaultTopNToSave      = 10000
 	CDefaultBlockSize       = 0
 	CDefaultNBlocks         = 0
 	CDefaultNItemBlocks     = 0

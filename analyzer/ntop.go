@@ -2,33 +2,26 @@ package analyzer
 
 import (
 	"fmt"
+	csvdb "goLogAnalyzer/csvdb"
 	"sort"
 	"time"
-
-	csvdb "goLogAnalyzer/csvdb"
 
 	"github.com/pkg/errors"
 )
 
-func newNTopRecords(name string,
-	n int, minScore float64, t *trans,
+func newNTopRecords(n int, minScore float64, t *trans,
 	isUniqMode bool, rootDir string, nItems int) (*nTopRecords, error) {
 	ntop := new(nTopRecords)
 	ntop.n = n
 	ntop.isUniqMode = isUniqMode
 	ntop.minScore = minScore
 	ntop.rootDir = rootDir
-	ntop.name = name
 	if t == nil {
 		ntop.t, _ = newTrans("", 0, 0, 0, "", 1, 0, 0)
 	} else {
 		ntop.t = t
 	}
-	ntop.initRecords()
 	if rootDir != "" {
-		if err := ensureDir(rootDir); err != nil {
-			return nil, err
-		}
 		db, err := csvdb.NewCsvDB(rootDir)
 		if err != nil {
 			return nil, err
@@ -37,10 +30,9 @@ func newNTopRecords(name string,
 		if err := ntop.prepareTables(); err != nil {
 			return nil, err
 		}
-		//if err := ntop.load(); err != nil {
-		//	return nil, err
-		//}
 	}
+	ntop.initRecords()
+
 	ntop.ntopi = newTopNItems(nItems)
 	return ntop, nil
 }
@@ -64,7 +56,7 @@ func (ntop *nTopRecords) tokenizeLine(text string, registerItems bool) ([]int, t
 		}
 		dt = time.Date(y, m, d, dt.Hour(), dt.Minute(), dt.Second(), 0, dt.Location())
 	}
-	sort.Slice(tran, func(i, j int) bool { return tran[i] < tran[j] })
+	//sort.Slice(tran, func(i, j int) bool { return tran[i] < tran[j] })
 	return tran, dt
 }
 
@@ -95,8 +87,6 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 	// register rare items
 	ntop.registerRareItems(tran)
 
-	blankItemID := ntop.t.items.getItemID(" ")
-
 	if ntop.isUniqMode {
 		tranlen := len(logr2.tran)
 		for i, logr := range ntop.records {
@@ -104,7 +94,7 @@ func (ntop *nTopRecords) register(rowID int64, score float64, text string, regis
 				break
 			}
 
-			rate := checkMatchRate(logr.tran, logr2.tran, blankItemID)
+			rate := checkMatchRate(logr.tran, logr2.tran)
 			if rate == 1.0 {
 				maxMatchIdx = i
 				break
@@ -237,12 +227,8 @@ func (ntop *nTopRecords) getRecords2() []*colLogRecord {
 	return records
 }
 
-func (ntop *nTopRecords) getTableName() string {
-	return fmt.Sprintf("topn_%s", ntop.name)
-}
-
 func (ntop *nTopRecords) prepareTables() error {
-	ntopTable, err := ntop.CreateTableIfNotExists(ntop.getTableName(),
+	ntopTable, err := ntop.CreateTableIfNotExists("topn",
 		tableDefs["lastTopN"], false, cDefaultBuffSize, 0)
 	if err != nil {
 		return err
@@ -259,13 +245,10 @@ func (ntop *nTopRecords) save() error {
 		if r == nil {
 			break
 		}
-		terms := make([]string, len(r.tran))
-		for i, t := range r.tran {
-			terms[i] = ntop.t.items.getWord(t)
-		}
+
 		if err := ntop.ntopTable.InsertRow([]string{"rowid", "score", "maxScore",
-			"record", "terms", "count", "lastDate"},
-			r.rowid, r.score, r.maxScore, r.record, terms, r.count,
+			"record", "count", "lastDate"},
+			r.rowid, r.score, r.maxScore, r.record, r.count,
 			r.lastDate); err != nil {
 			return err
 		}
@@ -277,20 +260,19 @@ func (ntop *nTopRecords) save() error {
 	return nil
 }
 
-func (ntop *nTopRecords) load(lastRowID int64,
-	maxRowIDs int, registerItems bool) error {
-	if !ntop.TableExists(ntop.getTableName()) {
+func (ntop *nTopRecords) load(registerItems bool) error {
+	if !ntop.TableExists("topn") {
 		return nil
 	}
 
-	ntopTable, err := ntop.GetTable(ntop.getTableName())
+	ntopTable, err := ntop.GetTable("topn")
 	if err != nil {
 		return err
 	}
 	defer ntopTable.Close()
 
 	rows, err := ntopTable.SelectRows(nil,
-		[]string{"rowid", "score", "maxScore", "record", "terms", "count", "lastDate"})
+		[]string{"rowid", "score", "maxScore", "record", "count", "lastDate"})
 	if err != nil {
 		return err
 	}
@@ -299,8 +281,7 @@ func (ntop *nTopRecords) load(lastRowID int64,
 	ntopIdx := 0
 	for rows.Next() {
 		r := new(colLogRecord)
-		terms := make([]string, 0)
-		if err := rows.Scan(&r.rowid, &r.score, &r.maxScore, &r.record, &terms,
+		if err := rows.Scan(&r.rowid, &r.score, &r.maxScore, &r.record,
 			&r.count, &lastDate); err != nil {
 			return errors.WithStack(err)
 		}
