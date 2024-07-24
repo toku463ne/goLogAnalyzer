@@ -435,6 +435,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 			maxMatchCount, maxMatchRate := a.nTopRareLogs.searchMaxMatchCount(tran)
 			if maxMatchCount <= a.NMaxAppearance {
 				a.rareRecords = append(a.rareRecords, fmt.Sprintf("%d %f | %s", maxMatchCount, maxMatchRate, te))
+				fmt.Printf("%d %f | %s\n", maxMatchCount, maxMatchRate, te)
 			}
 		}
 		if a.stats.lastGap >= a.MinGapToRecord {

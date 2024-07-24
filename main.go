@@ -141,8 +141,7 @@ func run() error {
 	runFlag.Parse(os.Args[2:])
 	analyzer.InitLog(*runRootDir)
 	analyzer.IsDebug = *runDebug
-	forceSaveDb := *runForceSaveDb
-	if !forceSaveDb {
+	if !*runForceSaveDb && !*runDetectAndSaveMode {
 		if *runRootDir != "" {
 			if analyzer.PathExist(*runRootDir) {
 				fmt.Printf("Update data on %s? (y/n) (default 'no') ", *runRootDir)

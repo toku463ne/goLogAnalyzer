@@ -89,3 +89,21 @@ func Test_pfsense3(t *testing.T) {
 	main()
 	os.Remove(dest)
 }
+
+func Test_pfsense4(t *testing.T) {
+	rootDir := "/home/ubuntu/logan/openvpn"
+	logPathRegex := "/home/ubuntu/logandata/openvpn_logs4/pfsense67051_openvpn.log*"
+	os.Args = []string{"pfsense", "clean", "-d", rootDir}
+	main()
+
+	os.Args = []string{"pfsense", "run", "-d", rootDir, "-f", logPathRegex, "-save", "yes"}
+	main()
+
+	org := "/home/ubuntu/logandata/openvpn_20240724/pfsense67051_openvpn.log"
+	dest := "/home/ubuntu/logandata/openvpn_logs4/pfsense67051_openvpn.log"
+	analyzer.CopyFile(org, dest)
+	os.Args = []string{"pfsense", "run", "-d", rootDir, "-f", logPathRegex, "-detectAndSave", "yes"}
+	//os.Args = []string{"pfsense", "monitor", "-d", rootDir, "-f", logPathRegex}
+	main()
+	os.Remove(dest)
+}
