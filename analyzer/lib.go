@@ -250,6 +250,18 @@ func removePath(pathRegex string) error {
 }
 
 func checkMatchRate(s1, s2 []int) float64 {
+	cnt := 0
+	base := math.Max(float64(len(s1)), float64(len(s2)))
+	lasti := int(math.Min(float64(len(s1)), float64(len(s2))))
+	for i := 0; i < lasti; i++ {
+		if s1[i] == s2[i] {
+			cnt++
+		}
+	}
+	return float64(cnt) / base
+}
+
+func bkcheckMatchRate(s1, s2 []int) float64 {
 	i := 0
 	j := 0
 	cnt := 0

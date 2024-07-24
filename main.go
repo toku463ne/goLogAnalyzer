@@ -176,7 +176,7 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 	c.DetectAndSaveMode = *runDetectAndSaveMode
 
 	if *runTopNRecordsCount == 0 {
-		if c.DetectAndSaveMode {
+		if c.DetectAndSaveMode || c.RootDir != "" {
 			c.NTopRecordsCount = analyzer.CDefaultTopNToSave
 		} else {
 			c.NTopRecordsCount = analyzer.CDefaultTopNToShow

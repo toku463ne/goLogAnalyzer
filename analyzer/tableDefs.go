@@ -4,7 +4,7 @@ var (
 	tableDefs = map[string][]string{
 		"config": {"rootDir", "logPathRegex", "blockSize",
 			"maxBlocks", "maxItemBlocks",
-			"filterRe", "xFilterRe", "minGapToRecord",
+			"filterRe", "xFilterRe", "minGapToRecord", "minGapToDetect",
 			"datetimeStartPos", "datetimeLayout", "scoreStyle"},
 		"lastStatus": {"lastRowID", "lastFileEpoch", "lastFileRow"},
 		"items":      {"item", "itemCount", "tranScoreAvg"},

@@ -78,10 +78,10 @@ func (a *rarityAnalyzer) loadStatus() error {
 	xFilterReStr := ""
 	if err := a.configTable.Select1Row(nil,
 		[]string{"logPathRegex", "blockSize", "maxBlocks",
-			"maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord",
+			"maxItemBlocks", "filterRe", "xFilterRe", "minGapToRecord", "minGapToDetect",
 			"datetimeStartPos", "datetimeLayout", "scoreStyle"},
 		&a.LogPathRegex, &a.BlockSize, &a.MaxBlocks, &a.MaxItemBlocks,
-		&filterReStr, &xFilterReStr, &a.MinGapToRecord,
+		&filterReStr, &xFilterReStr, &a.MinGapToRecord, &a.MinGapToDetect,
 		&a.DatetimeStartPos, &a.DatetimeLayout, &a.ScoreStyle); err != nil {
 		return err
 	}
@@ -209,6 +209,7 @@ func (a *rarityAnalyzer) saveConfig() error {
 		"filterRe":         filterReStr,
 		"xFilterRe":        xFilterReStr,
 		"minGapToRecord":   a.MinGapToRecord,
+		"minGapToDetect":   a.MinGapToDetect,
 		"datetimeStartPos": a.DatetimeStartPos,
 		"datetimeLayout":   a.DatetimeLayout,
 		"scoreStyle":       a.ScoreStyle,
@@ -344,6 +345,7 @@ func (a *rarityAnalyzer) calcBlocks(totalCount int, nFiles int) {
 	if m < 3000 {
 		a.ModeblockPerFile = true
 		a.MinGapToRecord = 0.3
+		a.MinGapToDetect = 2.0
 		a.MaxBlocks = cLogCycle * 2
 		a.BlockSize = 3000
 		return
@@ -354,16 +356,19 @@ func (a *rarityAnalyzer) calcBlocks(totalCount int, nFiles int) {
 	if m >= 3000 && m < 30000 {
 		a.BlockSize = 1000
 		a.MinGapToRecord = 0.5
+		a.MinGapToDetect = 2.5
 		a.setMaxBlock(m)
 	}
 	if m >= 30000 && m < 300000 {
 		a.BlockSize = 10000
 		a.MinGapToRecord = 1.2
+		a.MinGapToDetect = 3.0
 		a.setMaxBlock(m)
 	}
 	if m >= 300000 {
 		a.BlockSize = 100000
 		a.MinGapToRecord = 1.5
+		a.MinGapToDetect = 2.5
 		a.setMaxBlock(m)
 	}
 }
@@ -426,14 +431,13 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 			a.linesProcessed = linesProcessed
 			return err
 		}
-		if a.stats.lastGap >= a.MinGapToRecord {
-			if a.DetectAndSaveMode {
-				maxMatchCount := a.nTopRareLogs.searchMaxMatchCount(tran)
-				if maxMatchCount <= a.NMaxAppearance {
-					a.rareRecords = append(a.rareRecords, te)
-				}
+		if a.DetectAndSaveMode && a.stats.lastGap >= a.MinGapToDetect {
+			maxMatchCount, maxMatchRate := a.nTopRareLogs.searchMaxMatchCount(tran)
+			if maxMatchCount <= a.NMaxAppearance {
+				a.rareRecords = append(a.rareRecords, fmt.Sprintf("%d %f | %s", maxMatchCount, maxMatchRate, te))
 			}
-
+		}
+		if a.stats.lastGap >= a.MinGapToRecord {
 			if err := a.logRecs.insert(a.rowID, score, te, lastEpoch); err != nil {
 				a.linesProcessed = linesProcessed
 				return err
@@ -507,9 +511,10 @@ func (a *rarityAnalyzer) monitor() error {
 		}
 		gap := a.stats.calcGap(score)
 		if gap > a.MinGapToRecord {
-			maxMatchCount := ntr.searchMaxMatchCount(tran)
+			maxMatchCount, maxMatchRate := ntr.searchMaxMatchCount(tran)
 			if maxMatchCount > 0 && maxMatchCount <= a.NMaxAppearance {
-				fmt.Printf("%s\n", te)
+				//fmt.Printf("%s\n", te)
+				fmt.Printf("%d %f | %s\n", maxMatchCount, maxMatchRate, te)
 			}
 		}
 

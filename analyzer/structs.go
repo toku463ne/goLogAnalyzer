@@ -187,6 +187,7 @@ type rarityAnalyzer struct {
 	ignoreCount            int
 	linesProcessed         int
 	rareRecords            []string
+	MinGapToDetect         float64
 }
 
 type filePointer struct {
