@@ -86,7 +86,7 @@ func roundUpInt(num float64) float64 {
 	return t + math.Copysign(1, num)
 }
 
-func copyFile(src, dst string) (int64, error) {
+func CopyFile(src, dst string) (int64, error) {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {
 		return 0, err

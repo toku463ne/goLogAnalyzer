@@ -5,6 +5,8 @@ import (
 	csvdb "goLogAnalyzer/csvdb"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -87,13 +89,26 @@ func (a *rarityAnalyzer) loadStatus() error {
 	a.filterRe = getRegex(filterReStr)
 	a.xFilterRe = getRegex(xFilterReStr)
 
-	if err := a.lastStatusTable.Select1Row(nil,
-		[]string{"lastRowID", "lastFileEpoch", "lastFileRow"},
-		&a.rowID, &a.lastFileEpoch, &a.lastFileRow); err != nil {
-		if err.Error() != cErrPathNotExists {
-			return err
+	if a.ReadOnly {
+		if err := a.lastMonitorStatusTable.Select1Row(nil,
+			[]string{"lastRowID", "lastFileEpoch", "lastFileRow"},
+			&a.rowID, &a.lastFileEpoch, &a.lastFileRow); err != nil {
+			if err.Error() != cErrPathNotExists {
+				return err
+			}
 		}
 	}
+
+	if a.lastFileEpoch == 0 {
+		if err := a.lastStatusTable.Select1Row(nil,
+			[]string{"lastRowID", "lastFileEpoch", "lastFileRow"},
+			&a.rowID, &a.lastFileEpoch, &a.lastFileRow); err != nil {
+			if err.Error() != cErrPathNotExists {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -106,6 +121,9 @@ func (a *rarityAnalyzer) load() error {
 		return err
 	}
 	if err := a.logRecs.load(); err != nil {
+		return err
+	}
+	if err := a.nTopRareLogs.load(false); err != nil {
 		return err
 	}
 	return nil
@@ -125,11 +143,7 @@ func (a *rarityAnalyzer) init() error {
 	}
 	a.trans = trans
 
-	nr := a.NTopRecordsCount
-	if a.RootDir != "" {
-		nr = a.NTopRecordsSaveCount
-	}
-	a.nTopRareLogs, err = newNTopRecords(nr, 0.0, trans, true, a.RootDir, a.NRareTerms)
+	a.nTopRareLogs, err = newNTopRecords(a.NTopRecordsCount, 0.0, trans, true, a.RootDir, a.NRareTerms)
 	if err != nil {
 		return err
 	}
@@ -145,11 +159,14 @@ func (a *rarityAnalyzer) init() error {
 		return err
 	}
 	a.logRecs = logRecs
+
+	a.rareRecords = make([]string, 0)
+
 	return nil
 }
 
 func (a *rarityAnalyzer) saveLastStatus() error {
-	if a.RootDir == "" || a.ReadOnly {
+	if a.RootDir == "" {
 		return nil
 	}
 
@@ -163,14 +180,21 @@ func (a *rarityAnalyzer) saveLastStatus() error {
 		rowNo = 0
 	}
 
-	if err := a.lastStatusTable.Upsert(nil, map[string]interface{}{
-		"lastRowID":     a.rowID,
-		"lastFileEpoch": epoch,
-		"lastFileRow":   rowNo,
-	}); err != nil {
-		return err
+	var err error
+	if a.ReadOnly {
+		err = a.lastMonitorStatusTable.Upsert(nil, map[string]interface{}{
+			"lastRowID":     a.rowID,
+			"lastFileEpoch": epoch,
+			"lastFileRow":   rowNo,
+		})
+	} else {
+		err = a.lastStatusTable.Upsert(nil, map[string]interface{}{
+			"lastRowID":     a.rowID,
+			"lastFileEpoch": epoch,
+			"lastFileRow":   rowNo,
+		})
 	}
-	return nil
+	return err
 }
 
 func (a *rarityAnalyzer) saveConfig() error {
@@ -248,6 +272,27 @@ func (a *rarityAnalyzer) commit(completed bool) error {
 	return nil
 }
 
+func (a *rarityAnalyzer) writeRareRecords() error {
+	// Create the file path
+	filePath := filepath.Join(a.RootDir, "rareRecords.txt")
+
+	// Open the file for writing, create it if it doesn't exist
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write each record to the file
+	for _, record := range a.rareRecords {
+		_, err := file.WriteString(record + "\n")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *rarityAnalyzer) prepareDB() error {
 	d, err := csvdb.NewCsvDB(a.RootDir)
 	if err != nil {
@@ -264,6 +309,12 @@ func (a *rarityAnalyzer) prepareDB() error {
 		return err
 	}
 	a.lastStatusTable = ls
+
+	lms, err := d.CreateTableIfNotExists("lastMonitorStatus", tableDefs["lastStatus"], false, 1, 1)
+	if err != nil {
+		return err
+	}
+	a.lastMonitorStatusTable = lms
 
 	a.CsvDB = d
 	return nil
@@ -354,6 +405,7 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 			a.linesProcessed = linesProcessed
 			return err
 		}
+
 		lineEpoch := dt.Unix()
 		tran = append(tran, timeTran...)
 		if len(tran) == 0 {
@@ -375,6 +427,13 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 			return err
 		}
 		if a.stats.lastGap >= a.MinGapToRecord {
+			if a.DetectAndSaveMode {
+				maxMatchCount := a.nTopRareLogs.searchMaxMatchCount(tran)
+				if maxMatchCount <= a.NMaxAppearance {
+					a.rareRecords = append(a.rareRecords, te)
+				}
+			}
+
 			if err := a.logRecs.insert(a.rowID, score, te, lastEpoch); err != nil {
 				a.linesProcessed = linesProcessed
 				return err
@@ -408,12 +467,17 @@ func (a *rarityAnalyzer) analyze(targetLinesCnt int) error {
 	if err := a.commit(false); err != nil {
 		return err
 	}
+	if a.DetectAndSaveMode {
+		if err := a.writeRareRecords(); err != nil {
+			return err
+		}
+	}
 	log.Printf("processed %d lines", linesProcessed)
 	return nil
 }
 
-func (a *rarityAnalyzer) monitor(nMaxAppearance, nTopRecs int) error {
-	ntr, err := newNTopRecords(nTopRecs, 0, a.trans, true, a.RootDir, a.NRareTerms)
+func (a *rarityAnalyzer) monitor() error {
+	ntr, err := newNTopRecords(a.NTopRecordsCount, 0, a.trans, true, a.RootDir, a.NRareTerms)
 	if err != nil {
 		return err
 	}
@@ -442,34 +506,13 @@ func (a *rarityAnalyzer) monitor(nMaxAppearance, nTopRecs int) error {
 			return err
 		}
 		gap := a.stats.calcGap(score)
-		maxMatchRate := 0.0
-		maxMatchCount := 0
-		tranlen := len(tran)
-		if gap >= a.MinGapToRecord {
-			for _, logr := range ntr.records {
-				if logr == nil {
-					break
-				}
-
-				rate := checkMatchRate(logr.tran, tran)
-				if rate == 1.0 {
-					maxMatchRate = rate
-					maxMatchCount = logr.count
-					break
-				} else if rate > maxMatchRate {
-					for _, tmr := range tranMatchRates {
-						if tranlen >= tmr.matchLen && tmr.matchRate <= rate {
-							maxMatchRate = rate
-							maxMatchCount = logr.count
-							break
-						}
-					}
-				}
+		if gap > a.MinGapToRecord {
+			maxMatchCount := ntr.searchMaxMatchCount(tran)
+			if maxMatchCount > 0 && maxMatchCount <= a.NMaxAppearance {
+				fmt.Printf("%s\n", te)
 			}
 		}
-		if maxMatchRate == 0 || maxMatchCount <= nMaxAppearance {
-			fmt.Printf("%s\n", te)
-		}
+
 	}
 	return nil
 }

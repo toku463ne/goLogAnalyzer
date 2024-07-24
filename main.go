@@ -41,6 +41,7 @@ const (
 	cNItemTopDesc          = "Top N rare terms to display"
 	cDebugDesc             = "Run with detailed messages"
 	cIgnoreCountDesc       = "Do not include the term score in the calculation if appearence is equal or less than this number"
+	cDetectAndSaveDesc     = "Execute both of detection of anomaly logs and saving new records"
 )
 
 var (
@@ -60,8 +61,7 @@ var (
 	runBlockSize         = runFlag.Int("blockSize", analyzer.CDefaultBlockSize, cBlockSizeDesc)
 	runMaxBlock          = runFlag.Int("maxBlock", analyzer.CDefaultNBlocks, cMaxBlockDesc)
 	runMaxItemBlock      = runFlag.Int("maxItemBlock", analyzer.CDefaultNItemBlocks, cMaxItemBlockDesc)
-	runTopNRecordsToShow = runFlag.Int("n", analyzer.CDefaultTopNToShow, cNRecordsToShowDesc)
-	runTopNRecordsToSave = runFlag.Int("nSave", analyzer.CDefaultTopNToSave, cNRecordsToSaveDesc)
+	runTopNRecordsCount  = runFlag.Int("n", 0, cNRecordsToShowDesc)
 	runDatetimeStartPos  = runFlag.Int("dateStart", 0, cDatetimeStartDesc)
 	runDatetimeLayout    = runFlag.String("dateLayout", "", cDatetimeLayoutDesc)
 	runScoreStyle        = runFlag.Int("scoreStyle", analyzer.CDefaultScoreStyle, cScoreStyleDesc)
@@ -70,6 +70,8 @@ var (
 	runNRareTerms        = runFlag.Int("nRareTerms", analyzer.CDefaultNRareTerms, cNItemTopDesc)
 	runDebug             = runFlag.Bool("debug", false, cDebugDesc)
 	runIgnoreCount       = runFlag.Int("ignoreCount", 1, cIgnoreCountDesc)
+	runNMaxAppearance    = runFlag.Int("m", 1, cMaxAppearanceDesc)
+	runDetectAndSaveMode = runFlag.Bool("detectAndSave", false, cDetectAndSaveDesc)
 
 	topNRootDir       = topNFlag.String("d", "", cRootDirDesc)
 	topNRecordsToShow = topNFlag.Int("n", 10, cNRecordsToShowDesc)
@@ -91,7 +93,7 @@ var (
 	monitorRootDir        = monitorFlag.String("d", "", cRootDirDesc)
 	monitorPathRegex      = monitorFlag.String("f", "", cPathRegexDesc)
 	monitorNTargetRecords = monitorFlag.Int("n", 10000, cNRecordsToShowDesc)
-	monitornMaxAppearance = monitorFlag.Int("m", 1, cMaxAppearanceDesc)
+	monitorNMaxAppearance = monitorFlag.Int("m", 1, cMaxAppearanceDesc)
 	monitorSearch         = monitorFlag.String("s", "", cFilterReDesc)
 	monitorExclude        = monitorFlag.String("x", "", cXfilterReDesc)
 	//rootDir string,	filterRe, xFilterRe string, n int
@@ -170,8 +172,19 @@ You can also try to use -clean option to cleanup the database and try again\n`, 
 	c.ScoreNSize = *runScoreNSize
 	c.IgnoreCount = *runIgnoreCount
 	c.MinGapToRecord = *runGap
-	c.NTopRecordsCount = *runTopNRecordsToShow
-	c.NTopRecordsSaveCount = *runTopNRecordsToSave
+	c.NMaxAppearance = *runNMaxAppearance
+	c.DetectAndSaveMode = *runDetectAndSaveMode
+
+	if *runTopNRecordsCount == 0 {
+		if c.DetectAndSaveMode {
+			c.NTopRecordsCount = analyzer.CDefaultTopNToSave
+		} else {
+			c.NTopRecordsCount = analyzer.CDefaultTopNToShow
+		}
+	} else {
+		c.NTopRecordsCount = *runTopNRecordsCount
+	}
+
 	c.ModeblockPerFile = *runModeblockPerFile
 	c.NRareTerms = *runNRareTerms
 
@@ -237,7 +250,7 @@ func monitor() error {
 	monitorFlag.Parse(os.Args[2:])
 	//rootDir string,	filterRe, xFilterRe string, n int
 	err := analyzer.Monitor(*monitorRootDir, *monitorPathRegex,
-		*monitorSearch, *monitorExclude, *monitornMaxAppearance, *monitorNTargetRecords)
+		*monitorSearch, *monitorExclude, *monitorNMaxAppearance, *monitorNTargetRecords)
 	return err
 }
 

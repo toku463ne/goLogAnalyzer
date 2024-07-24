@@ -1,6 +1,7 @@
 package main
 
 import (
+	"goLogAnalyzer/analyzer"
 	"os"
 	"testing"
 )
@@ -41,7 +42,7 @@ func Test_realtest(t *testing.T) {
 
 func Test_pfsense(t *testing.T) {
 	rootDir := "/home/ubuntu/logan/openvpn"
-	logPathRegex := "/home/ubuntu/openvpn_logs/pfsense67051_openvpn.log*"
+	logPathRegex := "/home/ubuntu/openvpn_logs/pfsense67051_openvpn.log"
 	os.Args = []string{"pfsense", "clean", "-d", rootDir}
 	main()
 
@@ -51,4 +52,22 @@ func Test_pfsense(t *testing.T) {
 	logPathRegex = "/home/ubuntu/openvpn_logs_new/new_logs.log"
 	os.Args = []string{"pfsense", "monitor", "-d", rootDir, "-f", logPathRegex}
 	main()
+}
+
+func Test_pfsense2(t *testing.T) {
+	rootDir := "/home/ubuntu/logan/openvpn"
+	logPathRegex := "/home/ubuntu/openvpn_logs2/pfsense67051_openvpn.log*"
+	os.Args = []string{"pfsense", "clean", "-d", rootDir}
+	main()
+
+	os.Args = []string{"pfsense", "run", "-d", rootDir, "-f", logPathRegex, "-save", "yes"}
+	main()
+
+	org := "/home/ubuntu/openvpn_logs_new/new_logs.log"
+	dest := "/home/ubuntu/openvpn_logs2/pfsense67051_openvpn.log-new"
+	analyzer.CopyFile(org, dest)
+	os.Args = []string{"pfsense", "run", "-d", rootDir, "-f", logPathRegex, "-detectAndSave", "yes"}
+	//os.Args = []string{"pfsense", "monitor", "-d", rootDir, "-f", logPathRegex}
+	main()
+	os.Remove(dest)
 }

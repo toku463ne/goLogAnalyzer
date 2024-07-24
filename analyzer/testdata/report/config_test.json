@@ -1,5 +1,5 @@
 {
-    "rootDir": "/home/administrator/loganal/reportest",
+    "rootDir": "/home/ubuntu/loganal/reportest",
     "reportDir": "/tmp/reportest",
     "topN": 9,
     "scoreStyle": 1,

@@ -190,7 +190,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log.1",
+	if _, err := CopyFile("testdata/rarityAnalizer/001/sample.log.1",
 		fmt.Sprintf("%s/sample.log.1", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -269,7 +269,7 @@ func Test_rarityAnalyzerRun(t *testing.T) {
 		return
 	}
 
-	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log",
+	if _, err := CopyFile("testdata/rarityAnalizer/001/sample.log",
 		fmt.Sprintf("%s/sample.log", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -316,7 +316,7 @@ func Test_rarityAnalyzerRun2(t *testing.T) {
 		return
 	}
 
-	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log.1",
+	if _, err := CopyFile("testdata/rarityAnalizer/001/sample.log.1",
 		fmt.Sprintf("%s/sample.log.1", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -434,7 +434,7 @@ func Test_scanAndGetNTop(t *testing.T) {
 		return
 	}
 
-	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log.1",
+	if _, err := CopyFile("testdata/rarityAnalizer/001/sample.log.1",
 		fmt.Sprintf("%s/sample.log.1", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -509,7 +509,7 @@ func Test_rarityAnalyzerNodb(t *testing.T) {
 		return
 	}
 
-	if _, err := copyFile("testdata/rarityAnalizer/001/sample.log.1",
+	if _, err := CopyFile("testdata/rarityAnalizer/001/sample.log.1",
 		fmt.Sprintf("%s/sample.log.1", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return

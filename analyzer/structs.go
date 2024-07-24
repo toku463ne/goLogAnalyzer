@@ -11,22 +11,23 @@ import (
 )
 
 type AnalConf struct {
-	RootDir              string
-	LogPathRegex         string
-	BlockSize            int
-	MaxBlocks            int
-	MaxItemBlocks        int
-	DatetimeStartPos     int
-	DatetimeLayout       string
-	ScoreStyle           int
-	ScoreNSize           int
-	MinGapToRecord       float64
-	NTopRecordsCount     int
-	NTopRecordsSaveCount int
-	ModeblockPerFile     bool // if create block per file
-	IgnoreCount          int
-	NRareTerms           int
-	ReadOnly             bool
+	RootDir           string
+	LogPathRegex      string
+	BlockSize         int
+	MaxBlocks         int
+	MaxItemBlocks     int
+	DatetimeStartPos  int
+	DatetimeLayout    string
+	ScoreStyle        int
+	ScoreNSize        int
+	MinGapToRecord    float64
+	NTopRecordsCount  int
+	ModeblockPerFile  bool // if create block per file
+	IgnoreCount       int
+	NRareTerms        int
+	ReadOnly          bool
+	DetectAndSaveMode bool
+	NMaxAppearance    int
 }
 
 type colStats struct {
@@ -170,20 +171,22 @@ type phrases struct {
 type rarityAnalyzer struct {
 	*csvdb.CsvDB
 	*AnalConf
-	configTable     *csvdb.CsvTable
-	lastStatusTable *csvdb.CsvTable
-	trans           *trans
-	stats           *stats
-	logRecs         *logRecords
-	fp              *filePointer
-	filterRe        *regexp.Regexp
-	xFilterRe       *regexp.Regexp
-	lastFileEpoch   int64
-	lastFileRow     int
-	rowID           int64
-	nTopRareLogs    *nTopRecords
-	ignoreCount     int
-	linesProcessed  int
+	configTable            *csvdb.CsvTable
+	lastStatusTable        *csvdb.CsvTable
+	lastMonitorStatusTable *csvdb.CsvTable
+	trans                  *trans
+	stats                  *stats
+	logRecs                *logRecords
+	fp                     *filePointer
+	filterRe               *regexp.Regexp
+	xFilterRe              *regexp.Regexp
+	lastFileEpoch          int64
+	lastFileRow            int
+	rowID                  int64
+	nTopRareLogs           *nTopRecords
+	ignoreCount            int
+	linesProcessed         int
+	rareRecords            []string
 }
 
 type filePointer struct {
@@ -221,12 +224,6 @@ type report struct {
 	conf       *LogConfRoot
 	confGroups *logConfGroups
 	daysToShow int
-}
-
-type monitor struct {
-	st         *stats
-	conf       *LogConfRoot
-	confGroups *logConfGroups
 }
 
 type LogConf struct {

@@ -124,6 +124,8 @@ func Monitor(rootDir string, logPathRegex string,
 	}
 
 	c := NewAnalConf(rootDir)
+	c.NMaxAppearance = nMaxAppearance
+	c.NTopRecordsCount = nTopRecs
 	c.ReadOnly = true
 
 	a, err := newRarityAnalyzer(c)
@@ -135,6 +137,10 @@ func Monitor(rootDir string, logPathRegex string,
 	a.lastFileEpoch = 0
 	a.lastFileRow = 0
 
-	a.monitor(nMaxAppearance, nTopRecs)
+	a.monitor()
+
+	if err := a.saveLastStatus(); err != nil {
+		return err
+	}
 	return nil
 }

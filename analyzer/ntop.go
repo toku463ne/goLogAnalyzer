@@ -60,6 +60,32 @@ func (ntop *nTopRecords) tokenizeLine(text string, registerItems bool) ([]int, t
 	return tran, dt
 }
 
+func (ntop *nTopRecords) searchMaxMatchCount(tran []int) int {
+	maxMatchRate := 0.0
+	maxMatchCount := 0
+	tranlen := len(tran)
+	for _, logr := range ntop.records {
+		if logr == nil {
+			break
+		}
+
+		rate := checkMatchRate(logr.tran, tran)
+		if rate == 1.0 {
+			maxMatchCount = logr.count
+			break
+		} else if rate > maxMatchRate {
+			for _, tmr := range tranMatchRates {
+				if tranlen >= tmr.matchLen && tmr.matchRate <= rate {
+					maxMatchRate = rate
+					maxMatchCount = logr.count
+					break
+				}
+			}
+		}
+	}
+	return maxMatchCount
+}
+
 func (ntop *nTopRecords) register(rowID int64, score float64, text string, registerItems bool) {
 	if ntop.minScore > 0 && score <= ntop.minScore && ntop.memberCnt >= ntop.subN {
 		return
