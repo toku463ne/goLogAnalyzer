@@ -14,13 +14,13 @@ func TestFilePointer_run1(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if _, err := utils.CopyFile("../../test/data/filepointer/sample1.log.1.gz",
+	if _, err := utils.CopyFile("../../testdata/filepointer/sample1.log.1.gz",
 		fmt.Sprintf("%s/sample1.log.1.gz", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	time.Sleep(time.Second * 2)
-	if _, err := utils.CopyFile("../../test/data/filepointer/sample1.log",
+	if _, err := utils.CopyFile("../../testdata/filepointer/sample1.log",
 		fmt.Sprintf("%s/sample1.log", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -55,7 +55,7 @@ func TestFilePointer_run2(t *testing.T) {
 		return
 	}
 
-	if _, err := utils.CopyFile("../../test/data/filepointer/long.txt.tar.gz",
+	if _, err := utils.CopyFile("../../testdata/filepointer/long.txt.tar.gz",
 		fmt.Sprintf("%s/long.txt.tar.gz", testDir)); err != nil {
 		t.Errorf("%v", err)
 		return
@@ -79,7 +79,7 @@ func TestFilePointer_run2(t *testing.T) {
 }
 
 func Test_countNFiles(t *testing.T) {
-	logPathRegex := "../../test/data/filepointer/sample1.log*"
+	logPathRegex := "../../testdata/filepointer/sample1.log*"
 	fp, _ := NewFilePointer(logPathRegex, 0, 0)
 	cnt, fileCnt, err := fp.CountNFiles(2, logPathRegex)
 	if err != nil {

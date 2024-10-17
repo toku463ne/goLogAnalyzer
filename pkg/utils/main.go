@@ -465,3 +465,16 @@ func ReadFile2Slice(filePath string) ([]string, error) {
 
 	return lines, nil
 }
+
+func Base36ToInt64(base36Str string) (int64, error) {
+	// Parse the base-36 string into an int64
+	result, err := strconv.ParseInt(base36Str, 36, 64)
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}
+
+func Int64Tobase36(n int64) string {
+	return strconv.FormatInt(n, 36)
+}

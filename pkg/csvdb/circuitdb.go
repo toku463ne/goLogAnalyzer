@@ -16,7 +16,7 @@ type CircuitDB struct {
 	maxBlocks   int
 	blockSize   int
 	blockNo     int
-	retention   int64
+	keepPeriod  int64
 	statusTable *Table
 	lastIndex   int64
 	lastEpoch   int64
@@ -38,13 +38,13 @@ var (
 func NewCircuitDB(rootDir, name string,
 	columns []string,
 	maxBlocks, blockSize int,
-	retention int64, frequency int,
+	keepPeriod int64, keepUnit int,
 	useGzip bool) (*CircuitDB, error) {
 	cdb := new(CircuitDB)
 	cdb.Name = name
 	cdb.blockSize = blockSize
 	cdb.maxBlocks = maxBlocks
-	cdb.retention = retention
+	cdb.keepPeriod = keepPeriod
 
 	if rootDir == "" {
 		return cdb, nil
@@ -71,7 +71,7 @@ func NewCircuitDB(rootDir, name string,
 
 	cdb.CsvDB = db
 
-	cdb.unitsecs = utils.GetUnitsecs(frequency)
+	cdb.unitsecs = utils.GetUnitsecs(keepUnit)
 
 	t, err := cdb.GetBlockTable(cdb.blockNo)
 	if err != nil {
@@ -203,12 +203,12 @@ func (cdb *CircuitDB) deleteOldBlocks() error {
 		return nil
 	}
 
-	if cdb.retention == 0 {
+	if cdb.keepPeriod == 0 {
 		return nil
 	}
 
-	//oldEpoch := utils.AddDaysToEpoch(cdb.lastEpoch, -cdb.retention) + 1
-	oldEpoch := cdb.lastEpoch - cdb.retention*cdb.unitsecs + 1
+	//oldEpoch := utils.AddDaysToEpoch(cdb.lastEpoch, -cdb.keepPeriod) + 1
+	oldEpoch := cdb.lastEpoch - cdb.keepPeriod*cdb.unitsecs + 1
 
 	selectOldBlocks := func(v []string) bool {
 		lastEpoch := utils.StringToInt64(v[ColLastEpoch])

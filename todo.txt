@@ -1,0 +1,5 @@
+custom logGroups
+custom delmiter
+
+test log filtering
+test ignore, key words
