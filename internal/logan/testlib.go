@@ -42,12 +42,12 @@ func (a *Analyzer) _checkConfigTable(except_logPath string,
 
 	var got_logPath string
 	var got_blockSize, got_maxBlocks int
-	var got_keepPeriod int
+	var got_keepPeriod int64
 	var got_keepUnit int64
 	var got_termCountBorderRate float64
 	var got_termCountBorder int
 	var got_timestampLayout, got_logFormat string
-	a.lastStatusTable.Select1Row(nil,
+	a.configTable.Select1Row(nil,
 		tableDefs["config"],
 		&got_logPath,
 		&got_blockSize, &got_maxBlocks,
@@ -55,9 +55,10 @@ func (a *Analyzer) _checkConfigTable(except_logPath string,
 		&got_keepUnit,
 		&got_termCountBorderRate,
 		&got_termCountBorder,
-		&got_timestampLayout, got_logFormat)
+		&got_timestampLayout,
+		&got_logFormat)
 
-	if err := utils.GetGotExpErr("ogPath", except_logPath, got_logPath); err != nil {
+	if err := utils.GetGotExpErr("logPath", got_logPath, except_logPath); err != nil {
 		return err
 	}
 	if err := utils.GetGotExpErr("blockSize", got_blockSize, except_blockSize); err != nil {

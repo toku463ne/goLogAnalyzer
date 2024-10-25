@@ -7,7 +7,8 @@ var (
 			"termCountBorderRate", "termCountBorder",
 			"timestampLayout", "logFormat"},
 		"lastStatus":       {"lastRowId", "lastFileEpoch", "lastFileRow"},
-		"logGroups":        {"groupId", "count", "created", "updated"},
+		"logGroups":        {"groupId", "retentionPos", "count", "created", "updated"},
 		"logGroupsDetails": {"groupId", "line"},
+		"terms":            {"term", "count"},
 	}
 )

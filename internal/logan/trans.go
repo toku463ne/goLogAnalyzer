@@ -36,13 +36,24 @@ type trans struct {
 func newTrans(dataDir, logFormat, timestampLayout string,
 	maxBlocks, blockSize,
 	keepUnit int, keepPeriod int64,
+	termCountBorderRate float64,
+	termCountBorder int,
 	searchRegex, exludeRegex []string,
-	_keywords []string, _ignorewords []string, _customLogGroups []string,
+	_keywords []string, _ignorewords []string,
+	_customLogGroups []string,
 	useGzip, readOnly bool) (*trans, error) {
 	tr := new(trans)
-	tr.te = newTerms()
+
+	// don't need blockSize for terms because the rotation follows trans.next()
+	te, err := newTerms(dataDir, maxBlocks, keepUnit, keepPeriod, useGzip)
+	if err != nil {
+		return nil, err
+	}
+	tr.te = te
+
 	tr.lt = newLogTree(0)
-	lgs, err := newLogGroups(dataDir, maxBlocks, blockSize, keepUnit, keepPeriod, useGzip)
+	// don't need blockSize for terms because the rotation follows trans.next()
+	lgs, err := newLogGroups(dataDir, maxBlocks, keepUnit, keepPeriod, useGzip)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +61,9 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	tr.replacer = getDelimReplacer()
 	tr._parseLogFormat(logFormat)
 	tr.timestampLayout = timestampLayout
+	tr.termCountBorder = termCountBorder
+	tr.termCountBorderRate = termCountBorderRate
 	tr.readOnly = readOnly
-	tr.totalLines = 0
 	tr._setFilters(searchRegex, exludeRegex)
 
 	tr.keywords = make(map[string]string)
@@ -64,9 +76,15 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 		tr.ignorewords[word] = ""
 	}
 	tr.keepUnit = keepUnit
-	tr.currRetentionPos = 0
-
+	tr.maxCountByBlock = blockSize
+	tr.initCounters()
 	return tr, nil
+}
+
+func (tr *trans) initCounters() {
+	tr.currRetentionPos = 0
+	tr.totalLines = 0
+	tr.countByBlock = 0
 }
 
 func (tr *trans) _parseLogFormat(logFormat string) {
@@ -134,6 +152,7 @@ func (tr *trans) setBlockSize(blockSize int) {
 	if tr.lgs != nil {
 		tr.lgs.SetBlockSize(blockSize)
 	}
+	tr.maxCountByBlock = blockSize
 }
 
 func (tr *trans) parseLine(line string) (string, int64, int) {
@@ -172,9 +191,11 @@ func (tr *trans) parseLine(line string) (string, int64, int) {
 // convert line to token list and register to tr.te only once
 // returns tokens, excludesMap(terms that replaced with *)
 func (tr *trans) toTokens(line string, addCnt int,
-	useTermBorder bool, needDisplayString bool,
+	useTermBorder, needDisplayString, onlyCurrTerms bool,
 ) ([]int, string) {
+	displayString := line
 	line = tr.replacer.Replace(line)
+	line = strings.TrimSpace(reMultiSpace.ReplaceAllString(line, " "))
 	words := strings.Split(line, " ")
 	tokens := make([]int, 0)
 	uniqTokens := make(map[int]bool, 0)
@@ -209,14 +230,19 @@ func (tr *trans) toTokens(line string, addCnt int,
 				excludesMap[word] = true
 				continue
 			}
-			termId = tr.te.register(word, 0)
+			termId = tr.te.register(word)
 			if !uniqTokens[termId] {
-				tr.te.counts[termId] += addCnt
+				if onlyCurrTerms {
+					tr.te.addCurrCount(termId, addCnt)
+				} else {
+					tr.te.addCount(termId, addCnt, false)
+				}
 			}
 			uniqTokens[termId] = true
 
 			if useTermBorder && tr.termCountBorder > tr.te.counts[termId] {
 				termId = cAsteriskItemID
+				excludesMap[word] = true
 			}
 			tokens = append(tokens, termId)
 			if keyOK {
@@ -234,47 +260,60 @@ func (tr *trans) toTokens(line string, addCnt int,
 			// Use capturing groups to capture delimiters and replace only the word
 			pattern := `(?i)(^|` + cDelimiters + `)(` + regexp.QuoteMeta(word) + `)($|` + cDelimiters + `)`
 			reg := regexp.MustCompile(pattern)
-			line = reg.ReplaceAllString(line, `$1`+"*"+`$3`)
+			displayString = reg.ReplaceAllString(displayString, `$1`+"*"+`$3`)
 		}
 		// Combine multiple consecutive "*" into a single "*"
 	} else {
-		line = ""
+		displayString = ""
 	}
 
-	return tokens, line
+	return tokens, displayString
 }
 
-// analyze the line and
-func (tr *trans) tokenizeLine(line string, addCnt int, registerLogGroup bool) {
+func (tr *trans) lineToTerms(line string, addCnt int) {
 	if !tr._match(line) {
 		return
 	}
-	line, updated, retentionPos := tr.parseLine(line)
+	line, _, retentionPos := tr.parseLine(line)
 
-	// we scan the logs 2 times
-	if registerLogGroup {
-		// register logGroups => 2nd round
-		tokens, displayString := tr.toTokens(line, addCnt, true, true)
-		tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos)
-	} else {
-		// register terms => 1st round
-		tr.toTokens(line, addCnt, false, false)
-		if tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos {
-			if tr.countByBlock > tr.maxCountByBlock {
-				tr.maxCountByBlock = tr.countByBlock
-			}
-			tr.countByBlock = 0
+	tr.toTokens(line, addCnt, false, false, false)
+	if tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos {
+		if tr.countByBlock > tr.maxCountByBlock {
+			tr.maxCountByBlock = tr.countByBlock
 		}
-		tr.countByBlock++
-		tr.totalLines++
+		tr.countByBlock = 0
 	}
-	tr.currRetentionPos = retentionPos
+	tr.countByBlock++
+	tr.totalLines++
 
+	tr.currRetentionPos = retentionPos
+}
+
+// analyze the line and
+func (tr *trans) lineToLogGroup(line string, addCnt int) error {
+	if !tr._match(line) {
+		return nil
+	}
+	line, updated, retentionPos := tr.parseLine(line)
+	if (tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos) || tr.countByBlock > tr.maxCountByBlock {
+		if err := tr.next(updated); err != nil {
+			return err
+		}
+	}
+
+	tokens, displayString := tr.toTokens(line, addCnt, true, true, true)
+	tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos)
+
+	tr.currRetentionPos = retentionPos
+	return nil
 }
 
 func (tr *trans) commit(completed bool) error {
 	if tr.readOnly {
 		return nil
+	}
+	if err := tr.te.commit(completed); err != nil {
+		return err
 	}
 	if err := tr.lgs.commit(completed); err != nil {
 		return err
@@ -286,6 +325,9 @@ func (tr *trans) close() {
 	if tr.lgs.CircuitDB != nil {
 		tr.lgs = nil
 	}
+	if tr.te.CircuitDB != nil {
+		tr.te = nil
+	}
 }
 
 func (tr *trans) rebuildLogTree(termCountBorder int) *logTree {
@@ -295,11 +337,16 @@ func (tr *trans) rebuildLogTree(termCountBorder int) *logTree {
 	return newTree
 }
 
-func (tr *trans) loadLogGroups() error {
+func (tr *trans) load() error {
 	lgs := tr.lgs
 	if lgs.DataDir == "" {
 		return nil
 	}
+
+	if err := tr.te.load(); err != nil {
+		return err
+	}
+
 	cnt := lgs.CountFromStatusTable(nil)
 	if cnt <= 0 {
 		return nil
@@ -313,7 +360,7 @@ func (tr *trans) loadLogGroups() error {
 		return err
 	}
 
-	rows, err := lgs.SelectRows(nil, nil, tableDefs["logGroups"])
+	rows, err := lgs.SelectCompletedRows(nil, nil, tableDefs["logGroups"])
 	if err != nil {
 		return err
 	}
@@ -338,21 +385,59 @@ func (tr *trans) loadLogGroups() error {
 		}
 
 		line := ds[groupId]
-		tokens, displayString := tr.toTokens(line, count, true, true)
+		tokens, displayString := tr.toTokens(line, 0, true, true, false)
+		tr.lgs.registerLogTree(tokens, count, displayString, updated, updated, false, retentionPos)
+
+		if retentionPos > tr.currRetentionPos {
+			tr.currRetentionPos = retentionPos
+		}
+	}
+
+	trows, err := tr.lgs.SelectFromCurrentTable(nil, tableDefs["logGroups"])
+	if err != nil {
+		return err
+	}
+	if trows == nil {
+		return nil
+	}
+	for trows.Next() {
+		var groupIdstr string
+		var retentionPos int
+		var count int
+		var created int64
+		var updated int64
+		err = trows.Scan(&groupIdstr, &retentionPos, &count, &created, &updated)
+		if err != nil {
+			return err
+		}
+		groupId, err := utils.Base36ToInt64(groupIdstr)
+		if err != nil {
+			return fmt.Errorf("error parsing %s to int64", groupIdstr)
+		}
+
+		line := ds[groupId]
+		tokens, displayString := tr.toTokens(line, 0, true, true, false)
 		tr.lgs.registerLogTree(tokens, count, displayString, updated, updated, true, retentionPos)
 
-		//lgs._registerLg(lgs.alllg, groupId, count, displayString, created, updated)
+		if retentionPos > tr.currRetentionPos {
+			tr.currRetentionPos = retentionPos
+		}
 	}
 	return nil
 }
 
-func (tr *trans) next() error {
+func (tr *trans) next(updated int64) error {
 	lgs := tr.lgs
 	if tr.readOnly {
 		return nil
 	}
+
 	// write the current block
-	if err := lgs.flush(); err != nil {
+	if err := tr.te.next(updated); err != nil {
+		return err
+	}
+	// write the current block
+	if err := lgs.next(updated); err != nil {
 		return err
 	}
 
@@ -384,12 +469,13 @@ func (tr *trans) next() error {
 		if err != nil {
 			return fmt.Errorf("error parsing %s to int64", groupIdstr)
 		}
+		// if the groupId exist in the new Block
 		if lg, ok := lgs.alllg[groupId]; ok {
 			lg.count -= count
 		} else {
 			line := ds[groupId]
 			// will reach an existing logGrouup using termCountBorder
-			tokens, _ := tr.toTokens(line, count, true, false)
+			tokens, _ := tr.toTokens(line, count, true, false, false)
 			_groupId := tr.lgs.lt.search(tokens)
 			if groupId == _groupId {
 				lg.count -= count
@@ -397,5 +483,14 @@ func (tr *trans) next() error {
 		}
 	}
 
+	tr.countByBlock = 0
+
 	return nil
+}
+
+// useful for testing
+func (tr *trans) searchLogGroup(displayString string) *logGroup {
+	tokens, _ := tr.toTokens(displayString, 0, true, false, false)
+	groupId := tr.lgs.lt.search(tokens)
+	return tr.lgs.alllg[groupId]
 }

@@ -8,8 +8,8 @@ import (
 
 /*
  */
-func Test_Analyzer_daily(t *testing.T) {
-	testDir, err := utils.InitTestDir("Test_Analyzer_daily")
+func Test_Analyzer_daily_Feed(t *testing.T) {
+	testDir, err := utils.InitTestDir("Test_Analyzer_daily_Feed")
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -41,21 +41,21 @@ func Test_Analyzer_daily(t *testing.T) {
 		return
 	}
 
-	err = a.Feed(0)
+	err = a.Feed(35)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
 	// lines processed
-	if err := utils.GetGotExpErr("a.linesProcessed", a.linesProcessed, 50); err != nil {
+	if err := utils.GetGotExpErr("a.linesProcessed", a.linesProcessed, 35); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
 	// block size estimation
-	// each line represents one hour. daily rotate so block size must be 24
-	if err := utils.GetGotExpErr("maxCountByBlock", a.trans.maxCountByBlock, 24); err != nil {
+	// each line represents one hour. daily rotate so block size is 24, but as specified blockSize=100, it must be 100
+	if err := utils.GetGotExpErr("maxCountByBlock", a.trans.maxCountByBlock, 100); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -64,8 +64,8 @@ func Test_Analyzer_daily(t *testing.T) {
 	if err := a._checkConfigTable(logPath,
 		maxBlocks, blockSize,
 		keepPeriod, utils.CFreqDay,
-		0, countBorder,
-		logFormat, layout); err != nil {
+		0.999, countBorder,
+		layout, logFormat); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -76,4 +76,289 @@ func Test_Analyzer_daily(t *testing.T) {
 		return
 	}
 
+	// number of "com1"
+	if err := utils.GetGotExpErr("com1 count", a.trans.te.getCount("com1"), 35); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// number of "grpa10"
+	if err := utils.GetGotExpErr("grpa10 count", a.trans.te.getCount("grpa10"), 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// number of "grpd10"
+	if err := utils.GetGotExpErr("grpd10 count", a.trans.te.getCount("grpd10"), 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	lgstr := "Com1, grpa10 Com2 * grpa50 * <coM3> * grpa20 *"
+	lg := a.trans.searchLogGroup(lgstr)
+	// number of the log group
+	if err := utils.GetGotExpErr(lgstr, lg.count, 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	lgstr = "Com1, grpd10 Com2 * grpa50 * <coM3> * grpb20 *"
+	lg = a.trans.searchLogGroup(lgstr)
+	// number of the log group
+	if err := utils.GetGotExpErr(lgstr, lg.count, 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// grpd10 is actually converted to "*" because it is less than countBorder(10)
+	expected := "Com1, * Com2 * grpa50 * <coM3> * grpb20 *"
+	if err := utils.GetGotExpErr("Display string in the last logGroup", lg.displayString, expected); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// get block 0 data
+	bd0, err := a.trans.lgs.getBlockData(0)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// get block 1 data
+	bd1, err := a.trans.lgs.getBlockData(1)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// get block 0 data
+	tebd0, err := a.trans.te.getBlockData(0)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// get block 1 data
+	tebd1, err := a.trans.te.getBlockData(1)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// block0 has 3 logGroups
+	if err := utils.GetGotExpErr("block0 count", len(bd0), 3); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// block1 has 3 logGroups
+	if err := utils.GetGotExpErr("block1 count", len(bd1), 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// block0 consists of 10+10+4=24
+	// groupIdstr=d4kf1a681kw3 has 4
+	if err := utils.GetGotExpErr("group d4kf1a681kw3 count", bd0["d4kf1a681kw3"].count, 4); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// block1 consists of 6+10=16
+	// groupIdstr=d4kf1a681kw3 has 6
+	if err := utils.GetGotExpErr("group d4kf1a681kw3 count", bd1["d4kf1a681kw3"].count, 6); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// total number must be 35
+	sum := 0
+	for _, bd := range []map[string]logGroup{bd0, bd1} {
+		for _, lg := range bd {
+			sum += lg.count
+		}
+	}
+	if err := utils.GetGotExpErr("total count", sum, 35); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("term 'com1' in block0", tebd0["com1"], 24); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("term 'com1' in block1", tebd1["com1"], 11); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// close
+	a.Close()
+
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, nil, false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// check the last status is loaded
+	if err := utils.GetGotExpErr("rowId", a.rowID, int64(35)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// check logPath
+	if err := utils.GetGotExpErr("logPath after load", a.logPath, logPath); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("logFormat after load", a.logFormat, logFormat); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("keepPeriod after load", a.keepPeriod, keepPeriod); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("maxBlocks after load", a.maxBlocks, maxBlocks); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("termCountBorder after load", a.termCountBorder, countBorder); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	sum = 0
+	for _, lg := range a.trans.lgs.alllg {
+		sum += lg.count
+	}
+	if err := utils.GetGotExpErr("number of total logGroups", sum, 35); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	sum = 0
+	for _, lg := range a.trans.lgs.curlg {
+		sum += lg.count
+	}
+	if err := utils.GetGotExpErr("number of current logGroups", sum, 11); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// feed the rest lines
+	err = a.Feed(0)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// check the rowID is properly updated
+	if err := utils.GetGotExpErr("rowId", a.rowID, int64(50)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// number of "com1"
+	if err := utils.GetGotExpErr("com1 count", a.trans.te.getCount("com1"), 50); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// number of "grpa10"
+	if err := utils.GetGotExpErr("grpa10 count", a.trans.te.getCount("grpa10"), 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// number of "grpd10"
+	// it was 5 before the 2nd Feed. Not it is 10
+	if err := utils.GetGotExpErr("grpd10 count", a.trans.te.getCount("grpd10"), 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// check logGroup parsed in the first feed
+	lgstr = "Com1, grpa10 Com2 * grpa50 * <coM3> * grpa20 *"
+	lg = a.trans.searchLogGroup(lgstr)
+	// number of the log group
+	if err := utils.GetGotExpErr(lgstr, lg.count, 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// in the 2nd Feed grpd10 counted up from 5 to 10
+	lgstr = "Com1, grpd10 Com2 * grpa50 * <coM3> * grpb20 *"
+	lg = a.trans.searchLogGroup(lgstr)
+	// number of the log group
+	if err := utils.GetGotExpErr(lgstr, lg.count, 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// in the 2nd Feed grpd10 counted up from 5 to 10
+	// we still have "Com1, * Com2 * grpa50 * <coM3> * grpb20 *" generated in the 1st Feed
+	lgstr = "Com1, testuniq001 Com2 * grpa50 * <coM3> * grpb20 *"
+	lg = a.trans.searchLogGroup(lgstr)
+	// number of the log group
+	if err := utils.GetGotExpErr(lgstr, lg.count, 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("displayString", lg.displayString, "Com1, * Com2 * grpa50 * <coM3> * grpb20 *"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// new group
+	lgstr = "Com1, grpe10 Com2 * grpa50 * <coM3> * grpc20 *"
+	lg = a.trans.searchLogGroup(lgstr)
+	// number of the log group
+	if err := utils.GetGotExpErr(lgstr, lg.count, 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// get block 1 data
+	bd1, err = a.trans.lgs.getBlockData(1)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// get block 2 data
+	bd2, err := a.trans.lgs.getBlockData(2)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// get block 1 data
+	tebd1, err = a.trans.te.getBlockData(1)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// get block 2 data
+	tebd2, err := a.trans.te.getBlockData(2)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// block1 has 3 logGroups
+	if err := utils.GetGotExpErr("block1 count", len(bd1), 4); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// block2 has 1 logGroups
+	if err := utils.GetGotExpErr("block2 count", len(bd2), 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("term 'com1' in block1", tebd1["com1"], 24); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("term 'com1' in block2", tebd2["com1"], 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 }

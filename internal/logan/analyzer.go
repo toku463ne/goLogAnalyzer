@@ -1,6 +1,7 @@
 package logan
 
 import (
+	"errors"
 	"fmt"
 	"goLogAnalyzer/pkg/csvdb"
 	"goLogAnalyzer/pkg/filepointer"
@@ -34,7 +35,7 @@ type Analyzer struct {
 	termCountBorder          int
 	keywords                 []string
 	ignorewords              []string
-	customLogGroups            []string
+	customLogGroups          []string
 }
 
 func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string,
@@ -69,6 +70,51 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string,
 	if keepPeriod > 0 {
 		a.keepPeriod = keepPeriod
 	}
+
+	if termCountBorder > 0 {
+		a.termCountBorder = termCountBorder
+	}
+	if termCountBorderRate > 0 {
+		a.termCountBorderRate = termCountBorderRate
+	}
+
+	// load or init data.
+	// Some params will be replaced by params in the DB
+	if err := a.open(); err != nil {
+		return nil, err
+	}
+
+	// for some parameters, the args takes place
+	if logPath != "" {
+		a.logPath = logPath
+	}
+
+	a.customLogGroups = customLogGroups
+
+	return a, nil
+}
+
+func LoadAnalyzer(dataDir, logPath string,
+	termCountBorderRate float64,
+	termCountBorder int,
+	customLogGroups []string,
+	readOnly bool) (*Analyzer, error) {
+	a := new(Analyzer)
+
+	if dataDir == "" {
+		return nil, errors.New("no data to load")
+	}
+	if !utils.PathExist(fmt.Sprintf("%s/lastStatus.tbl.ini", dataDir)) {
+		return nil, errors.New("no data to load")
+	}
+
+	a.dataDir = dataDir
+	a.logPath = logPath
+	a.readOnly = readOnly
+
+	// set defaults
+	a.termCountBorder = CDefaultTermCountBorder
+	a.termCountBorderRate = CDefaultTermCountBorderRate
 
 	if termCountBorder > 0 {
 		a.termCountBorder = termCountBorder
@@ -116,10 +162,11 @@ func (a *Analyzer) Purge() error {
 
 // Register terms and convert log lines to logGroups
 func (a *Analyzer) Feed(targetLinesCnt int) error {
-	if err := a._run(targetLinesCnt, cStageRegisterTerms); err != nil {
+	targetLinesCnt, err := a._registerTerms(targetLinesCnt)
+	if err != nil {
 		return err
 	}
-	if err := a._run(targetLinesCnt, cStageRegisterLogStrings); err != nil {
+	if err := a._registerLogGroups(targetLinesCnt); err != nil {
 		return err
 	}
 	return nil
@@ -130,7 +177,7 @@ func (a *Analyzer) load() error {
 		return err
 	}
 
-	if err := a.trans.loadLogGroups(); err != nil {
+	if err := a.trans.load(); err != nil {
 		return err
 	}
 	return nil
@@ -204,6 +251,7 @@ func (a *Analyzer) init() error {
 	}
 	trans, err := newTrans(a.dataDir, a.logFormat, a.timestampLayout,
 		a.maxBlocks, a.blockSize, a.keepUnit, a.keepPeriod,
+		a.termCountBorderRate, a.termCountBorder,
 		a.searchRegex, a.exludeRegex,
 		a.keywords, a.ignorewords, a.customLogGroups, true, a.readOnly,
 	)
@@ -400,8 +448,40 @@ func (a *Analyzer) _initFilePointer() error {
 	return nil
 }
 
-func (a *Analyzer) _run(targetLinesCnt int,
-	stage int) error {
+func (a *Analyzer) _registerTerms(targetLinesCnt int) (int, error) {
+	linesProcessed := 0
+
+	if err := a._initFilePointer(); err != nil {
+		return -1, err
+	}
+
+	for a.fp.Next() {
+		if linesProcessed > 0 && linesProcessed%cLogPerLines == 0 {
+			logrus.Infof("processed %d lines", linesProcessed)
+		}
+
+		line := a.fp.Text()
+		if line == "" {
+			//linesProcessed++
+			continue
+		}
+
+		a.trans.lineToTerms(line, 1)
+		linesProcessed++
+
+		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
+			break
+		}
+	}
+
+	a.fp.Close()
+	a.initBlocks()
+	a.trans.initCounters()
+
+	return linesProcessed, nil
+}
+
+func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 	linesProcessed := 0
 
 	if err := a._initFilePointer(); err != nil {
@@ -419,13 +499,10 @@ func (a *Analyzer) _run(targetLinesCnt int,
 			continue
 		}
 
-		switch stage {
-		case cStageRegisterTerms:
-			a.trans.tokenizeLine(line, 1, false)
-		case cStageRegisterLogStrings:
-			a.trans.tokenizeLine(line, 1, true)
+		if err := a.trans.lineToLogGroup(line, 1); err != nil {
+			return err
 		}
-
+		a.rowID++
 		if a.fp.IsEOF && (!a.fp.IsLastFile()) {
 			if err := a.saveLastStatus(); err != nil {
 				return err
@@ -433,26 +510,20 @@ func (a *Analyzer) _run(targetLinesCnt int,
 		}
 		linesProcessed++
 
-		a.rowID++
 		if targetLinesCnt > 0 && linesProcessed >= targetLinesCnt {
 			break
 		}
 	}
-	if stage == cStageRegisterLogStrings && !a.readOnly {
+
+	a.fp.Close()
+
+	if !a.readOnly {
 		if err := a._commit(false); err != nil {
 			return err
 		}
 		logrus.Infof("processed %d lines", linesProcessed)
 	}
-
 	a.linesProcessed = linesProcessed
-	a.fp.Close()
-
-	switch stage {
-	case cStageRegisterTerms:
-		// counting total lines completed, so we can estimate blockSize and maxBlocks
-		a.initBlocks()
-	}
 
 	return nil
 }

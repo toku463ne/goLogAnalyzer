@@ -1,6 +1,8 @@
 package logan
 
-import "goLogAnalyzer/pkg/utils"
+import (
+	"goLogAnalyzer/pkg/utils"
+)
 
 const (
 	CDefaultBlockSize           = 0

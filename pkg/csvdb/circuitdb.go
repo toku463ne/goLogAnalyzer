@@ -23,6 +23,7 @@ type CircuitDB struct {
 	currTable   *Table
 	writeMode   string
 	unitsecs    int64
+	completed   bool
 }
 
 var (
@@ -45,6 +46,7 @@ func NewCircuitDB(rootDir, name string,
 	cdb.blockSize = blockSize
 	cdb.maxBlocks = maxBlocks
 	cdb.keepPeriod = keepPeriod
+	cdb.completed = false
 
 	if rootDir == "" {
 		return cdb, nil
@@ -128,6 +130,7 @@ func (cdb *CircuitDB) LoadCircuitDBStatus() error {
 			return err
 		}
 	}
+	cdb.completed = completed
 
 	t, err := cdb.GetBlockTable(cdb.blockNo)
 	if err != nil {
@@ -246,6 +249,7 @@ func (cdb *CircuitDB) UpdateBlockStatus(completed bool) error {
 	if cdb.DataDir == "" {
 		return nil
 	}
+	cdb.completed = completed
 	blockID := cdb.getBlockTableName(cdb.blockNo)
 
 	if err := cdb.statusTable.Upsert(func(v []string) bool {
@@ -314,12 +318,12 @@ func (cdb *CircuitDB) Select1RowFromStatusTable(conditionCheckFunc func([]string
 	return cdb.statusTable.Select1Row(conditionCheckFunc, colNames, args...)
 }
 
-func (cdb *CircuitDB) getBlockNos() ([]int, error) {
+func (cdb *CircuitDB) getBlockNos(includeNonCompleted bool) ([]int, error) {
 	cnt := cdb.statusTable.Count(nil)
 	if cnt <= 0 {
 		return nil, nil
 	}
-	blockNos := make([]int, cnt)
+	blockNos := make([]int, 0)
 	rows, err := cdb.statusTable.SelectRows(nil, []string{"blockNo"})
 	if err != nil {
 		return nil, err
@@ -329,21 +333,34 @@ func (cdb *CircuitDB) getBlockNos() ([]int, error) {
 		return nil, nil
 	}
 
-	i := 0
+	var blockNo int
 	for rows.Next() {
-		if err := rows.Scan(&blockNos[i]); err != nil {
+		if err := rows.Scan(&blockNo); err != nil {
 			return nil, err
 		}
-		i++
+		if !includeNonCompleted && !cdb.completed && cdb.blockNo == blockNo {
+			continue
+		}
+		blockNos = append(blockNos, blockNo)
 	}
 	return blockNos, nil
 }
 
 func (cdb *CircuitDB) SelectRows(conditionCheckFunc func([]string) bool,
 	blockNos []int, columns []string) (*circuitRows, error) {
+	return cdb._selectRows(conditionCheckFunc, blockNos, columns, true)
+}
+
+func (cdb *CircuitDB) SelectCompletedRows(conditionCheckFunc func([]string) bool,
+	blockNos []int, columns []string) (*circuitRows, error) {
+	return cdb._selectRows(conditionCheckFunc, blockNos, columns, false)
+}
+
+func (cdb *CircuitDB) _selectRows(conditionCheckFunc func([]string) bool,
+	blockNos []int, columns []string, includeNonCompleted bool) (*circuitRows, error) {
 	var err error
 	if blockNos == nil {
-		blockNos, err = cdb.getBlockNos()
+		blockNos, err = cdb.getBlockNos(includeNonCompleted)
 		if err != nil {
 			return nil, err
 		}
@@ -368,7 +385,7 @@ func (cdb *CircuitDB) SelectRows(conditionCheckFunc func([]string) bool,
 }
 
 func (cdb *CircuitDB) CountAll(conditionCheckFunc func([]string) bool) int {
-	blockNos, err := cdb.getBlockNos()
+	blockNos, err := cdb.getBlockNos(true)
 	if err != nil {
 		return -1
 	}
