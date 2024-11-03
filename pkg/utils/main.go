@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	"unicode"
@@ -34,6 +35,14 @@ func RoundUp(num, places float64) float64 {
 func RoundDown(num, places float64) float64 {
 	shift := math.Pow(10, places)
 	return math.Trunc(num*shift) / shift
+}
+
+func Str2Timestamp(dateFormat, dateStr string) (time.Time, error) {
+	timestamp, err := time.Parse(dateFormat, dateStr)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return timestamp.UTC(), nil
 }
 
 func Str2date(dateFormat, dateStr string) (time.Time, error) {
@@ -256,58 +265,6 @@ func RemoveDirectory(dir string) error {
 	return nil
 }
 
-func _pivotFloatInt(a []float64, i, j int) int {
-	k := i + 1
-	for k <= j && a[i] == a[k] {
-		k++
-	}
-	if k > j {
-		return -1
-	}
-	if a[i] >= a[k] {
-		return i
-	}
-	return k
-}
-
-func _partitionFloatInt(a []float64, s []int, i, j int, x float64) int {
-	l := i
-	r := j
-
-	for l <= r {
-		for l <= j && a[l] < x {
-			l++
-		}
-		for r >= i && a[r] >= x {
-			r--
-		}
-		if l > r {
-			break
-		}
-		t := a[l]
-		s1 := s[l]
-		a[l] = a[r]
-		s[l] = s[r]
-		a[r] = t
-		s[r] = s1
-		l++
-		r--
-	}
-	return l
-}
-
-func QuickSortFloatInt(a []float64, s []int, i, j int) {
-	if i == j {
-		return
-	}
-	p := _pivotFloatInt(a, i, j)
-	if p != -1 {
-		k := _partitionFloatInt(a, s, i, j, a[p])
-		QuickSortFloatInt(a, s, i, k-1)
-		QuickSortFloatInt(a, s, k, j)
-	}
-}
-
 func TimespecToTime(ts syscall.Timespec) time.Time {
 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
 }
@@ -402,6 +359,21 @@ func GetDatetimeFormat(frequency string) string {
 	return format
 }
 
+func GetDatetimeFormatFromUnitSecs(unitSecs int64) string {
+	format := "2006-01-02 15:04:05"
+
+	if unitSecs >= 3600*24 {
+		format = "2006-01-02"
+	} else if unitSecs >= 3600 {
+		format = "2006-01-02 15"
+	} else if unitSecs >= 60 {
+		format = "2006-01-02 15:04"
+	} else {
+		format = "2006-01-02 15:04:03"
+	}
+	return format
+}
+
 func ReadCsv(csfvile string) ([]string, [][]string, error) {
 	file, err := os.Open(csfvile)
 	if err != nil {
@@ -477,4 +449,45 @@ func Base36ToInt64(base36Str string) (int64, error) {
 
 func Int64Tobase36(n int64) string {
 	return strconv.FormatInt(n, 36)
+}
+
+func ErrorStack(format string, args ...interface{}) error {
+	return errors.WithStack(errors.New(fmt.Sprintf(format, args...)))
+}
+
+func Replace(s, target, replacement, separators string) string {
+	// Function to determine if a character is a separator
+	isSeparator := func(r rune) bool {
+		return strings.ContainsRune(separators, r)
+	}
+
+	// Result string builder for efficiency
+	var result strings.Builder
+	part := ""
+	for _, ch := range s {
+		if isSeparator(ch) {
+			// Process the current part before the separator
+			if strings.EqualFold(part, target) {
+				result.WriteString(replacement)
+			} else {
+				result.WriteString(part)
+			}
+
+			// Add the separator to the result
+			result.WriteRune(ch)
+			// Reset part for the next word
+			part = ""
+		} else {
+			// Build up the part
+			part += string(ch)
+		}
+	}
+
+	// Handle any remaining part after the loop
+	if part == target {
+		result.WriteString(replacement)
+	} else {
+		result.WriteString(part)
+	}
+	return result.String()
 }

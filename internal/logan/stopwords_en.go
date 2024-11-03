@@ -31,36 +31,10 @@ var enStopWords = map[string]string{
 	"the": "",
 }
 
-func getDelimReplacer() *strings.Replacer {
-	return strings.NewReplacer(
-		"\\b", " ",
-		"\\0", " ",
-		"\\r", " ",
-		"\\n", " ",
-		"\\t", " ",
-		"\b", " ",
-		"\r", " ",
-		"\n", " ",
-		"\t", " ",
-		"\"", " ",
-		"\\", " ",
-		"'", " ",
-		",", " ",
-		";", " ",
-		"[", " ",
-		"]", " ",
-		"<", " ",
-		">", " ",
-		"{", " ",
-		"}", " ",
-		"=", " ",
-		"(", " ",
-		")", " ",
-		"|", " ",
-		":", " ",
-		"&", " ",
-		"?", " ",
-		"+", " ",
-		"/", " ",
-	)
+func getDelimReplacer(separators string) *strings.Replacer {
+	replacements := make([]string, 0, len(separators)*2)
+	for _, char := range separators {
+		replacements = append(replacements, string(char), " ")
+	}
+	return strings.NewReplacer(replacements...)
 }

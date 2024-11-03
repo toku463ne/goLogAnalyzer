@@ -162,7 +162,8 @@ func Test_CircuitDB_by_keepPeriod(t *testing.T) {
 
 	cols := []string{"itemid", "name", "count"}
 
-	frequency := utils.CFreqDay
+	//frequency := utils.CFreqDay
+	frequency := int64(3600 * 24)
 	keepPeriod := 3
 	maxBlocks := 10
 	cirdb, err := NewCircuitDB(dataDir, "testcirdb",

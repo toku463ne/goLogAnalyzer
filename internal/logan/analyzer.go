@@ -1,12 +1,15 @@
 package logan
 
 import (
-	"errors"
+	"encoding/csv"
 	"fmt"
 	"goLogAnalyzer/pkg/csvdb"
 	"goLogAnalyzer/pkg/filepointer"
 	"goLogAnalyzer/pkg/utils"
 	"math"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -17,10 +20,11 @@ type Analyzer struct {
 	logPath                  string
 	logFormat                string
 	timestampLayout          string
+	useUtcTime               bool
 	blockSize                int
 	maxBlocks                int
 	keepPeriod               int64
-	keepUnit                 int
+	unitSecs                 int64
 	configTable              *csvdb.Table
 	lastStatusTable          *csvdb.Table
 	trans                    *trans
@@ -28,44 +32,53 @@ type Analyzer struct {
 	searchRegex, exludeRegex []string
 	lastFileEpoch            int64
 	lastFileRow              int
-	rowID                    int64
+	rowID                    int
 	readOnly                 bool
 	linesProcessed           int
 	termCountBorderRate      float64
 	termCountBorder          int
+	minMatchRate             float64
 	keywords                 []string
 	ignorewords              []string
 	customLogGroups          []string
+	separators               string
 }
 
-func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string,
+func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime bool,
 	searchRegex, exludeRegex []string,
 	maxBlocks, blockSize int,
-	keepPeriod int64, keepUnit int,
+	keepPeriod int64, unitSecs int64,
 	termCountBorderRate float64,
 	termCountBorder int,
+	minMatchRate float64,
 	keywords, ignorewords, customLogGroups []string,
+	separators string,
 	readOnly bool) (*Analyzer, error) {
 	a := new(Analyzer)
 	a.dataDir = dataDir
 	a.logPath = logPath
 	a.logFormat = logFormat
+	a.useUtcTime = useUtcTime
 	a.keywords = keywords
 	a.ignorewords = ignorewords
 	a.timestampLayout = timestampLayout
 	a.maxBlocks = maxBlocks
 	a.blockSize = blockSize
 	a.readOnly = readOnly
+	a.searchRegex = searchRegex
+	a.exludeRegex = exludeRegex
 
 	// set defaults
-	a.keepUnit = utils.CFreqDay
+	a.unitSecs = utils.CFreqDay
 	a.keepPeriod = CDefaultKeepPeriod
 	a.termCountBorder = CDefaultTermCountBorder
 	a.termCountBorderRate = CDefaultTermCountBorderRate
+	a.minMatchRate = CDefaultMinMatchRate
+	a.separators = CDefaultSeparators
 
 	// override passed params
-	if keepUnit > 0 {
-		a.keepUnit = keepUnit
+	if unitSecs > 0 {
+		a.unitSecs = unitSecs
 	}
 	if keepPeriod > 0 {
 		a.keepPeriod = keepPeriod
@@ -76,6 +89,13 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string,
 	}
 	if termCountBorderRate > 0 {
 		a.termCountBorderRate = termCountBorderRate
+	}
+	if minMatchRate > 0 {
+		a.minMatchRate = minMatchRate
+	}
+
+	if separators != "" {
+		a.separators = separators
 	}
 
 	// load or init data.
@@ -97,15 +117,16 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string,
 func LoadAnalyzer(dataDir, logPath string,
 	termCountBorderRate float64,
 	termCountBorder int,
+	minMatchRate float64,
 	customLogGroups []string,
 	readOnly bool) (*Analyzer, error) {
 	a := new(Analyzer)
 
 	if dataDir == "" {
-		return nil, errors.New("no data to load")
+		return nil, utils.ErrorStack("no data to load")
 	}
 	if !utils.PathExist(fmt.Sprintf("%s/lastStatus.tbl.ini", dataDir)) {
-		return nil, errors.New("no data to load")
+		return nil, utils.ErrorStack("no data to load")
 	}
 
 	a.dataDir = dataDir
@@ -115,12 +136,16 @@ func LoadAnalyzer(dataDir, logPath string,
 	// set defaults
 	a.termCountBorder = CDefaultTermCountBorder
 	a.termCountBorderRate = CDefaultTermCountBorderRate
+	a.minMatchRate = CDefaultMinMatchRate
 
 	if termCountBorder > 0 {
 		a.termCountBorder = termCountBorder
 	}
 	if termCountBorderRate > 0 {
 		a.termCountBorderRate = termCountBorderRate
+	}
+	if minMatchRate > 0 {
+		a.minMatchRate = minMatchRate
 	}
 
 	// load data.
@@ -250,10 +275,11 @@ func (a *Analyzer) init() error {
 		}
 	}
 	trans, err := newTrans(a.dataDir, a.logFormat, a.timestampLayout,
-		a.maxBlocks, a.blockSize, a.keepUnit, a.keepPeriod,
-		a.termCountBorderRate, a.termCountBorder,
+		a.useUtcTime,
+		a.maxBlocks, a.blockSize, a.unitSecs, a.keepPeriod,
+		a.termCountBorderRate, a.termCountBorder, a.minMatchRate,
 		a.searchRegex, a.exludeRegex,
-		a.keywords, a.ignorewords, a.customLogGroups, true, a.readOnly,
+		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, a.readOnly,
 	)
 	if err != nil {
 		return err
@@ -272,6 +298,8 @@ func (a *Analyzer) saveLastStatus() error {
 	if a.fp != nil {
 		epoch = a.fp.CurrFileEpoch()
 		rowNo = a.fp.Row()
+		a.lastFileEpoch = epoch
+		a.rowID = rowNo
 	} else {
 		epoch = 0
 		rowNo = 0
@@ -297,10 +325,13 @@ func (a *Analyzer) loadStatus() error {
 		tableDefs["config"],
 		&a.logPath,
 		&a.blockSize, &a.maxBlocks,
-		&a.keepPeriod, &a.keepUnit,
+		&a.keepPeriod, &a.unitSecs,
 		&a.termCountBorderRate,
 		&a.termCountBorder,
+		&a.minMatchRate,
 		&a.timestampLayout,
+		&a.useUtcTime,
+		&a.separators,
 		&a.logFormat); err != nil {
 		return err
 	}
@@ -327,10 +358,13 @@ func (a *Analyzer) saveConfig() error {
 		"blockSize":           a.blockSize,
 		"maxBlocks":           a.maxBlocks,
 		"keepPeriod":          a.keepPeriod,
-		"keepUnit":            a.keepUnit,
+		"unitSecs":            a.unitSecs,
 		"termCountBorderRate": a.termCountBorderRate,
 		"termCountBorder":     a.termCountBorder,
+		"minMatchRate":        a.minMatchRate,
 		"timestampLayout":     a.timestampLayout,
+		"useUtcTime":          a.useUtcTime,
+		"separators":          a.separators,
 		"logFormat":           a.logFormat,
 	}); err != nil {
 		return err
@@ -483,6 +517,7 @@ func (a *Analyzer) _registerTerms(targetLinesCnt int) (int, error) {
 
 func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 	linesProcessed := 0
+	a.trans.setCountBorder()
 
 	if err := a._initFilePointer(); err != nil {
 		return err
@@ -499,7 +534,7 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 			continue
 		}
 
-		if err := a.trans.lineToLogGroup(line, 1); err != nil {
+		if err := a.trans.lineToLogGroup(line, 1, a.fp.CurrFileEpoch()); err != nil {
 			return err
 		}
 		a.rowID++
@@ -515,15 +550,89 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 		}
 	}
 
-	a.fp.Close()
-
 	if !a.readOnly {
 		if err := a._commit(false); err != nil {
 			return err
 		}
 		logrus.Infof("processed %d lines", linesProcessed)
 	}
+
+	a.fp.Close()
+
 	a.linesProcessed = linesProcessed
+
+	return nil
+}
+
+func (a *Analyzer) OutputLogGroups(N int, outdir string, isHistory bool) error {
+	if err := a.Feed(0); err != nil {
+		return err
+	}
+	var groupIds []int64
+	if N > 0 {
+		groupIds = a.trans.getBiggestGroupIds(N)
+	}
+
+	if err := utils.EnsureDir(outdir); err != nil {
+		return err
+	}
+
+	if isHistory {
+		if err := a._outputLogGroupsHistory(outdir, groupIds); err != nil {
+			return err
+		}
+	}
+	return a._outputLogGroups(outdir, groupIds)
+}
+
+func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
+	var writer *csv.Writer
+	file, err := os.Create(fmt.Sprintf("%s/logGroups.csv", outdir))
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+	writer = csv.NewWriter(file)
+	defer writer.Flush()
+	lgs := a.trans.lgs.alllg
+	writer.Write([]string{"groupId", "count", "text"})
+	for _, groupId := range groupIds {
+		lg := lgs[groupId]
+		writer.Write([]string{fmt.Sprint(groupId), fmt.Sprint(lg.count), lg.displayString})
+	}
+	return nil
+}
+
+func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) error {
+	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
+	if err != nil {
+		return err
+	}
+	var writer *csv.Writer
+	if err := utils.EnsureDir(outdir); err != nil {
+		return err
+	}
+	file, err := os.Create(fmt.Sprintf("%s/history.csv", outdir))
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+	writer = csv.NewWriter(file)
+	defer writer.Flush()
+
+	format := utils.GetDatetimeFormatFromUnitSecs(a.unitSecs)
+	header := []string{"groupId"}
+	for _, ep := range lgsh.timeline {
+		header = append(header, time.Unix(ep, 0).Format(format))
+	}
+	writer.Write(header)
+	for i, groupId := range lgsh.groupIds {
+		row := []string{fmt.Sprint(groupId)}
+		for _, cnt := range lgsh.counts[i] {
+			row = append(row, strconv.Itoa(cnt))
+		}
+		writer.Write(row)
+	}
 
 	return nil
 }

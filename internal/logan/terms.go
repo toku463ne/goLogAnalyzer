@@ -3,8 +3,7 @@ package logan
 import (
 	"goLogAnalyzer/pkg/csvdb"
 	"math"
-
-	"github.com/pkg/errors"
+	"sort"
 )
 
 type terms struct {
@@ -18,12 +17,12 @@ type terms struct {
 }
 
 func newTerms(dataDir string,
-	maxBlocks,
-	keepUnit int, keepPeriod int64,
+	maxBlocks int,
+	unitSecs, keepPeriod int64,
 	useGzip bool) (*terms, error) {
 	te := new(terms)
 	tedb, err := csvdb.NewCircuitDB(dataDir, "terms",
-		tableDefs["terms"], maxBlocks, 0, keepPeriod, keepUnit, useGzip)
+		tableDefs["terms"], maxBlocks, 0, keepPeriod, unitSecs, useGzip)
 	if err != nil {
 		return nil, err
 	}
@@ -92,20 +91,23 @@ func (te *terms) flush() error {
 		if count == 0 {
 			continue
 		}
+		// inserts to buffer only
 		if err := te.InsertRow(tableDefs["terms"],
 			te.id2term[termId], count); err != nil {
 			return err
 		}
 	}
 
+	// flush buffer to the block table file with WRITE mode (not APPEND)
 	if err := te.FlushOverwriteCurrentTable(); err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 	te.currCounts = make(map[int]int, 10000)
 	return nil
 }
 
 func (te *terms) next(updated int64) error {
+	// write current block to the block table
 	if err := te.flush(); err != nil {
 		return err
 	}
@@ -227,4 +229,41 @@ func (te *terms) getBlockData(blockNo int) (map[string]int, error) {
 	}
 
 	return counts, nil
+}
+
+func (te *terms) getCountBorder(rate float64) int {
+	n := len(te.counts)
+	counts := make([]int, n)
+	j := 0
+	for _, cnt := range te.counts {
+		counts[j] = cnt
+		j++
+	}
+	sort.Slice(counts, func(i, j int) bool {
+		return counts[i] > counts[j]
+	})
+	total := te.totalCount
+	sum := 0
+	cnt := 0
+	preCnt := 0
+	oldCnt := 0
+	for _, cnt = range counts {
+		sum += cnt
+		if float64(sum)/float64(total) >= rate {
+			break
+		}
+		if cnt < oldCnt {
+			preCnt = oldCnt
+		}
+		oldCnt = cnt
+	}
+	if preCnt == 0 {
+		if oldCnt > 0 {
+			preCnt = oldCnt
+		} else {
+			preCnt = cnt
+		}
+	}
+
+	return preCnt
 }

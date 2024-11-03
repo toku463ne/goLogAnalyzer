@@ -39,7 +39,7 @@ var (
 func NewCircuitDB(rootDir, name string,
 	columns []string,
 	maxBlocks, blockSize int,
-	keepPeriod int64, keepUnit int,
+	keepPeriod, unitSecs int64,
 	useGzip bool) (*CircuitDB, error) {
 	cdb := new(CircuitDB)
 	cdb.Name = name
@@ -73,7 +73,8 @@ func NewCircuitDB(rootDir, name string,
 
 	cdb.CsvDB = db
 
-	cdb.unitsecs = utils.GetUnitsecs(keepUnit)
+	//cdb.unitsecs = utils.GetUnitsecs(keepUnit)
+	cdb.unitsecs = unitSecs
 
 	t, err := cdb.GetBlockTable(cdb.blockNo)
 	if err != nil {
@@ -150,7 +151,7 @@ func (cdb *CircuitDB) NextBlock(lastEpoch int64) error {
 
 	cdb.RowNo = 0
 	cdb.blockNo++
-	if cdb.blockNo >= cdb.maxBlocks {
+	if cdb.blockNo >= cdb.maxBlocks && cdb.maxBlocks > 0 {
 		cdb.blockNo = 0
 	}
 	cdb.lastIndex++

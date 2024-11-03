@@ -1,0 +1,13 @@
+---
+dataDir: "{{ HOME }}/logantests/Test_main_config/data"
+logPath: "../../testdata/loganal/sample50_*.log"
+logFormat: '^(?P<timestamp>\d+-\d+-\d+T\d+:\d+:\d+)] (?P<message>.+)$'
+timestampLayout: "2006-01-02T15:04:05"
+maxBlocks: 100
+blockSize: 100
+keepPeriod: 100
+termCountBorder: 10
+minMatchRate: 0.6
+unitSecs: 86400
+useUtcTime: true
+

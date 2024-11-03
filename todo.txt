@@ -1,9 +1,17 @@
 custom logGroups
-custom delmiter
+rebuild logTree
+compress displayStrings
+no logformat
+no dateformat
+no timestamp
+interrupt in the middle -> detect corruption
 
-matchRate
+history: when output is ""
 
+slice bounds out of range when runing without args
 
 test log filtering
 test ignore, key words
 test topN frequency
+test without data path
+

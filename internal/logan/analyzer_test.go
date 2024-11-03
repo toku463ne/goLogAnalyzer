@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"goLogAnalyzer/pkg/utils"
 	"testing"
+	"time"
 )
 
 /*
@@ -25,17 +26,21 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	// new analyzer
 	logPath := fmt.Sprintf("%s/sample50_*.log", testDir)
-	logFormat := `^(?P<timestamp>\d+-\d+-\d+ \d+:\d+:\d+)] (?P<message>.+)$`
-	layout := "2006-01-02 15:04:05"
+	logFormat := `^(?P<timestamp>\d+-\d+-\d+T\d+:\d+:\d+)] (?P<message>.+)$`
+	layout := "2006-01-02T15:04:05"
 	dataDir := testDir + "/data"
 	maxBlocks := 100
 	blockSize := 100
 	keepPeriod := int64(100)
 	countBorder := 10
+	minMatchRate := 0.6
+	unitSecs := int64(3600 * 24)
+	useUtcTime := true
+	separator := " ,<>"
 
-	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, nil, nil,
+	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		utils.CFreqDay, 0, countBorder, nil, nil, nil, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -63,9 +68,9 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	// check config table
 	if err := a._checkConfigTable(logPath,
 		maxBlocks, blockSize,
-		keepPeriod, utils.CFreqDay,
-		0.999, countBorder,
-		layout, logFormat); err != nil {
+		keepPeriod, unitSecs,
+		0.999, countBorder, minMatchRate,
+		layout, useUtcTime, separator, logFormat); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -153,15 +158,15 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	// block0 consists of 10+10+4=24
-	// groupIdstr=d4kf1a681kw3 has 4
-	if err := utils.GetGotExpErr("group d4kf1a681kw3 count", bd0["d4kf1a681kw3"].count, 4); err != nil {
+	// groupIdstr=d4kqiqizi0w3 has 4
+	if err := utils.GetGotExpErr("group 1727812800000000003 count", bd0["1727812800000000003"].count, 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
 	// block1 consists of 6+10=16
-	// groupIdstr=d4kf1a681kw3 has 6
-	if err := utils.GetGotExpErr("group d4kf1a681kw3 count", bd1["d4kf1a681kw3"].count, 6); err != nil {
+	// groupIdstr=d4kqiqizi0w3 has 6
+	if err := utils.GetGotExpErr("group 1727812800000000003 count", bd1["1727812800000000003"].count, 6); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -190,14 +195,14 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	// close
 	a.Close()
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, nil, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
 	// check the last status is loaded
-	if err := utils.GetGotExpErr("rowId", a.rowID, int64(35)); err != nil {
+	if err := utils.GetGotExpErr("rowId", a.rowID, int(35)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -250,7 +255,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	// check the rowID is properly updated
-	if err := utils.GetGotExpErr("rowId", a.rowID, int64(50)); err != nil {
+	if err := utils.GetGotExpErr("rowId", a.rowID, int(50)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -358,6 +363,105 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	if err := utils.GetGotExpErr("term 'com1' in block2", tebd2["com1"], 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a.Close()
+
+	// wait 2 sec
+	time.Sleep(2000000000)
+
+	// copy the 2nd log to the test dir
+	targetFile = fmt.Sprintf("%s/sample50_2.log", testDir)
+	if _, err := utils.CopyFile("../../testdata/loganal/sample50_2.log",
+		targetFile); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	// feed the rest lines
+	err = a.Feed(0)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// number of "com1"
+	if err := utils.GetGotExpErr("com1 count", a.trans.te.getCount("com1"), 100); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("grpe20 count", a.trans.te.getCount("grpe20"), 20); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("displayStrings", len(a.trans.lgs.displayStrings), 11); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	a.Close()
+
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.OutputLogGroups(10, testDir, true); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	header, records, err := utils.ReadCsv(testDir + "/history.csv")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(header)", len(header), 6); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(records)", len(records), 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("records[0][1]", records[0][1], "10"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("records[2][1]", records[2][1], "4"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("records[2][2]", records[2][2], "6"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	header, records, err = utils.ReadCsv(testDir + "/logGroups.csv")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("len(header)", len(header), 3); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(records)", len(records), 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("records[0][1]", records[0][0], "1727740800000000001"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
