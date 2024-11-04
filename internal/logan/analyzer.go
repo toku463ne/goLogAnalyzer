@@ -174,6 +174,7 @@ func LoadAnalyzer(dataDir, logPath string,
 		needRebuild = true
 	}
 	if needRebuild {
+		logrus.Info("rebuilding log groups")
 		if err := a.rebuildTrans(); err != nil {
 			return nil, err
 		}

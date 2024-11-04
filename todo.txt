@@ -1,6 +1,4 @@
 custom logGroups
-rebuild logTree
-compress displayStrings
 no logformat
 no dateformat
 no timestamp
@@ -10,7 +8,7 @@ history: when output is ""
 
 slice bounds out of range when runing without args
 
-test log filtering
+
 test ignore, key words
 test topN frequency
 test without data path

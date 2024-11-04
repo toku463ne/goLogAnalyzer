@@ -62,6 +62,18 @@ func Test_main_config(t *testing.T) {
 		return
 	}
 
+	os.Args = []string{"logan", "history", "-c", config, "-o", dataDir, "-b", "20", "-m", "0.5"}
+	main()
+	_, records, err = utils.ReadCsv(dataDir + "/history.csv")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(records)", len(records), 3); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 	os.Args = []string{"logan", "clean", "-c", config, "-silent"}
 	main()
 }
