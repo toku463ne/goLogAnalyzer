@@ -614,6 +614,8 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
+
+	logrus.Infof("wrinting %s", file.Name())
 	defer file.Close()
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
@@ -631,6 +633,8 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
+
+	logrus.Infof("wrinting %s", file.Name())
 
 	defer file.Close()
 	writer = csv.NewWriter(file)
@@ -672,6 +676,8 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
+
+	logrus.Infof("wrinting %s", file.Name())
 	defer file.Close()
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
