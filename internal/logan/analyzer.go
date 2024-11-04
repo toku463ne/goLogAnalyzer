@@ -575,7 +575,9 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 		if err := a._commit(false); err != nil {
 			return err
 		}
-		logrus.Infof("processed %d lines", linesProcessed)
+		if linesProcessed > 0 {
+			logrus.Infof("processed %d lines", linesProcessed)
+		}
 	}
 
 	a.fp.Close()
@@ -624,11 +626,26 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	return nil
 }
 
+// Function to generate cicle pattern as a string of "1" and "0" for each row
+func (a *Analyzer) _generateCiclePattern(row []int) string {
+	pattern := ""
+	for _, value := range row {
+		if value != 0 {
+			pattern += "1"
+		} else {
+			pattern += "0"
+		}
+	}
+	return pattern
+}
+
 func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
 		return err
 	}
+
+	// output simple history
 	var writer *csv.Writer
 	if err := utils.EnsureDir(outdir); err != nil {
 		return err
@@ -656,6 +673,36 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 				row = append(row, "")
 			}
 		}
+		writer.Write(row)
+	}
+
+	// output history grouped by apparance cicle
+	cicleGroups := make(map[string][]int)
+	cicleGroupIDs := make(map[string]int64)
+
+	for i, groupId := range lgsh.groupIds {
+		row := lgsh.counts[i]
+		cicle := a._generateCiclePattern(row)
+		if _, exists := cicleGroups[cicle]; !exists {
+			cicleGroups[cicle] = make([]int, len(lgsh.timeline))
+			if _, ok := cicleGroupIDs[cicle]; !ok {
+				cicleGroupIDs[cicle] = groupId
+			}
+		}
+		for j, cnt := range lgsh.counts[i] {
+			cicleGroups[cicle][j] += cnt
+		}
+	}
+	file, err = os.Create(fmt.Sprintf("%s/history_sum.csv", outdir))
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+	writer = csv.NewWriter(file)
+	defer writer.Flush()
+	writer.Write(header)
+	for cicle, sums := range cicleGroups {
+		row := append([]string{fmt.Sprint(cicleGroupIDs[cicle])}, utils.IntToStringSlice(sums)...)
 		writer.Write(row)
 	}
 

@@ -491,3 +491,19 @@ func Replace(s, target, replacement, separators string) string {
 	}
 	return result.String()
 }
+
+func FloatToStringSlice(floats []float64) []string {
+	strs := make([]string, len(floats))
+	for i, f := range floats {
+		strs[i] = strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	return strs
+}
+
+func IntToStringSlice(ints []int) []string {
+	strs := make([]string, len(ints))
+	for i, it := range ints {
+		strs[i] = strconv.Itoa(it)
+	}
+	return strs
+}
