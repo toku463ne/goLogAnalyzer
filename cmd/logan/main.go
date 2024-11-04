@@ -97,7 +97,7 @@ func init() {
 	flag.StringVar(&separators, "sep", "", "separators of words")
 
 	flag.StringVar(&outputFile, "o", "", "Output file")
-	flag.IntVar(&N, "N", 10, "Number of top items")
+	flag.IntVar(&N, "N", 100, "Number of top items")
 
 	// Parse command line flags
 	//flag.Parse()

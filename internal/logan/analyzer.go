@@ -629,7 +629,11 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 	for i, groupId := range lgsh.groupIds {
 		row := []string{fmt.Sprint(groupId)}
 		for _, cnt := range lgsh.counts[i] {
-			row = append(row, strconv.Itoa(cnt))
+			if cnt > 0 {
+				row = append(row, strconv.Itoa(cnt))
+			} else {
+				row = append(row, "")
+			}
 		}
 		writer.Write(row)
 	}
