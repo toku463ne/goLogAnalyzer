@@ -679,6 +679,7 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 	// output history grouped by apparance cicle
 	cicleGroups := make(map[string][]int)
 	cicleGroupIDs := make(map[string]int64)
+	cicleIDs := make(map[int64]string)
 
 	for i, groupId := range lgsh.groupIds {
 		row := lgsh.counts[i]
@@ -687,6 +688,7 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 			cicleGroups[cicle] = make([]int, len(lgsh.timeline))
 			if _, ok := cicleGroupIDs[cicle]; !ok {
 				cicleGroupIDs[cicle] = groupId
+				cicleIDs[groupId] = cicle
 			}
 		}
 		for j, cnt := range lgsh.counts[i] {
@@ -701,8 +703,17 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
 	writer.Write(header)
-	for cicle, sums := range cicleGroups {
-		row := append([]string{fmt.Sprint(cicleGroupIDs[cicle])}, utils.IntToStringSlice(sums)...)
+	for _, groupId := range groupIds {
+		row := []string{fmt.Sprint(groupId)}
+		if cicle, ok := cicleIDs[groupId]; ok {
+			for _, sum := range cicleGroups[cicle] {
+				if sum > 0 {
+					row = append(row, strconv.Itoa(sum))
+				} else {
+					row = append(row, "")
+				}
+			}
+		}
 		writer.Write(row)
 	}
 
