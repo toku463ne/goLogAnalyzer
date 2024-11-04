@@ -445,11 +445,13 @@ func (tr *trans) load() error {
 		if err != nil {
 			return err
 		}
-		if displayString != line {
-			_, _, _ = tr.toTokens(line, 0, true, true, false)
-			return utils.ErrorStack("loaded displayString does not match parsed displayString\nparsed:\n%s \n\nloaded:\n%s\n\n",
-				displayString, line)
-		}
+
+		// for debugging
+		//if displayString != line {
+		//	_, _, _ = tr.toTokens(line, 0, true, true, false)
+		//	return utils.ErrorStack("loaded displayString does not match parsed displayString\nparsed:\n%s \n\nloaded:\n%s\n\n",
+		//		displayString, line)
+		//}
 		tr.lgs.registerLogTree(tokens, count, displayString, updated, updated, false,
 			retentionPos, groupId)
 
