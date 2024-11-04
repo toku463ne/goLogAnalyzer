@@ -159,6 +159,26 @@ func LoadAnalyzer(dataDir, logPath string,
 		a.logPath = logPath
 	}
 
+	needRebuild := false
+	if termCountBorder > 0 && a.termCountBorder != termCountBorder {
+		a.termCountBorder = termCountBorder
+		needRebuild = true
+	}
+	if termCountBorderRate > 0 && a.termCountBorderRate != termCountBorderRate {
+		a.termCountBorderRate = termCountBorderRate
+		a.trans.setCountBorder()
+		needRebuild = true
+	}
+	if minMatchRate > 0 && a.minMatchRate != minMatchRate {
+		a.minMatchRate = minMatchRate
+		needRebuild = true
+	}
+	if needRebuild {
+		if err := a.rebuildTrans(); err != nil {
+			return nil, err
+		}
+	}
+
 	a.customLogGroups = customLogGroups
 
 	return a, nil
@@ -534,7 +554,7 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 			continue
 		}
 
-		if err := a.trans.lineToLogGroup(line, 1, a.fp.CurrFileEpoch()); err != nil {
+		if _, err := a.trans.lineToLogGroup(line, 1, a.fp.CurrFileEpoch()); err != nil {
 			return err
 		}
 		a.rowID++
@@ -638,5 +658,39 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 		writer.Write(row)
 	}
 
+	return nil
+}
+
+/*
+In case some of below have changed since the saved config, rebuild trans with read only
+a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,a.keywords, a.ignorewords, a.customLogGroups
+*/
+func (a *Analyzer) rebuildTrans() error {
+	tr2, err := newTrans(a.dataDir, "", "", a.useUtcTime, a.maxBlocks, a.blockSize, a.unitSecs, a.keepPeriod,
+		0, a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,
+		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, true)
+	if err != nil {
+		return err
+	}
+	tr2.te = a.trans.te
+	for _, lg := range a.trans.lgs.alllg {
+		//tokens, displayString, err := tr2.toTokens(lg.displayString, 0, true, true, true)
+		//if err != nil {
+		//	return err
+		//}
+		//tr2.lgs.registerLogTree(tokens, lg.count, displayString, lg.created, lg.created, true, -1, -1)
+		groupId, err := tr2.lineToLogGroup(lg.displayString, lg.count, lg.updated)
+		if err != nil {
+			return err
+		}
+		if lg2, ok := tr2.lgs.alllg[groupId]; ok {
+			if lg2.created == 0 || lg2.created < lg.created {
+				lg2.created = lg.created
+			}
+		}
+
+	}
+	tr2.lgs.orgDisplayStrings = a.trans.lgs.displayStrings
+	a.trans = tr2
 	return nil
 }

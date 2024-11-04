@@ -465,4 +465,33 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+
+	a.Close()
+
+	// rebuild trans
+	a, err = LoadAnalyzer(dataDir, "", 0, 20, 0.5, nil, false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := a.OutputLogGroups(10, testDir, true); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	_, records, err = utils.ReadCsv(testDir + "/history.csv")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(records)", len(records), 6); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("records[0][1]", records[0][1], "20"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 }

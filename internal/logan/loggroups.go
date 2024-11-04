@@ -2,9 +2,9 @@ package logan
 
 import (
 	"bufio"
+	"compress/gzip"
 	"fmt"
 	"goLogAnalyzer/pkg/csvdb"
-	"goLogAnalyzer/pkg/utils"
 	"io"
 	"os"
 	"strconv"
@@ -22,15 +22,16 @@ type logGroup struct {
 
 type logGroups struct {
 	*csvdb.CircuitDB
-	maxLgId         int64
-	totalCount      int // total count of entire log groups
-	alllg           map[int64]*logGroup
-	curlg           map[int64]*logGroup
-	lt              *logTree
-	retentionPos    int64
-	maxRetentionPos int64
-	minRetentionPos int64
-	displayStrings  map[int64]string
+	maxLgId           int64
+	totalCount        int // total count of entire log groups
+	alllg             map[int64]*logGroup
+	curlg             map[int64]*logGroup
+	lt                *logTree
+	retentionPos      int64
+	maxRetentionPos   int64
+	minRetentionPos   int64
+	displayStrings    map[int64]string
+	orgDisplayStrings map[int64]string
 }
 
 func newLogGroups(dataDir string,
@@ -163,27 +164,32 @@ func (lgs *logGroups) next(updated int64) error {
 }
 
 func (lgs *logGroups) _getDisplayStringPath() string {
-	return fmt.Sprintf("%s/displaystrings.txt", lgs.DataDir)
+	return fmt.Sprintf("%s/displaystrings.txt.gz", lgs.DataDir)
 }
 
 func (lgs *logGroups) writeDisplayStrings() error {
 	file, err := os.Create(lgs._getDisplayStringPath())
 	if err != nil {
-		return fmt.Errorf("error creating file: +%v", err)
+		return fmt.Errorf("error creating file: %v", err)
 	}
 	defer file.Close()
-	writer := bufio.NewWriter(file)
+
+	gzWriter := gzip.NewWriter(file)
+	defer gzWriter.Close()
+
+	writer := bufio.NewWriter(gzWriter)
 	for groupId, lg := range lgs.alllg {
 		if lg.count <= 0 {
 			continue
 		}
-		//_, err := writer.WriteString(fmt.Sprintf("%s %s\n", utils.Int64Tobase36(groupId), lg.displayString))
 		_, err := writer.WriteString(fmt.Sprintf("%d %s\n", groupId, lg.displayString))
 		if err != nil {
-			return fmt.Errorf("error creating file: +%v", err)
+			return fmt.Errorf("error writing to gzip file: %v", err)
 		}
 	}
-	writer.Flush()
+	if err := writer.Flush(); err != nil {
+		return fmt.Errorf("error flushing buffered writer: %v", err)
+	}
 
 	return nil
 }
@@ -193,12 +199,17 @@ func (lgs *logGroups) readDisplayStrings() error {
 
 	file, err := os.Open(lgs._getDisplayStringPath())
 	if err != nil {
-		return err
-
+		return fmt.Errorf("error opening file: %v", err)
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
+	gzReader, err := gzip.NewReader(file)
+	if err != nil {
+		return fmt.Errorf("error creating gzip reader: %v", err)
+	}
+	defer gzReader.Close()
+
+	reader := bufio.NewReader(gzReader)
 
 	lineno := 0
 	for {
@@ -207,19 +218,19 @@ func (lgs *logGroups) readDisplayStrings() error {
 			if err == io.EOF {
 				break // End of file
 			}
-			return err
+			return fmt.Errorf("error reading line %d: %v", lineno, err)
 		}
 
 		lineno++
 		line = strings.TrimSpace(line)
 		parts := strings.SplitN(line, " ", 2)
 		if len(parts) < 2 {
-			return utils.ErrorStack("error at line %d: missing data", lineno)
+			return fmt.Errorf("error at line %d: missing data", lineno)
 		}
 
 		groupId, err := strconv.ParseInt(parts[0], 10, 64)
 		if err != nil {
-			return utils.ErrorStack("error at line %d: %+v", lineno, err)
+			return fmt.Errorf("error at line %d: %v", lineno, err)
 		}
 		displayStrings[groupId] = parts[1]
 	}
@@ -294,65 +305,4 @@ func (lgs *logGroups) getBlockData(blockNo int) (map[string]logGroup, error) {
 	}
 
 	return blockLgs, nil
-}
-
-// load countHistory.
-// call this function only when needed as it eats memory
-func (lgs *logGroups) loadLogGroupHistory() error {
-	if lgs.DataDir == "" {
-		return nil
-	}
-
-	rows, err := lgs.SelectRows(nil, nil, tableDefs["logGroups"])
-	if err != nil {
-		return err
-	}
-	if rows == nil {
-		return nil
-	}
-
-	ds := lgs.displayStrings
-	for rows.Next() {
-		var groupIdstr string
-		var retentionPos int64
-		var count int
-		var created int64
-		var updated int64
-		err = rows.Scan(&groupIdstr, &retentionPos, &count, &created, &updated)
-		if err != nil {
-			return err
-		}
-		//groupId, err := utils.Base36ToInt64(groupIdstr)
-		groupId, err := strconv.ParseInt(groupIdstr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing %s to int64", groupIdstr)
-		}
-
-		if retentionPos > lgs.maxRetentionPos {
-			lgs.maxRetentionPos = retentionPos
-		}
-		if lgs.minRetentionPos == 0 || retentionPos < lgs.minRetentionPos {
-			lgs.minRetentionPos = retentionPos
-		}
-
-		displayString := ds[groupId]
-		lg, ok := lgs.alllg[groupId]
-		if !ok {
-			lg = new(logGroup)
-			lg.countHistory = make(map[int64]int)
-		} else if lg.countHistory == nil {
-			lg.countHistory = make(map[int64]int)
-		}
-		lg.countHistory[retentionPos] = count
-		lg.displayString = displayString
-		lg.count += count
-		if created > 0 && lg.created > created {
-			lg.created = created
-		}
-		if updated > 0 && lg.updated < updated {
-			lg.updated = updated
-		}
-	}
-
-	return nil
 }

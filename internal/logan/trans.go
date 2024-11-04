@@ -301,6 +301,9 @@ func (tr *trans) toTokens(line string, addCnt int,
 			border = matchBorderCount
 		}
 		for i, termId := range tokens {
+			if termId == cAsteriskItemID {
+				continue
+			}
 			cnt := tr.te.counts[termId]
 			if cnt < border {
 				tokens[i] = cAsteriskItemID
@@ -342,25 +345,25 @@ func (tr *trans) lineToTerms(line string, addCnt int) {
 }
 
 // analyze the line and
-func (tr *trans) lineToLogGroup(line string, addCnt int, updated int64) error {
+func (tr *trans) lineToLogGroup(line string, addCnt int, updated int64) (int64, error) {
 	if !tr._match(line) {
-		return nil
+		return -1, nil
 	}
 	line, updated, retentionPos := tr.parseLine(line, updated)
 	if (tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos) || tr.countByBlock > tr.maxCountByBlock {
 		if err := tr.next(updated); err != nil {
-			return err
+			return -1, err
 		}
 	}
 
 	tokens, displayString, err := tr.toTokens(line, addCnt, true, true, true)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos, -1)
+	groupId := tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos, -1)
 
 	tr.currRetentionPos = retentionPos
-	return nil
+	return groupId, nil
 }
 
 func (tr *trans) commit(completed bool) error {
@@ -440,11 +443,11 @@ func (tr *trans) load() error {
 			return fmt.Errorf("error parsing %s to int64", groupIdstr)
 		}
 
-		line := ds[groupId]
-		tokens, displayString, err := tr.toTokens(line, 0, true, true, false)
+		tokens, displayString, err := tr.toTokens(ds[groupId], 0, true, true, false)
 		if err != nil {
 			return err
 		}
+		ds[groupId] = displayString
 
 		// for debugging
 		//if displayString != line {
@@ -575,7 +578,7 @@ returns table of LogGroup history, list of groupIds and corresponding displayStr
 */
 func (tr *trans) getLogGroupsHistory(groupIds []int64) (*logGroupsHistory, error) {
 	lgs := tr.lgs
-	if err := lgs.loadLogGroupHistory(); err != nil {
+	if err := tr.loadLogGroupHistory(); err != nil {
 		return nil, err
 	}
 
@@ -623,4 +626,85 @@ func (tr *trans) getBiggestGroupIds(N int) []int64 {
 	}
 
 	return groupIds
+}
+
+// load countHistory.
+// call this function only when needed as it eats memory
+func (tr *trans) loadLogGroupHistory() error {
+	lgs := tr.lgs
+	if lgs.DataDir == "" {
+		return nil
+	}
+
+	rows, err := lgs.SelectRows(nil, nil, tableDefs["logGroups"])
+	if err != nil {
+		return err
+	}
+	if rows == nil {
+		return nil
+	}
+
+	ds := lgs.displayStrings
+
+	// for when after analyzer.rebuildTrans() has called
+	orgDs := lgs.orgDisplayStrings
+
+	for rows.Next() {
+		var groupIdstr string
+		var retentionPos int64
+		var count int
+		var created int64
+		var updated int64
+		err = rows.Scan(&groupIdstr, &retentionPos, &count, &created, &updated)
+		if err != nil {
+			return err
+		}
+		//groupId, err := utils.Base36ToInt64(groupIdstr)
+		groupId, err := strconv.ParseInt(groupIdstr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing %s to int64", groupIdstr)
+		}
+
+		if retentionPos > lgs.maxRetentionPos {
+			lgs.maxRetentionPos = retentionPos
+		}
+		if lgs.minRetentionPos == 0 || retentionPos < lgs.minRetentionPos {
+			lgs.minRetentionPos = retentionPos
+		}
+
+		displayString := ""
+		if orgDs == nil {
+			// rebuildTrans() is not called so no need to consider union logGroups
+			displayString = ds[groupId]
+		} else {
+			if line, ok := orgDs[groupId]; ok {
+				groupId, err = tr.lineToLogGroup(line, 0, 0)
+				if err != nil {
+					return err
+				}
+			} else {
+				return utils.ErrorStack("displayString below did not match any logGrouop\n%s\n\n", line)
+			}
+			displayString = lgs.displayStrings[groupId]
+		}
+
+		lg, ok := lgs.alllg[groupId]
+		if !ok {
+			lg = new(logGroup)
+			lg.countHistory = make(map[int64]int)
+		} else if lg.countHistory == nil {
+			lg.countHistory = make(map[int64]int)
+		}
+		lg.countHistory[retentionPos] += count
+		lg.displayString = displayString
+		lg.count += count
+		if created > 0 && lg.created > created {
+			lg.created = created
+		}
+		if updated > 0 && lg.updated < updated {
+			lg.updated = updated
+		}
+	}
+
+	return nil
 }
