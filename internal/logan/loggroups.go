@@ -31,6 +31,7 @@ type logGroups struct {
 	maxRetentionPos   int64
 	minRetentionPos   int64
 	displayStrings    map[int64]string
+	lastMessages      map[int64]string
 	orgDisplayStrings map[int64]string
 }
 
@@ -53,6 +54,7 @@ func newLogGroups(dataDir string,
 	lgs.alllg = make(map[int64]*logGroup)
 	lgs.curlg = make(map[int64]*logGroup)
 	lgs.displayStrings = make(map[int64]string)
+	lgs.lastMessages = make(map[int64]string)
 	lgs.lt = newLogTree(0)
 	return lgs, nil
 }
@@ -167,6 +169,10 @@ func (lgs *logGroups) _getDisplayStringPath() string {
 	return fmt.Sprintf("%s/displaystrings.txt.gz", lgs.DataDir)
 }
 
+func (lgs *logGroups) _getLastMessagePath() string {
+	return fmt.Sprintf("%s/lastMessages.txt.gz", lgs.DataDir)
+}
+
 func (lgs *logGroups) writeDisplayStrings() error {
 	file, err := os.Create(lgs._getDisplayStringPath())
 	if err != nil {
@@ -183,6 +189,30 @@ func (lgs *logGroups) writeDisplayStrings() error {
 			continue
 		}
 		_, err := writer.WriteString(fmt.Sprintf("%d %s\n", groupId, lg.displayString))
+		if err != nil {
+			return fmt.Errorf("error writing to gzip file: %v", err)
+		}
+	}
+	if err := writer.Flush(); err != nil {
+		return fmt.Errorf("error flushing buffered writer: %v", err)
+	}
+
+	return nil
+}
+
+func (lgs *logGroups) writeLastMessages() error {
+	file, err := os.Create(lgs._getLastMessagePath())
+	if err != nil {
+		return fmt.Errorf("error creating file: %v", err)
+	}
+	defer file.Close()
+
+	gzWriter := gzip.NewWriter(file)
+	defer gzWriter.Close()
+
+	writer := bufio.NewWriter(gzWriter)
+	for groupId, lastMessage := range lgs.lastMessages {
+		_, err := writer.WriteString(fmt.Sprintf("%d %s\n", groupId, lastMessage))
 		if err != nil {
 			return fmt.Errorf("error writing to gzip file: %v", err)
 		}
@@ -239,6 +269,51 @@ func (lgs *logGroups) readDisplayStrings() error {
 	return nil
 }
 
+func (lgs *logGroups) readLastMessages() error {
+	lastMessages := make(map[int64]string)
+
+	file, err := os.Open(lgs._getLastMessagePath())
+	if err != nil {
+		return fmt.Errorf("error opening file: %v", err)
+	}
+	defer file.Close()
+
+	gzReader, err := gzip.NewReader(file)
+	if err != nil {
+		return fmt.Errorf("error creating gzip reader: %v", err)
+	}
+	defer gzReader.Close()
+
+	reader := bufio.NewReader(gzReader)
+
+	lineno := 0
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break // End of file
+			}
+			return fmt.Errorf("error reading line %d: %v", lineno, err)
+		}
+
+		lineno++
+		line = strings.TrimSpace(line)
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) < 2 {
+			return fmt.Errorf("error at line %d: missing data", lineno)
+		}
+
+		groupId, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error at line %d: %v", lineno, err)
+		}
+		lastMessages[groupId] = parts[1]
+	}
+
+	lgs.lastMessages = lastMessages
+	return nil
+}
+
 func (lgs *logGroups) commit(completed bool) error {
 	if lgs.DataDir == "" {
 		return nil
@@ -248,6 +323,10 @@ func (lgs *logGroups) commit(completed bool) error {
 	}
 
 	if err := lgs.writeDisplayStrings(); err != nil {
+		return err
+	}
+
+	if err := lgs.writeLastMessages(); err != nil {
 		return err
 	}
 
@@ -267,6 +346,9 @@ func (lgs *logGroups) getBlockData(blockNo int) (map[string]logGroup, error) {
 	}
 
 	if err := lgs.readDisplayStrings(); err != nil {
+		return nil, err
+	}
+	if err := lgs.readLastMessages(); err != nil {
 		return nil, err
 	}
 

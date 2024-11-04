@@ -17,7 +17,7 @@ func Test_main_groups(t *testing.T) {
 	os.Args = []string{"logan", "groups", "-f", logPathRegex, "-d", dataDir, "-o", dataDir, "-N", "3"}
 	main()
 
-	header, records, err := utils.ReadCsv(dataDir + "/logGroups.csv")
+	header, records, err := utils.ReadCsv(dataDir+"/logGroups.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -48,7 +48,7 @@ func Test_main_config(t *testing.T) {
 	os.Args = []string{"logan", "history", "-c", config, "-o", dataDir, "-N", "3"}
 	main()
 
-	header, records, err := utils.ReadCsv(dataDir + "/history.csv")
+	header, records, err := utils.ReadCsv(dataDir+"/history.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -62,7 +62,7 @@ func Test_main_config(t *testing.T) {
 		return
 	}
 
-	_, records, err = utils.ReadCsv(dataDir + "/history_sum.csv")
+	_, records, err = utils.ReadCsv(dataDir+"/history_sum.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -76,9 +76,18 @@ func Test_main_config(t *testing.T) {
 		return
 	}
 
+	if _, records, err = utils.ReadCsv(dataDir+"/lastMessages.csv", ',', false); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(records)", len(records), 3); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 	os.Args = []string{"logan", "history", "-c", config, "-o", dataDir, "-b", "20", "-m", "0.5"}
 	main()
-	_, records, err = utils.ReadCsv(dataDir + "/history.csv")
+	_, records, err = utils.ReadCsv(dataDir+"/history.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

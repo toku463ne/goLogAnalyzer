@@ -345,11 +345,11 @@ func (tr *trans) lineToTerms(line string, addCnt int) {
 }
 
 // analyze the line and
-func (tr *trans) lineToLogGroup(line string, addCnt int, updated int64) (int64, error) {
-	if !tr._match(line) {
+func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int64, error) {
+	if !tr._match(orgLine) {
 		return -1, nil
 	}
-	line, updated, retentionPos := tr.parseLine(line, updated)
+	line, updated, retentionPos := tr.parseLine(orgLine, updated)
 	if (tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos) || tr.countByBlock > tr.maxCountByBlock {
 		if err := tr.next(updated); err != nil {
 			return -1, err
@@ -361,6 +361,7 @@ func (tr *trans) lineToLogGroup(line string, addCnt int, updated int64) (int64, 
 		return -1, err
 	}
 	groupId := tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos, -1)
+	tr.lgs.lastMessages[groupId] = orgLine
 
 	tr.currRetentionPos = retentionPos
 	return groupId, nil
@@ -386,13 +387,6 @@ func (tr *trans) close() {
 	if tr.te.CircuitDB != nil {
 		tr.te = nil
 	}
-}
-
-func (tr *trans) rebuildLogTree(termCountBorder int) *logTree {
-	lt := tr.lgs.lt
-	newTree := newLogTree(lt.depth)
-	lt.rebuildHelper(newTree, tr.te, termCountBorder)
-	return newTree
 }
 
 func (tr *trans) load() error {

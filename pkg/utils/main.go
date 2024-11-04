@@ -374,7 +374,7 @@ func GetDatetimeFormatFromUnitSecs(unitSecs int64) string {
 	return format
 }
 
-func ReadCsv(csfvile string) ([]string, [][]string, error) {
+func ReadCsv(csfvile string, separator rune, skipHeader bool) ([]string, [][]string, error) {
 	file, err := os.Open(csfvile)
 	if err != nil {
 		return nil, nil, err
@@ -382,10 +382,15 @@ func ReadCsv(csfvile string) ([]string, [][]string, error) {
 	defer file.Close()
 
 	reader := csv.NewReader(file)
-	// Read the header line
-	header, err := reader.Read()
-	if err != nil {
-		return nil, nil, err
+	reader.Comma = separator
+
+	var header []string
+	if !skipHeader {
+		// Read the header line
+		header, err = reader.Read()
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	var records [][]string

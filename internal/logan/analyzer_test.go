@@ -420,7 +420,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	header, records, err := utils.ReadCsv(testDir + "/history.csv")
+	header, records, err := utils.ReadCsv(testDir+"/history.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -447,7 +447,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
-	header, records, err = utils.ReadCsv(testDir + "/logGroups.csv")
+	header, records, err = utils.ReadCsv(testDir+"/logGroups.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -479,7 +479,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	_, records, err = utils.ReadCsv(testDir + "/history.csv")
+	_, records, err = utils.ReadCsv(testDir+"/history.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

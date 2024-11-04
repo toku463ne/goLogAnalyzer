@@ -23,7 +23,7 @@ func runGroups(t *testing.T, testName, config string) [][]string {
 	os.Args = []string{"logan", "groups", "-c", config, "-o", testDir}
 	main()
 
-	_, records, err := utils.ReadCsv(testDir + "/logGroups.csv")
+	_, records, err := utils.ReadCsv(testDir+"/logGroups.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return nil

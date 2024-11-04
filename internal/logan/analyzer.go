@@ -618,11 +618,29 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
 	lgs := a.trans.lgs.alllg
+	// header
 	writer.Write([]string{"groupId", "count", "text"})
 	for _, groupId := range groupIds {
 		lg := lgs[groupId]
 		writer.Write([]string{fmt.Sprint(groupId), fmt.Sprint(lg.count), lg.displayString})
 	}
+	file.Close()
+
+	// lastMessages
+	file, err = os.Create(fmt.Sprintf("%s/lastMessages.csv", outdir))
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+
+	defer file.Close()
+	writer = csv.NewWriter(file)
+	defer writer.Flush()
+	// header
+	writer.Write([]string{"groupId", "text"})
+	for _, groupId := range groupIds {
+		writer.Write([]string{fmt.Sprint(groupId), a.trans.lgs.lastMessages[groupId]})
+	}
+
 	return nil
 }
 
@@ -713,8 +731,8 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 					row = append(row, "")
 				}
 			}
+			writer.Write(row)
 		}
-		writer.Write(row)
 	}
 
 	return nil
