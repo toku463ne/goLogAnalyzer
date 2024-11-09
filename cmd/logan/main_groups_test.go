@@ -70,3 +70,26 @@ func Test_groups_001_filter(t *testing.T) {
 		return
 	}
 }
+
+func Test_groups_002_kw_igw(t *testing.T) {
+	tbl := runGroups(t, "Test_groups_002_kw_igw", "groups_002_kw_igw.yml")
+
+	if err := utils.GetGotExpErr("Test_groups_002_kw_igw:rows", len(tbl), 3); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	ds := "Com1, * Com2 * grpa50 * <coM3> * * *"
+	cntstr := getGroupCount(tbl, ds)
+	if err := utils.GetGotExpErr("Test_groups_001_filter:group count", cntstr, "20"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	ds = "Com1, grpa10 Com2 * grpa50 * <coM3> * * *"
+	cntstr = getGroupCount(tbl, ds)
+	if err := utils.GetGotExpErr("Test_groups_001_filter:group count", cntstr, "10"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+}

@@ -98,6 +98,38 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
+	// number of displayStrings
+	if err := utils.GetGotExpErr("displayStrings", len(a.trans.lgs.displayStrings), 4); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/displaystrings.txt.gz"); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		// number of displayStrings saved
+		if err := utils.GetGotExpErr("displayStrings saved", cnt, 4); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	// number of lastMessages
+	if err := utils.GetGotExpErr("lastMessages", len(a.trans.lgs.lastMessages), 4); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/lastMessages.txt.gz"); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		// number of lastMessages saved
+		if err := utils.GetGotExpErr("lastMessages saved", cnt, 4); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
 	lgstr := "Com1, grpa10 Com2 * grpa50 * <coM3> * grpa20 *"
 	lg := a.trans.searchLogGroup(lgstr)
 	// number of the log group
@@ -368,6 +400,29 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	a.Close()
+
+	// number of displayStrings saved
+	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/displaystrings.txt.gz"); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		if err := utils.GetGotExpErr("displayStrings saved", cnt, 6); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
+
+	// number of lastMessages
+	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/lastMessages.txt.gz"); err != nil {
+		t.Errorf("%v", err)
+		return
+	} else {
+		// number of lastMessages saved
+		if err := utils.GetGotExpErr("lastMessages saved", cnt, 6); err != nil {
+			t.Errorf("%v", err)
+			return
+		}
+	}
 
 	// wait 2 sec
 	time.Sleep(2000000000)

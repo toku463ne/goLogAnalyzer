@@ -14,8 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Analyzer struct {
-	*csvdb.CsvDB
+type analConfig struct {
 	dataDir                  string
 	logPath                  string
 	logFormat                string
@@ -25,16 +24,7 @@ type Analyzer struct {
 	maxBlocks                int
 	keepPeriod               int64
 	unitSecs                 int64
-	configTable              *csvdb.Table
-	lastStatusTable          *csvdb.Table
-	trans                    *trans
-	fp                       *filepointer.FilePointer
 	searchRegex, exludeRegex []string
-	lastFileEpoch            int64
-	lastFileRow              int
-	rowID                    int
-	readOnly                 bool
-	linesProcessed           int
 	termCountBorderRate      float64
 	termCountBorder          int
 	minMatchRate             float64
@@ -42,6 +32,20 @@ type Analyzer struct {
 	ignorewords              []string
 	customLogGroups          []string
 	separators               string
+}
+
+type Analyzer struct {
+	*csvdb.CsvDB
+	*analConfig
+	configTable     *csvdb.Table
+	lastStatusTable *csvdb.Table
+	trans           *trans
+	fp              *filepointer.FilePointer
+	lastFileEpoch   int64
+	lastFileRow     int
+	rowID           int
+	readOnly        bool
+	linesProcessed  int
 }
 
 func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime bool,
@@ -55,6 +59,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	separators string,
 	readOnly bool) (*Analyzer, error) {
 	a := new(Analyzer)
+	a.analConfig = new(analConfig)
 	a.dataDir = dataDir
 	a.logPath = logPath
 	a.logFormat = logFormat
@@ -121,6 +126,7 @@ func LoadAnalyzer(dataDir, logPath string,
 	customLogGroups []string,
 	readOnly bool) (*Analyzer, error) {
 	a := new(Analyzer)
+	a.analConfig = new(analConfig)
 
 	if dataDir == "" {
 		return nil, utils.ErrorStack("no data to load")
@@ -615,7 +621,7 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 		return fmt.Errorf("error creating file: %w", err)
 	}
 
-	logrus.Infof("wrinting %s", file.Name())
+	logrus.Infof("writing %s", file.Name())
 	defer file.Close()
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
@@ -626,6 +632,7 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 		lg := lgs[groupId]
 		writer.Write([]string{fmt.Sprint(groupId), fmt.Sprint(lg.count), lg.displayString})
 	}
+	writer.Flush()
 	file.Close()
 
 	// lastMessages
@@ -644,6 +651,8 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	for _, groupId := range groupIds {
 		writer.Write([]string{fmt.Sprint(groupId), a.trans.lgs.lastMessages[groupId]})
 	}
+	writer.Flush()
+	file.Close()
 
 	return nil
 }
@@ -699,6 +708,8 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 		}
 		writer.Write(row)
 	}
+	writer.Flush()
+	file.Close()
 
 	// output history grouped by apparance cicle
 	cicleGroups := make(map[string][]int)
@@ -740,6 +751,8 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 			writer.Write(row)
 		}
 	}
+	writer.Flush()
+	file.Close()
 
 	return nil
 }

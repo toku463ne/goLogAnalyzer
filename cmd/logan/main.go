@@ -266,9 +266,12 @@ func run() error {
 	if len(excludeRegex) == 0 && excludeString != "" {
 		excludeRegex = []string{excludeString}
 	}
-	keywords = strings.Split(_keywords, ",")
-	ignorewords = strings.Split(_ignorewords, ",")
-
+	if _keywords != "" {
+		keywords = strings.Split(_keywords, ",")
+	}
+	if _ignorewords != "" {
+		ignorewords = strings.Split(_ignorewords, ",")
+	}
 	tblDir := fmt.Sprintf("%s/config.tbl.ini", dataDir)
 	if utils.PathExist(tblDir) {
 		logrus.Infof("Loading config from %s\n", tblDir)

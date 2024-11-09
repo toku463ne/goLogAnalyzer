@@ -30,9 +30,8 @@ type trans struct {
 	termCountBorderRate float64
 	termCountBorder     int
 	minMatchRate        float64
-	keywords            map[string]string
-	keyTermIds          map[int]string
-	ignorewords         map[string]string
+	keywords            map[string]bool
+	ignorewords         map[string]bool
 	unitSecs            int64
 	countByBlock        int
 	maxCountByBlock     int
@@ -79,14 +78,13 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	tr.readOnly = readOnly
 	tr._setFilters(searchRegex, exludeRegex)
 
-	tr.keywords = make(map[string]string)
-	tr.ignorewords = make(map[string]string)
-	tr.keyTermIds = make(map[int]string)
+	tr.keywords = make(map[string]bool)
+	tr.ignorewords = make(map[string]bool)
 	for _, word := range _keywords {
-		tr.keywords[word] = ""
+		tr.keywords[word] = true
 	}
 	for _, word := range _ignorewords {
-		tr.ignorewords[word] = ""
+		tr.ignorewords[word] = true
 	}
 	tr.unitSecs = unitSecs
 	tr.maxCountByBlock = blockSize
@@ -225,16 +223,16 @@ func (tr *trans) toTokens(line string, addCnt int,
 			continue
 		}
 
-		if _, ok := tr.ignorewords[w]; ok {
+		if tr.ignorewords[w] {
 			excludesMap[w] = true
 			w = "*"
 		}
-		_, keyOK := tr.keywords[w]
-		if _, ok := enStopWords[w]; ok {
-			if !keyOK {
-				w = "*"
-			}
-		}
+		keyOK := tr.keywords[w]
+		//if enStopWords[w] {
+		//	if keyOK {
+		//		w = "*"
+		//	}
+		//}
 
 		word := strings.ToLower(w)
 		lenw := len(word)
@@ -248,7 +246,11 @@ func (tr *trans) toTokens(line string, addCnt int,
 		//	tokens = append(tokens, cAsteriskItemID)
 		//	continue
 		//}
-		termId = tr.te.register(word)
+		if word == "*" {
+			termId = cAsteriskItemID
+		} else {
+			termId = tr.te.register(word)
+		}
 		if !uniqTokens[termId] {
 			if onlyCurrTerms {
 				tr.te.addCurrCount(termId, addCnt)
@@ -260,16 +262,14 @@ func (tr *trans) toTokens(line string, addCnt int,
 
 		if useTermBorder {
 			cnt := tr.te.counts[termId]
-			if tr.termCountBorder > cnt {
+			if !keyOK && tr.termCountBorder > cnt {
 				//termId = cAsteriskItemID
 				excludesMap[word] = true
+				termId = cAsteriskItemID
 			}
 			counts = append(counts, cnt)
 		}
 		tokens = append(tokens, termId)
-		if keyOK {
-			tr.keyTermIds[termId] = ""
-		}
 	}
 
 	if useTermBorder {
@@ -305,9 +305,10 @@ func (tr *trans) toTokens(line string, addCnt int,
 				continue
 			}
 			cnt := tr.te.counts[termId]
-			if cnt < border {
+			w := tr.te.id2term[termId]
+			if !tr.keywords[w] && cnt < border {
 				tokens[i] = cAsteriskItemID
-				excludesMap[tr.te.id2term[termId]] = true
+				excludesMap[w] = true
 			}
 		}
 
@@ -360,6 +361,10 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	if err != nil {
 		return -1, err
 	}
+	//if displayString == "Com1, * Com2 * grpa50 * <coM3> * * *" {
+	//	print("")
+	//}
+
 	groupId := tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos, -1)
 	tr.lgs.lastMessages[groupId] = orgLine
 
@@ -409,6 +414,10 @@ func (tr *trans) load() error {
 	}
 
 	if err := lgs.readDisplayStrings(); err != nil {
+		return err
+	}
+
+	if err := lgs.readLastMessages(); err != nil {
 		return err
 	}
 

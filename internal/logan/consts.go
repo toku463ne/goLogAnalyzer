@@ -15,6 +15,7 @@ const (
 	CDefaultTermCountBorder     = 0
 	CDefaultSeparators          = ` \t\r\n\"'\\,;[]<>{}=()|:&?/+.!@`
 
+	cStaticSeparators        = `\t`
 	cAsteriskItemID          = -1
 	cMaxNumDigits            = 3 // HTTP codes
 	cLogPerLines             = 1000000

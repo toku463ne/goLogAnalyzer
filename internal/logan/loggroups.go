@@ -299,7 +299,7 @@ func (lgs *logGroups) readLastMessages() error {
 		lineno++
 		line = strings.TrimSpace(line)
 		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
+		if len(parts) != 2 {
 			return fmt.Errorf("error at line %d: missing data", lineno)
 		}
 

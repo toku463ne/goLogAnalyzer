@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -511,4 +512,34 @@ func IntToStringSlice(ints []int) []string {
 		strs[i] = strconv.Itoa(it)
 	}
 	return strs
+}
+
+func CountGzFileLines(filePath string) (int, error) {
+	// Open the gz file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Create a gzip reader
+	gzReader, err := gzip.NewReader(file)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzReader.Close()
+
+	// Use bufio scanner to count lines from the decompressed file
+	scanner := bufio.NewScanner(gzReader)
+	lineCount := 0
+	for scanner.Scan() {
+		lineCount++
+	}
+
+	// Check for errors during scanning
+	if err := scanner.Err(); err != nil {
+		return 0, fmt.Errorf("error reading lines: %w", err)
+	}
+
+	return lineCount, nil
 }
