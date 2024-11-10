@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
@@ -44,7 +42,7 @@ var (
 	termCountBorderRate float64
 	termCountBorder     int
 	line                string
-	outputFile          string
+	outDir              string
 	_keywords           string
 	keywords            []string
 	_ignorewords        string
@@ -76,18 +74,17 @@ type config struct {
 	Ignorewords         []string `yaml:"ignorewords"`
 	CustomLogGroups     []string `yaml:"phrases"`
 	UseUtcTime          bool     `yaml:"useUtcTime"`
-	OutputFile          string   `yaml:"outputFile"`
+	outDir              string   `yaml:"outDir"`
 	Separators          string   `yaml:"separators"`
 }
 
-func SetCommonFlag(fs *flag.FlagSet) {
+func setCommonFlag(fs *flag.FlagSet) {
 	fs.BoolVar(&debug, "debug", false, "Enable debug mode")
 	fs.BoolVar(&silent, "silent", false, "Enable silent mode")
 
 	// Set up command line flags
 	fs.StringVar(&dataDir, "d", "", "Path to the data directory")
 	fs.StringVar(&configPath, "c", "", "Path to the configuration file")
-	fs.BoolVar(&readOnly, "r", false, "Read only mode. Do not update data directory.")
 	fs.StringVar(&logPath, "f", "", "Log file")
 	fs.Int64Var(&unitSecs, "u", 0, "time unit in seconds")
 	fs.Int64Var(&keepPeriod, "p", 0, "Number of unit secs to keep data")
@@ -103,21 +100,23 @@ func SetCommonFlag(fs *flag.FlagSet) {
 
 }
 
-func SetOutFlag(fs *flag.FlagSet) {
-	SetCommonFlag(fs)
-	//fs.StringVar(&line, "line", "", "Log line to analyze")
-	fs.StringVar(&outputFile, "o", "", "Output file")
-	fs.IntVar(&N, "N", 100, "Number of top items")
+func setNonFeedFlag(fs *flag.FlagSet) {
+	setCommonFlag(fs)
+	fs.BoolVar(&readOnly, "r", false, "Read only mode. Do not update data directory.")
 }
 
-func SetParseLineFlag(fs *flag.FlagSet) {
+func setOutFlag(fs *flag.FlagSet) {
+	setNonFeedFlag(fs)
+	fs.StringVar(&outDir, "o", "", "Output file")
+	fs.IntVar(&N, "N", 0, "Number of items to output")
+}
+
+func setParseLineFlag(fs *flag.FlagSet) {
 	fs.StringVar(&configPath, "c", "", "Path to the configuration file")
 	fs.StringVar(&line, "line", "", "Log line to analyze")
 }
 
 func init() {
-	_flagSet = flag.NewFlagSet("cmd", flag.ExitOnError)
-
 	// Set up logging format
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp:   true,
@@ -211,8 +210,8 @@ func loadConfig(path string) error {
 	if customLogGroups == nil {
 		customLogGroups = c.CustomLogGroups
 	}
-	if outputFile == "" {
-		outputFile = c.OutputFile
+	if outDir == "" {
+		outDir = c.outDir
 	}
 	if separators == "" {
 		separators = c.Separators
@@ -254,32 +253,55 @@ func clean() {
 	fmt.Printf("Directory '%s' removed successfully.\n", dataDir)
 }
 
+func checkCommonFlag() string {
+	if logPath == "" {
+		return "logPath is mandatory"
+	}
+	return ""
+}
+
+func checkTestFlag() string {
+	if line == "" {
+		return "line is mandatory"
+	}
+	if configPath == "" {
+		return "configPath is mandatory"
+	}
+	return ""
+}
+
 func run() error {
 	logrus.Debug("Starting")
 	var err error
 	var a *logan.Analyzer
 
-	if len(os.Args) < 3 {
+	if len(os.Args) < 2 {
 		println(usageStr)
 		return nil
 	}
 
 	cmd = os.Args[1]
 	if !loaded {
+		_flagSet = flag.NewFlagSet(fmt.Sprintf("logan %s", cmd), flag.ExitOnError)
+
 		switch cmd {
 		case "feed":
-			SetCommonFlag(_flagSet)
+			setCommonFlag(_flagSet)
 		case "history":
-			SetOutFlag(_flagSet)
+			setOutFlag(_flagSet)
 		case "groups":
-			SetOutFlag(_flagSet)
+			setOutFlag(_flagSet)
 		case "test":
-			SetParseLineFlag(_flagSet)
-			readOnly = true
+			setParseLineFlag(_flagSet)
 		default:
 			println(usageStr)
 			return nil
 		}
+		if len(os.Args) < 3 {
+			_flagSet.Usage()
+			return nil
+		}
+
 		loaded = true
 	}
 	_flagSet.Parse(os.Args[2:])
@@ -307,6 +329,20 @@ func run() error {
 	if _ignorewords != "" {
 		ignorewords = strings.Split(_ignorewords, ",")
 	}
+
+	msg := ""
+	switch cmd {
+	case "feed":
+		msg = checkCommonFlag()
+	case "test":
+		msg = checkTestFlag()
+		readOnly = true
+	}
+	if msg != "" {
+		fmt.Printf("%s for '%s' option\n", msg, cmd)
+		return nil
+	}
+
 	tblDir := fmt.Sprintf("%s/config.tbl.ini", dataDir)
 	if utils.PathExist(tblDir) {
 		logrus.Infof("Loading config from %s\n", tblDir)
@@ -336,13 +372,14 @@ func run() error {
 	case "feed":
 		err = a.Feed(0)
 	case "history":
-		err = a.OutputLogGroups(N, outputFile, true)
+		err = a.OutputLogGroups(N, outDir, true)
 	case "groups":
-		err = a.OutputLogGroups(N, outputFile, false)
+		err = a.OutputLogGroups(N, outDir, false)
 	case "test":
 		a.ParseLogLine(line)
 	default:
-		err = errors.New("must be one of feed|history|groups|clean")
+		println(usageStr)
+		return nil
 	}
 	if err != nil {
 		return err

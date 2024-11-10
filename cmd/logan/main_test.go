@@ -106,8 +106,7 @@ func Test_real(t *testing.T) {
 	//os.Args = []string{"logan", "clean", "-c", config, "-silent"}
 	//main()
 
-	os.Args = []string{"logan", "test", "-c", config,
-		"-line",
-		"2024-08-31 23:21:43|2024-08-31 23:21:49|INVITE sip:07031827038@PRO-ZIP.ziptelecom.tel;"}
+	os.Args = []string{"logan", "groups", "-c", config,
+		"-N", "3"}
 	main()
 }

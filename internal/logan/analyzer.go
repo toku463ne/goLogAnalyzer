@@ -602,6 +602,11 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string, isHistory bool) error {
 		groupIds = a.trans.getBiggestGroupIds(N)
 	}
 
+	if outdir == "" {
+		a._printLogGroups(groupIds)
+		return nil
+	}
+
 	if err := utils.EnsureDir(outdir); err != nil {
 		return err
 	}
@@ -653,6 +658,21 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	}
 	writer.Flush()
 	file.Close()
+
+	return nil
+}
+
+func (a *Analyzer) _printLogGroups(groupIds []int64) error {
+	lgs := a.trans.lgs.alllg
+	// Print header for log groups
+	fmt.Println("Log Groups")
+	fmt.Println("==========")
+	fmt.Printf("%-10s %-10s %-s\n", "Group ID", "Count", "Text")
+	for _, groupId := range groupIds {
+		lg := lgs[groupId]
+		fmt.Printf("%-10d %-10d %s\n", groupId, lg.count, lg.displayString)
+	}
+	fmt.Println()
 
 	return nil
 }
