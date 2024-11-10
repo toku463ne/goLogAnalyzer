@@ -7,14 +7,8 @@ import (
 )
 
 func runGroups(t *testing.T, testName, config string) [][]string {
-	testDir, err := utils.InitTestDir(testName)
+	testDir, err := initTestDir(t, testName)
 	if err != nil {
-		t.Errorf("%v", err)
-		return nil
-	}
-	dataDir := testDir + "/data"
-	os.Setenv("DATADIR", dataDir)
-	if err := os.Setenv("DATADIR", dataDir); err != nil {
 		t.Errorf("%v", err)
 		return nil
 	}

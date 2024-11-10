@@ -790,3 +790,22 @@ func (a *Analyzer) rebuildTrans() error {
 	a.trans = tr2
 	return nil
 }
+
+func (a *Analyzer) ParseLogLine(line string) {
+	if _, err := a.trans.lineToLogGroup(line, 1, 0); err != nil {
+		logrus.Errorf("%+v", err)
+	}
+
+	line, updated, _ := a.trans.parseLine(line, 0)
+	format := utils.GetDatetimeFormatFromUnitSecs(a.unitSecs)
+	dt := ""
+	if updated > 0 {
+		dt = time.Unix(updated, 0).Format(format)
+	} else {
+		dt = "PARSE ERROR"
+	}
+	println("the line parsed as:")
+	println("timestamp: ", dt)
+	println("message: ", line)
+
+}

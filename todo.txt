@@ -1,3 +1,5 @@
+verify logformat
+verify timestamp format
 custom logGroups
 no logformat
 no dateformat
@@ -8,7 +10,7 @@ history: when output is ""
 
 slice bounds out of range when runing without args
 
-test 
+test options 
 test ignore, key words
 test topN frequency
 test without data path

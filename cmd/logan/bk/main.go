@@ -19,10 +19,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	usageStr = "usage: logan feed|history|groups|clean"
-)
-
 var (
 	configPath          string
 	debug               bool
@@ -54,8 +50,6 @@ var (
 	cmd                 string
 	useUtcTime          bool
 	separators          string
-	_flagSet            *flag.FlagSet
-	loaded              bool
 )
 
 type config struct {
@@ -80,43 +74,35 @@ type config struct {
 	Separators          string   `yaml:"separators"`
 }
 
-func SetCommonFlag(fs *flag.FlagSet) {
-	fs.BoolVar(&debug, "debug", false, "Enable debug mode")
-	fs.BoolVar(&silent, "silent", false, "Enable silent mode")
+func init() {
+	flag.StringVar(&dataDir, "d", "", "Path to the data directory")
+
+	flag.StringVar(&outputFile, "o", "", "Output file")
 
 	// Set up command line flags
-	fs.StringVar(&dataDir, "d", "", "Path to the data directory")
-	fs.StringVar(&configPath, "c", "", "Path to the configuration file")
-	fs.BoolVar(&readOnly, "r", false, "Read only mode. Do not update data directory.")
-	fs.StringVar(&logPath, "f", "", "Log file")
-	fs.Int64Var(&unitSecs, "u", 0, "time unit in seconds")
-	fs.Int64Var(&keepPeriod, "p", 0, "Number of unit secs to keep data")
-	fs.StringVar(&searchString, "s", "", "Search string")
-	fs.StringVar(&excludeString, "x", "", "Exclude string")
-	fs.Float64Var(&minMatchRate, "m", 0, "It is considered 2 log lines 'match', if more than matchRate number of terms in a log line matches.")
-	fs.Float64Var(&termCountBorderRate, "R", 0, "Words with less appearance will be replaced by '*'. The border is calculated by this rate.")
-	fs.IntVar(&termCountBorder, "b", 0, "Words with less appearance than this number will be replaced by '*'. If 0, it will be calculated by termCountBorderRate")
-	//fs.StringVar(&line, "line", "", "Log line to analyze")
-	fs.StringVar(&_keywords, "keys", "", "List of terms to include in all phrases. Comma separated")
-	fs.StringVar(&_ignorewords, "ignores", "", "List of terms to ignore in all phrases. Comma separated")
-	fs.StringVar(&separators, "sep", "", "separators of words")
+	flag.StringVar(&configPath, "c", "", "Path to the configuration file")
+	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
+	flag.BoolVar(&silent, "silent", false, "Enable silent mode")
+	flag.BoolVar(&readOnly, "r", false, "Read only mode. Do not update data directory.")
+	flag.StringVar(&logPath, "f", "", "Log file")
 
-}
+	flag.Int64Var(&unitSecs, "u", 0, "time unit in seconds")
+	flag.Int64Var(&keepPeriod, "p", 0, "Number of unit secs to keep data")
+	flag.StringVar(&searchString, "s", "", "Search string")
+	flag.StringVar(&excludeString, "x", "", "Exclude string")
+	flag.Float64Var(&minMatchRate, "m", 0, "It is considered 2 log lines 'match', if more than matchRate number of terms in a log line matches.")
+	flag.Float64Var(&termCountBorderRate, "R", 0, "Words with less appearance will be replaced by '*'. The border is calculated by this rate.")
+	flag.IntVar(&termCountBorder, "b", 0, "Words with less appearance than this number will be replaced by '*'. If 0, it will be calculated by termCountBorderRate")
+	flag.StringVar(&line, "line", "", "Log line to analyze")
 
-func SetOutFlag(fs *flag.FlagSet) {
-	SetCommonFlag(fs)
-	//fs.StringVar(&line, "line", "", "Log line to analyze")
-	fs.StringVar(&outputFile, "o", "", "Output file")
-	fs.IntVar(&N, "N", 100, "Number of top items")
-}
+	flag.StringVar(&_keywords, "keys", "", "List of terms to include in all phrases. Comma separated")
+	flag.StringVar(&_ignorewords, "ignores", "", "List of terms to ignore in all phrases. Comma separated")
+	flag.StringVar(&separators, "sep", "", "separators of words")
 
-func SetParseLineFlag(fs *flag.FlagSet) {
-	fs.StringVar(&configPath, "c", "", "Path to the configuration file")
-	fs.StringVar(&line, "line", "", "Log line to analyze")
-}
+	flag.IntVar(&N, "N", 100, "Number of top items")
 
-func init() {
-	_flagSet = flag.NewFlagSet("cmd", flag.ExitOnError)
+	// Parse command line flags
+	//flag.Parse()
 
 	// Set up logging format
 	logrus.SetFormatter(&logrus.TextFormatter{
@@ -133,7 +119,6 @@ func init() {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
 
-	loaded = false
 }
 
 func loadConfig(path string) error {
@@ -259,30 +244,13 @@ func run() error {
 	var err error
 	var a *logan.Analyzer
 
-	if len(os.Args) < 3 {
-		println(usageStr)
-		return nil
+	flag.Parse()
+	if flag.NArg() < 2 {
+		return errors.New("usage: logan feed|history|groups|clean")
 	}
 
-	cmd = os.Args[1]
-	if !loaded {
-		switch cmd {
-		case "feed":
-			SetCommonFlag(_flagSet)
-		case "history":
-			SetOutFlag(_flagSet)
-		case "groups":
-			SetOutFlag(_flagSet)
-		case "test":
-			SetParseLineFlag(_flagSet)
-			readOnly = true
-		default:
-			println(usageStr)
-			return nil
-		}
-		loaded = true
-	}
-	_flagSet.Parse(os.Args[2:])
+	args := flag.Args()
+	cmd = args[0]
 
 	// Load configuration
 	if configPath != "" {
@@ -339,8 +307,6 @@ func run() error {
 		err = a.OutputLogGroups(N, outputFile, true)
 	case "groups":
 		err = a.OutputLogGroups(N, outputFile, false)
-	case "test":
-		a.ParseLogLine(line)
 	default:
 		err = errors.New("must be one of feed|history|groups|clean")
 	}

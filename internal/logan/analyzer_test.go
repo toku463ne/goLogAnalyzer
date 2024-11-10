@@ -1,6 +1,7 @@
 package logan
 
 import (
+	"errors"
 	"fmt"
 	"goLogAnalyzer/pkg/utils"
 	"testing"
@@ -548,5 +549,46 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
+
+}
+
+func _test_Trans_parse(line, logFormat, layout string,
+	useUtcTime bool, unitSecs int64,
+	expect_line string) error {
+	a, err := NewAnalyzer("", "", logFormat, layout, useUtcTime, nil, nil,
+		0, 0, 0,
+		unitSecs, 0, 0, 0, nil, nil, nil, "", false)
+	if err != nil {
+		return err
+	}
+
+	line, updated, _ := a.trans.parseLine(line, 0)
+
+	if err := utils.GetGotExpErr("line", line, expect_line); err != nil {
+		return err
+	}
+	if updated == 0 {
+		return errors.New("timestamp was not parsed correctly")
+	}
+
+	return nil
+}
+
+func Test_Trans_parse(t *testing.T) {
+	line := "10th, 02:14:49.143+0900 TBLV1 DAO : CTBCAFLogDao::Sync reseting GzipPendingEvent"
+	expect_line := "TBLV1 DAO : CTBCAFLogDao::Sync reseting GzipPendingEvent"
+	logFormat := `^(?P<timestamp>\d+\w+, \d{2}:\d{2}:\d{2}\.\d+\+\d{4}) (?P<message>.+)$`
+	layout := "02th, 15:04:05.000-0700"
+	useUtcTime := false
+	unitSecs := int64(3600)
+	_test_Trans_parse(line, logFormat, layout, useUtcTime, unitSecs,
+		expect_line)
+
+	logFormat = `^(?P<timestamp>\d+\-\d+\-\d+ \d+:\d+:\d+)\|(?P<timestamp2>\d+\-\d+\-\d+ \d+:\d+:\d+)\|(?P<message>.*)$`
+	layout = "2006-01-02 15:04:05"
+	line = "2024-08-31 23:21:43|2024-08-31 23:21:49|INVITE sip:0678786395@PRO-FE.ziptelecom.tel;user=phone;"
+	expect_line = "INVITE sip:0678786395@PRO-FE.ziptelecom.tel;user=phone;"
+	_test_Trans_parse(line, logFormat, layout, useUtcTime, unitSecs,
+		expect_line)
 
 }

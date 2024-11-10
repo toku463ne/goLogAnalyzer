@@ -1,0 +1,8 @@
+---
+dataDir: "{{ DATADIR }}"
+logPath: "../../testdata/loganal/sample50_1.log"
+logFormat: '^(?P<timestamp>\d+\w+, d+:\d+:\d+.\d+)+\d+ (?P<message>.+)$'
+timestampLayout: "02nd, 15:04:05.000"
+unitSecs: 86400
+useUtcTime: true
+
