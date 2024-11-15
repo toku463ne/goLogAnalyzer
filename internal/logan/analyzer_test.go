@@ -41,7 +41,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -228,7 +228,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	// close
 	a.Close()
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -436,7 +436,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -466,7 +466,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	a.Close()
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -525,7 +525,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	a.Close()
 
 	// rebuild trans
-	a, err = LoadAnalyzer(dataDir, "", 0, 20, 0.5, nil, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 20, 0.5, nil, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -557,7 +557,7 @@ func _test_Trans_parse(line, logFormat, layout string,
 	expect_line string) error {
 	a, err := NewAnalyzer("", "", logFormat, layout, useUtcTime, nil, nil,
 		0, 0, 0,
-		unitSecs, 0, 0, 0, nil, nil, nil, "", false)
+		unitSecs, 0, 0, 0, nil, nil, nil, "", false, false)
 	if err != nil {
 		return err
 	}

@@ -57,7 +57,8 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	minMatchRate float64,
 	keywords, ignorewords, customLogGroups []string,
 	separators string,
-	readOnly bool) (*Analyzer, error) {
+	readOnly, _debug bool) (*Analyzer, error) {
+	debug = _debug
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
 	a.dataDir = dataDir
@@ -124,9 +125,10 @@ func LoadAnalyzer(dataDir, logPath string,
 	termCountBorder int,
 	minMatchRate float64,
 	customLogGroups []string,
-	readOnly bool) (*Analyzer, error) {
+	readOnly, _debug bool) (*Analyzer, error) {
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
+	debug = _debug
 
 	if dataDir == "" {
 		return nil, utils.ErrorStack("no data to load")
@@ -510,6 +512,7 @@ func (a *Analyzer) _initFilePointer() error {
 }
 
 func (a *Analyzer) _registerTerms(targetLinesCnt int) (int, error) {
+	logrus.Infof("starting terms registering")
 	linesProcessed := 0
 
 	if err := a._initFilePointer(); err != nil {
@@ -543,6 +546,7 @@ func (a *Analyzer) _registerTerms(targetLinesCnt int) (int, error) {
 }
 
 func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
+	logrus.Infof("starting logGroups registering")
 	linesProcessed := 0
 	a.trans.setCountBorder()
 

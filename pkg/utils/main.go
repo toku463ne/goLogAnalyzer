@@ -49,21 +49,36 @@ func Str2Timestamp(dateFormat, dateStr string) (time.Time, error) {
 func Str2date(dateFormat, dateStr string) (time.Time, error) {
 	parsedDate, err := time.Parse(dateFormat, dateStr)
 	if err != nil {
-		return parsedDate, err
+		return time.Time{}, err
 	}
 
-	currentTime := time.Now()
-	currentYear := currentTime.Year()
-	parsedMonth := parsedDate.Month()
+	now := time.Now()
 
-	// Check if the current month is earlier than the parsed month
-	if currentTime.Month() < parsedMonth {
-		currentYear--
+	// Use parsed date components, but fill in missing parts with defaults
+	year := parsedDate.Year()
+	month := parsedDate.Month()
+	day := parsedDate.Day()
+
+	if month == 0 || (year == 0 && !strings.Contains(dateFormat, "01")) {
+		month = now.Month()
 	}
 
-	finalDate := time.Date(currentYear, parsedMonth, parsedDate.Day(),
-		parsedDate.Hour(), parsedDate.Minute(), parsedDate.Second(), 0, time.Local)
+	if day == 0 || (year == 0 && !strings.Contains(dateFormat, "02")) {
+		day = now.Day()
+	}
 
+	if year == 0 {
+		year = now.Year()
+	}
+
+	// Adjust year if the parsed month is in the future compared to the current month
+	if month > now.Month() && year == now.Year() {
+		year--
+	}
+
+	hour, minute, second := parsedDate.Hour(), parsedDate.Minute(), parsedDate.Second()
+
+	finalDate := time.Date(year, month, day, hour, minute, second, 0, time.Local)
 	return finalDate, nil
 }
 

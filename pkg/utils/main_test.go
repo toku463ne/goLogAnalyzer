@@ -1,6 +1,9 @@
 package utils
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func Test_Replace(t *testing.T) {
 	s := "aaaa 1725173655 1725173655 bbbb"
@@ -26,5 +29,73 @@ func Test_Replace(t *testing.T) {
 	if err := GetGotExpErr("replace3", s, "aaaa test@* test=*;bbbb"); err != nil {
 		t.Errorf("%v", err)
 		return
+	}
+}
+
+func Test_Str2date(t *testing.T) {
+	tests := []struct {
+		title      string
+		format     string
+		input      string
+		expected   time.Time
+		shouldFail bool
+	}{
+		{
+			title:    "Time only",
+			format:   "15:04:05",
+			input:    "12:30:45",
+			expected: time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 12, 30, 45, 0, time.Local),
+		},
+		{
+			title:    "Month-Day",
+			format:   "01-02",
+			input:    "12-25",
+			expected: time.Date(time.Now().Year()-1, 12, 25, 0, 0, 0, 0, time.Local),
+		},
+		{
+			title:    "Month-Day Time",
+			format:   "01-02 15:04:05",
+			input:    "12-25 08:15:30",
+			expected: time.Date(time.Now().Year()-1, 12, 25, 8, 15, 30, 0, time.Local),
+		},
+		{
+			title:    "Day only",
+			format:   "02",
+			input:    "15",
+			expected: time.Date(time.Now().Year(), time.Now().Month(), 15, 0, 0, 0, 0, time.Local),
+		},
+		{
+			title:    "Day and Time",
+			format:   "02 15:04:05",
+			input:    "15 14:20:10",
+			expected: time.Date(time.Now().Year(), time.Now().Month(), 15, 14, 20, 10, 0, time.Local),
+		},
+		{
+			title:      "Invalid format",
+			format:     "2006-01-02",
+			input:      "invalid-date",
+			shouldFail: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.title, func(t *testing.T) {
+			got, err := Str2date(test.format, test.input)
+
+			if test.shouldFail {
+				if err == nil {
+					t.Errorf("Expected an error for %s but got none", test.title)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error for %s: %v", test.title, err)
+					return
+				}
+
+				if err := GetGotExpErr(test.title, got, test.expected); err != nil {
+					t.Error(err)
+				}
+			}
+		})
 	}
 }

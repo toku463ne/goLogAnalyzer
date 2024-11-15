@@ -102,11 +102,10 @@ func Test_main_config(t *testing.T) {
 }
 
 func Test_real(t *testing.T) {
-	config := "/home/administrator/tests/sugcap2/sugcap.yml"
+	config := "/home/administrator/tests/sbc/g.yml"
 	//os.Args = []string{"logan", "clean", "-c", config, "-silent"}
 	//main()
 
-	os.Args = []string{"logan", "groups", "-c", config,
-		"-N", "3"}
+	os.Args = []string{"logan", "history", "-c", config, "-o", "/tmp/out"}
 	main()
 }

@@ -37,6 +37,7 @@ type trans struct {
 	maxCountByBlock     int
 	currRetentionPos    int64
 	separators          string
+	timestampRe         *regexp.Regexp
 }
 
 func newTrans(dataDir, logFormat, timestampLayout string,
@@ -68,8 +69,8 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	}
 	tr.lgs = lgs
 	tr.replacer = getDelimReplacer(separators)
-	tr._parseLogFormat(logFormat)
 	tr.timestampLayout = timestampLayout
+	tr._parseLogFormat(logFormat)
 	tr.termCountBorder = termCountBorder
 	tr.termCountBorderRate = termCountBorderRate
 	tr.minMatchRate = minMatchRate
@@ -99,7 +100,18 @@ func (tr *trans) initCounters() {
 }
 
 func (tr *trans) _parseLogFormat(logFormat string) {
-	re := regexp.MustCompile(logFormat)
+	suffixPattern := regexp.MustCompile(`\b(\d{1,2})(st|nd|rd|th)\b`)
+
+	// If suffixes are found, replace them
+	if suffixPattern.MatchString(tr.timestampLayout) {
+		tr.timestampLayout = suffixPattern.ReplaceAllString(tr.timestampLayout, `$1`)
+		tr.timestampRe = regexp.MustCompile(`(\d{1,2})(st|nd|rd|th)`)
+		needDateFormatCleaning = true
+	}
+
+	//re := regexp.MustCompile(logFormat)
+	re := regexp.MustCompile(`` + logFormat) // Use (?i) for case-insensitive matching if needed
+
 	names := re.SubexpNames()
 	tr.timestampPos = -1
 	tr.messagePos = -1
@@ -180,7 +192,12 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64) {
 					lastdt, err = utils.Str2Timestamp(tr.timestampLayout, ma[tr.timestampPos])
 				} else {
 					// system time zone
-					lastdt, err = utils.Str2date(tr.timestampLayout, ma[tr.timestampPos])
+					dtstr := ma[tr.timestampPos]
+					if needDateFormatCleaning {
+						dtstr = tr.timestampRe.ReplaceAllString(dtstr, "$1")
+					}
+
+					lastdt, err = utils.Str2date(tr.timestampLayout, dtstr)
 				}
 				if err == nil {
 					lastUpdate = lastdt.Unix()
@@ -366,6 +383,10 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	//}
 
 	groupId := tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos, -1)
+	cnt := len(tr.lgs.alllg)
+	if cnt > cMaxLogGroups {
+		return -1, fmt.Errorf("logTree size went over %d", cMaxLogGroups)
+	}
 	tr.lgs.lastMessages[groupId] = orgLine
 
 	tr.currRetentionPos = retentionPos
@@ -671,7 +692,7 @@ func (tr *trans) loadLogGroupHistory() error {
 		if retentionPos > lgs.maxRetentionPos {
 			lgs.maxRetentionPos = retentionPos
 		}
-		if lgs.minRetentionPos == 0 || retentionPos < lgs.minRetentionPos {
+		if lgs.minRetentionPos == 0 || (retentionPos < lgs.minRetentionPos && retentionPos > 0) {
 			lgs.minRetentionPos = retentionPos
 		}
 

@@ -138,30 +138,59 @@ func init() {
 func loadConfig(path string) error {
 	logrus.WithField("path", path).Info("Loading configuration")
 
-	replaceEnvVars := func(content string) string {
-		// Regex to find placeholders of the form {{ VAR }}
-		re := regexp.MustCompile(`\{\{\s*(\w+)\s*\}\}`)
-		return re.ReplaceAllStringFunc(content, func(placeholder string) string {
-			// Extract the variable name from the placeholder
-			varName := re.FindStringSubmatch(placeholder)[1]
-			// Return the environment variable value or the original placeholder if not found
-			return os.Getenv(varName)
-		})
-	}
-
 	// Read the YAML file
 	yamlFile, err := ioutil.ReadFile(path)
 	if err != nil {
 		logrus.Fatalf("Error reading YAML file: %v", err)
 	}
-	// Replace all placeholders with environment variable values
-	yamlContent := replaceEnvVars(string(yamlFile))
 
-	var c config
-	err = yaml.Unmarshal([]byte(yamlContent), &c)
-	if err != nil {
+	// Load YAML content into a temporary map to process environment replacements
+	var tempConfig map[string]interface{}
+	if err := yaml.Unmarshal(yamlFile, &tempConfig); err != nil {
 		logrus.Fatalf("Error unmarshalling YAML: %v", err)
 	}
+
+	// Recursively replace environment variables in the map
+	replaceEnvVarsInMap(tempConfig)
+
+	// Marshal modified map back to YAML to load it into the actual config struct
+	modifiedYaml, err := yaml.Marshal(tempConfig)
+	if err != nil {
+		logrus.Fatalf("Error re-marshalling YAML: %v", err)
+	}
+
+	// Now unmarshal into the actual config struct
+	var c config
+	if err := yaml.Unmarshal(modifiedYaml, &c); err != nil {
+		logrus.Fatalf("Error unmarshalling modified YAML: %v", err)
+	}
+
+	// Set defaults
+	applyDefaults(&c)
+
+	return nil
+}
+
+// replaceEnvVarsInMap replaces {{ VAR }} placeholders with environment variables recursively in maps
+func replaceEnvVarsInMap(data map[string]interface{}) {
+	re := regexp.MustCompile(`\{\{\s*(\w+)\s*\}\}`)
+	for key, value := range data {
+		switch v := value.(type) {
+		case string:
+			// Replace environment variables in string values
+			data[key] = re.ReplaceAllStringFunc(v, func(placeholder string) string {
+				varName := re.FindStringSubmatch(placeholder)[1]
+				return os.Getenv(varName)
+			})
+		case map[string]interface{}:
+			// Recursively replace in nested maps
+			replaceEnvVarsInMap(v)
+		}
+	}
+}
+
+// applyDefaults applies default values for config fields if they are unset
+func applyDefaults(c *config) {
 	if dataDir == "" {
 		dataDir = c.DataDir
 	}
@@ -216,8 +245,6 @@ func loadConfig(path string) error {
 	if separators == "" {
 		separators = c.Separators
 	}
-
-	return nil
 }
 
 func clean() {
@@ -285,6 +312,8 @@ func run() error {
 		_flagSet = flag.NewFlagSet(fmt.Sprintf("logan %s", cmd), flag.ExitOnError)
 
 		switch cmd {
+		case "clean":
+			setCommonFlag(_flagSet)
 		case "feed":
 			setCommonFlag(_flagSet)
 		case "history":
@@ -351,7 +380,7 @@ func run() error {
 			termCountBorder,
 			minMatchRate,
 			customLogGroups,
-			readOnly)
+			readOnly, debug)
 	} else {
 		a, err = logan.NewAnalyzer(dataDir, logPath, logFormat, timestampLayout, useUtcTime,
 			searchRegex, excludeRegex,
@@ -362,7 +391,7 @@ func run() error {
 			minMatchRate,
 			keywords, ignorewords, customLogGroups,
 			separators,
-			readOnly)
+			readOnly, debug)
 	}
 	if err != nil {
 		return err

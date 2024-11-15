@@ -21,4 +21,5 @@ const (
 	cLogPerLines             = 1000000
 	cStageRegisterTerms      = 1
 	cStageRegisterLogStrings = 2
+	cMaxLogGroups            = 1000000
 )

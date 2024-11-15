@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 type logGroup struct {
@@ -126,6 +128,13 @@ func (lgs *logGroups) registerLogTree(tokens []int,
 			addCnt, displayString, created, updated)
 	}
 	lgs.totalCount += addCnt
+
+	if debug {
+		cnt := len(lgs.alllg)
+		if cnt > 0 && cnt%cLogPerLines == 0 {
+			logrus.Debugf("current logGroups: %d", cnt)
+		}
+	}
 
 	return lt.groupId
 }
@@ -255,7 +264,8 @@ func (lgs *logGroups) readDisplayStrings() error {
 		line = strings.TrimSpace(line)
 		parts := strings.SplitN(line, " ", 2)
 		if len(parts) < 2 {
-			return fmt.Errorf("error at line %d: missing data", lineno)
+			//return fmt.Errorf("error at line %d: missing data", lineno)
+			continue
 		}
 
 		groupId, err := strconv.ParseInt(parts[0], 10, 64)
@@ -300,7 +310,8 @@ func (lgs *logGroups) readLastMessages() error {
 		line = strings.TrimSpace(line)
 		parts := strings.SplitN(line, " ", 2)
 		if len(parts) != 2 {
-			return fmt.Errorf("error at line %d: missing data", lineno)
+			//return fmt.Errorf("error at line %d: missing data", lineno)
+			continue
 		}
 
 		groupId, err := strconv.ParseInt(parts[0], 10, 64)
