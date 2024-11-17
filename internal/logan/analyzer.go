@@ -303,7 +303,7 @@ func (a *Analyzer) prepareDB() error {
 }
 
 func (a *Analyzer) init() error {
-	if a.dataDir != "" && !a.readOnly {
+	if a.dataDir != "" && !a.readOnly && a.testMode {
 		if err := utils.EnsureDir(a.dataDir); err != nil {
 			return err
 		}
@@ -323,7 +323,7 @@ func (a *Analyzer) init() error {
 }
 
 func (a *Analyzer) saveLastStatus() error {
-	if a.dataDir == "" || a.readOnly {
+	if a.dataDir == "" || a.readOnly || a.testMode {
 		return nil
 	}
 
@@ -349,6 +349,9 @@ func (a *Analyzer) saveLastStatus() error {
 }
 
 func (a *Analyzer) loadStatus() error {
+	if a.testMode {
+		return nil
+	}
 	if a.dataDir != "" && !a.readOnly {
 		if err := a.prepareDB(); err != nil {
 			return err

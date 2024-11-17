@@ -13,7 +13,7 @@ const (
 	CDefaultMinMatchRate        = 0.7
 	CDefaultTermCountBorderRate = 0.999
 	CDefaultTermCountBorder     = 0
-	CDefaultSeparators          = ` \t\r\n\"'\\,;[]<>{}=()|:&?/+.!@`
+	CDefaultSeparators          = ` \t\r\n\"'\\,;[]<>{}=()|:&?/+!@`
 
 	cStaticSeparators        = `\t`
 	cAsteriskItemID          = -1

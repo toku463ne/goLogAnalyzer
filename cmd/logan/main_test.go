@@ -102,19 +102,80 @@ func Test_main_config(t *testing.T) {
 }
 
 func Test_testmode(t *testing.T) {
-	dataDir := os.Getenv("HOME") + "/logantests/Test_main_config/data"
-	utils.RemoveDirectory(dataDir)
+	baseDir, err := utils.InitTestDir("Test_testmode")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	errFile := baseDir + "/errors.log"
+	dataDir := baseDir + "/data"
 
-	config := "../../testdata/loganal/sample.yml.j2"
+	config := "../../testdata/loganal/sample_test.yml.j2"
 	os.Args = []string{"logan", "test", "-c", config,
-		"-line", "2024-10-02T06:00:00] Com1, grpd10 Com2 (uniq)0031 grpa50 (uniq)0131 <coM3> (uniq)0231 grpb20 (uniq)0331"}
+		"-line", "2024-10-02T06:00:00] Com1, grpd10 Com2 (uniq)0031 grpa50 (uniq)0131 <coM3> (uniq)0231 grpb20 (uniq)0331",
+		"-anallog", errFile, "-silent"}
 	main()
+	errNo, err := utils.CountFileLines(errFile)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("errors", errNo, 0); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 
 	if err := utils.GetGotExpErr("dataDir existance", utils.PathExist(dataDir), false); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
+	os.Args = []string{"logan", "feed", "-c", config}
+	main()
+
+	if err := utils.GetGotExpErr("dataDir existance", utils.PathExist(dataDir), true); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	os.Args = []string{"logan", "test", "-c", config,
+		"-line", "2024-10-02T06:00:00] Com1, grpd10 Com2 (uniq)0031 grpa50 (uniq)0131 <coM3> (uniq)0231 grpb20 (uniq)0331",
+		"-anallog", errFile, "-silent"}
+	main()
+
+	errNo, err = utils.CountFileLines(errFile)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("errors", errNo, 0); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+}
+
+func Test_netscreen(t *testing.T) {
+	dataDir := os.Getenv("HOME") + "/logantests/Test_netscreen/data"
+	utils.RemoveDirectory(dataDir)
+
+	config := "../../testdata/loganal/netscreen.yml.j2"
+
+	os.Args = []string{"logan", "groups", "-c", config, "-o", dataDir}
+	main()
+
+	_, records, err := utils.ReadCsv(dataDir+"/logGroups.csv", ',', false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("records[0][1]", records[0][1], "4"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 }
 
 func Test_real(t *testing.T) {

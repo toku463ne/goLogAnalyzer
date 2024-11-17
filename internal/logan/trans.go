@@ -424,7 +424,7 @@ func (tr *trans) close() {
 
 func (tr *trans) load() error {
 	lgs := tr.lgs
-	if lgs.DataDir == "" {
+	if lgs.CircuitDB == nil || lgs.DataDir == "" {
 		return nil
 	}
 

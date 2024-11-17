@@ -529,6 +529,27 @@ func IntToStringSlice(ints []int) []string {
 	return strs
 }
 
+func CountFileLines(filePath string) (int, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	lineCount := 0
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		lineCount++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+
+	return lineCount, nil
+}
+
 func CountGzFileLines(filePath string) (int, error) {
 	// Open the gz file
 	file, err := os.Open(filePath)

@@ -55,6 +55,7 @@ var (
 	_flagSet            *flag.FlagSet
 	loaded              bool
 	ascOrder            bool
+	analLogPath         string
 )
 
 type config struct {
@@ -99,6 +100,7 @@ func setCommonFlag(fs *flag.FlagSet) {
 	fs.StringVar(&_ignorewords, "ignores", "", "List of terms to ignore in all phrases. Comma separated")
 	fs.StringVar(&separators, "sep", "", "separators of words")
 	fs.BoolVar(&ascOrder, "asc", false, "list up logGroups in ascending order or not")
+	fs.StringVar(&analLogPath, "anallog", "", "File to output logs of this application")
 
 }
 
@@ -114,26 +116,15 @@ func setOutFlag(fs *flag.FlagSet) {
 }
 
 func setParseLineFlag(fs *flag.FlagSet) {
+	fs.BoolVar(&debug, "debug", false, "Enable debug mode")
+	fs.BoolVar(&silent, "silent", false, "Enable silent mode")
 	fs.StringVar(&configPath, "c", "", "Path to the configuration file")
 	fs.StringVar(&line, "line", "", "Log line to analyze")
+	fs.StringVar(&analLogPath, "anallog", "", "File to output logs of this application")
+
 }
 
 func init() {
-	// Set up logging format
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: time.RFC3339,
-	})
-
-	// Set log level
-	if debug {
-		logrus.SetLevel(logrus.DebugLevel)
-	} else if silent {
-		logrus.SetLevel(logrus.ErrorLevel)
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
-	}
-
 	loaded = false
 }
 
@@ -304,39 +295,6 @@ func run() error {
 	var err error
 	var a *logan.Analyzer
 
-	if len(os.Args) < 2 {
-		println(usageStr)
-		return nil
-	}
-
-	cmd = os.Args[1]
-	if !loaded {
-		_flagSet = flag.NewFlagSet(fmt.Sprintf("logan %s", cmd), flag.ExitOnError)
-
-		switch cmd {
-		case "clean":
-			setCommonFlag(_flagSet)
-		case "feed":
-			setCommonFlag(_flagSet)
-		case "history":
-			setOutFlag(_flagSet)
-		case "groups":
-			setOutFlag(_flagSet)
-		case "test":
-			setParseLineFlag(_flagSet)
-		default:
-			println(usageStr)
-			return nil
-		}
-		if len(os.Args) < 3 {
-			_flagSet.Usage()
-			return nil
-		}
-
-		loaded = true
-	}
-	_flagSet.Parse(os.Args[2:])
-
 	// Load configuration
 	if configPath != "" {
 		if err := loadConfig(configPath); err != nil {
@@ -421,14 +379,81 @@ func run() error {
 }
 
 func main() {
+
+	if len(os.Args) < 2 {
+		println(usageStr)
+		return
+	}
+
+	cmd = os.Args[1]
+	if !loaded {
+		_flagSet = flag.NewFlagSet(fmt.Sprintf("logan %s", cmd), flag.ExitOnError)
+
+		switch cmd {
+		case "clean":
+			setCommonFlag(_flagSet)
+		case "feed":
+			setCommonFlag(_flagSet)
+		case "history":
+			setOutFlag(_flagSet)
+		case "groups":
+			setOutFlag(_flagSet)
+		case "test":
+			setParseLineFlag(_flagSet)
+		default:
+			println(usageStr)
+			return
+		}
+		if len(os.Args) < 3 {
+			_flagSet.Usage()
+			return
+		}
+
+		loaded = true
+	}
+	_flagSet.Parse(os.Args[2:])
+
+	// log setting
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp:   true,
+		TimestampFormat: time.RFC3339,
+	})
+
+	// Set log level
+	if debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	} else if silent {
+		logrus.SetLevel(logrus.ErrorLevel)
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
+	}
+
+	if analLogPath != "" {
+		logFile, err := os.OpenFile(analLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Printf("Failed to open log file: %v\n", err)
+			return
+		}
+		defer logFile.Close()
+		logrus.SetOutput(logFile)
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			buf := make([]byte, 1024)
 			n := runtime.Stack(buf, false)
-			logrus.WithFields(logrus.Fields{
-				"panic": r,
-				"stack": string(buf[:n]),
-			}).Error("A panic occurred")
+			stackLines := strings.Split(string(buf[:n]), "\n")
+			logrus.WithField("panic", r).Error("A panic occurred")
+			logrus.SetFormatter(&logrus.TextFormatter{
+				DisableTimestamp: true,
+				DisableColors:    true,
+				DisableQuote:     true,
+			})
+			for _, line := range stackLines {
+				logrus.Errorln(line)
+				fmt.Println(line)
+			}
+
 		}
 	}()
 
@@ -437,4 +462,5 @@ func main() {
 	} else {
 		logrus.Debug("Finished successfully")
 	}
+
 }
