@@ -5,7 +5,7 @@ var (
 		"config": {"logPath", "blockSize", "maxBlocks",
 			"keepPeriod", "unitSecs",
 			"termCountBorderRate", "termCountBorder", "minMatchRate",
-			"timestampLayout", "useUtcTime", "separators", "logFormat"},
+			"timestampLayout", "useUtcTime", "ignoreNumbers", "separators", "logFormat"},
 		"lastStatus":       {"lastRowId", "lastFileEpoch", "lastFileRow"},
 		"logGroups":        {"groupId", "retentionPos", "count", "created", "updated"},
 		"logGroupsDetails": {"groupId", "line"},

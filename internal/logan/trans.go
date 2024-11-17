@@ -41,6 +41,7 @@ type trans struct {
 	separators          string
 	timestampRe         *regexp.Regexp
 	testMode            bool
+	ignoreNumbers       bool
 }
 
 func newTrans(dataDir, logFormat, timestampLayout string,
@@ -54,7 +55,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	_keywords []string, _ignorewords []string,
 	_customLogGroups []string,
 	separators string,
-	useGzip, readOnly, testMode bool) (*trans, error) {
+	useGzip, readOnly, testMode, ignoreNumbers bool) (*trans, error) {
 	tr := new(trans)
 	tr.replacer = getDelimReplacer(separators)
 	tr.timestampLayout = timestampLayout
@@ -66,6 +67,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	tr.separators = separators
 	tr.readOnly = readOnly
 	tr.testMode = testMode
+	tr.ignoreNumbers = ignoreNumbers
 	tr._setFilters(searchRegex, exludeRegex)
 
 	tr.keywords = make(map[string]bool)
@@ -266,7 +268,9 @@ func (tr *trans) toTokens(line string, addCnt int,
 		//	tokens = append(tokens, cAsteriskItemID)
 		//	continue
 		//}
-		if word == "*" {
+		if tr.ignoreNumbers && utils.IsInt(word) {
+			termId = cAsteriskItemID
+		} else if word == "*" {
 			termId = cAsteriskItemID
 		} else {
 			termId = tr.te.register(word)

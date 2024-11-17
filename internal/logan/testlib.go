@@ -39,7 +39,7 @@ func (a *Analyzer) _checkConfigTable(expect_logPath string,
 	expect_keepPeriod int64, expect_keepUnit int64,
 	expect_termCountBorderRate float64, expect_termCountBorder int,
 	expect_minMatchRate float64,
-	expect_timestampLayout string, expect_useUtcTime bool,
+	expect_timestampLayout string, expect_useUtcTime, expect_ignoreNumbers bool,
 	expect_separator string,
 	expect_logFormat string) error {
 
@@ -52,6 +52,7 @@ func (a *Analyzer) _checkConfigTable(expect_logPath string,
 	var got_minMatchRate float64
 	var got_timestampLayout, got_logFormat string
 	var got_useUtcTime bool
+	var got_ignoreNumbers bool
 	var got_separator string
 	a.configTable.Select1Row(nil,
 		tableDefs["config"],
@@ -64,6 +65,7 @@ func (a *Analyzer) _checkConfigTable(expect_logPath string,
 		&got_minMatchRate,
 		&got_timestampLayout,
 		&got_useUtcTime,
+		&got_ignoreNumbers,
 		&got_separator,
 		&got_logFormat)
 
@@ -95,6 +97,9 @@ func (a *Analyzer) _checkConfigTable(expect_logPath string,
 		return err
 	}
 	if err := utils.GetGotExpErr("useUtcTime", got_useUtcTime, expect_useUtcTime); err != nil {
+		return err
+	}
+	if err := utils.GetGotExpErr("ignoreNumbers", got_ignoreNumbers, expect_ignoreNumbers); err != nil {
 		return err
 	}
 	if err := utils.GetGotExpErr("separator", got_separator, expect_separator); err != nil {

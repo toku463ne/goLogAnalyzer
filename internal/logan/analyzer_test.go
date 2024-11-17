@@ -37,11 +37,12 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	minMatchRate := 0.5
 	unitSecs := int64(3600 * 24)
 	useUtcTime := true
+	ignoreNumbers := false
 	separator := " ,<>"
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -71,7 +72,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		maxBlocks, blockSize,
 		keepPeriod, unitSecs,
 		0.999, countBorder, minMatchRate,
-		layout, useUtcTime, separator, logFormat); err != nil {
+		layout, useUtcTime, ignoreNumbers, separator, logFormat); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -557,7 +558,7 @@ func _test_Trans_parse(line, logFormat, layout string,
 	expect_line string) error {
 	a, err := NewAnalyzer("", "", logFormat, layout, useUtcTime, nil, nil,
 		0, 0, 0,
-		unitSecs, 0, 0, 0, nil, nil, nil, "", false, false, false)
+		unitSecs, 0, 0, 0, nil, nil, nil, "", false, false, false, false)
 	if err != nil {
 		return err
 	}
@@ -623,7 +624,7 @@ func Test_Analyzer_multisize(t *testing.T) {
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

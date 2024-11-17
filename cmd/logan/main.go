@@ -56,6 +56,7 @@ var (
 	loaded              bool
 	ascOrder            bool
 	analLogPath         string
+	ignoreNumbers       bool
 )
 
 type config struct {
@@ -78,6 +79,7 @@ type config struct {
 	UseUtcTime          bool     `yaml:"useUtcTime"`
 	outDir              string   `yaml:"outDir"`
 	Separators          string   `yaml:"separators"`
+	IgnoreNumbers       bool     `yaml:"ignoreNumbers"`
 }
 
 func setCommonFlag(fs *flag.FlagSet) {
@@ -100,6 +102,7 @@ func setCommonFlag(fs *flag.FlagSet) {
 	fs.StringVar(&_ignorewords, "ignores", "", "List of terms to ignore in all phrases. Comma separated")
 	fs.StringVar(&separators, "sep", "", "separators of words")
 	fs.BoolVar(&ascOrder, "asc", false, "list up logGroups in ascending order or not")
+	fs.BoolVar(&ignoreNumbers, "ignoreNumbers", false, "ignore all numbers")
 	fs.StringVar(&analLogPath, "anallog", "", "File to output logs of this application")
 
 }
@@ -353,7 +356,7 @@ func run() error {
 			minMatchRate,
 			keywords, ignorewords, customLogGroups,
 			separators,
-			readOnly, debug, testMode)
+			readOnly, debug, testMode, ignoreNumbers)
 	}
 	if err != nil {
 		return err

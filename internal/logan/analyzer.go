@@ -32,6 +32,7 @@ type analConfig struct {
 	ignorewords              []string
 	customLogGroups          []string
 	separators               string
+	ignoreNumbers            bool
 }
 
 type Analyzer struct {
@@ -58,7 +59,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	minMatchRate float64,
 	keywords, ignorewords, customLogGroups []string,
 	separators string,
-	readOnly, _debug, testMode bool) (*Analyzer, error) {
+	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
 	debug = _debug
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
@@ -314,7 +315,7 @@ func (a *Analyzer) init() error {
 		a.termCountBorderRate, a.termCountBorder, a.minMatchRate,
 		a.searchRegex, a.exludeRegex,
 		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true,
-		a.readOnly, a.testMode)
+		a.readOnly, a.testMode, a.ignoreNumbers)
 	if err != nil {
 		return err
 	}
@@ -368,6 +369,7 @@ func (a *Analyzer) loadStatus() error {
 		&a.minMatchRate,
 		&a.timestampLayout,
 		&a.useUtcTime,
+		&a.ignoreNumbers,
 		&a.separators,
 		&a.logFormat); err != nil {
 		return err
@@ -401,6 +403,7 @@ func (a *Analyzer) saveConfig() error {
 		"minMatchRate":        a.minMatchRate,
 		"timestampLayout":     a.timestampLayout,
 		"useUtcTime":          a.useUtcTime,
+		"ignoreNumbers":       a.ignoreNumbers,
 		"separators":          a.separators,
 		"logFormat":           a.logFormat,
 	}); err != nil {
@@ -804,7 +807,7 @@ a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,a.keywords, a.ig
 func (a *Analyzer) rebuildTrans() error {
 	tr2, err := newTrans(a.dataDir, "", "", a.useUtcTime, a.maxBlocks, a.blockSize, a.unitSecs, a.keepPeriod,
 		0, a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,
-		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, true, a.testMode)
+		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, true, a.testMode, a.ignoreNumbers)
 	if err != nil {
 		return err
 	}
