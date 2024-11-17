@@ -268,14 +268,15 @@ func (tr *trans) toTokens(line string, addCnt int,
 		//	tokens = append(tokens, cAsteriskItemID)
 		//	continue
 		//}
-		if tr.ignoreNumbers && utils.IsInt(word) {
+		if !tr.keywords[word] && tr.ignoreNumbers && utils.IsInt(word) {
 			termId = cAsteriskItemID
+			excludesMap[word] = true
 		} else if word == "*" {
 			termId = cAsteriskItemID
 		} else {
 			termId = tr.te.register(word)
 		}
-		if !uniqTokens[termId] {
+		if termId != cAsteriskItemID && !uniqTokens[termId] {
 			if onlyCurrTerms {
 				tr.te.addCurrCount(termId, addCnt)
 			} else {

@@ -76,6 +76,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	a.searchRegex = searchRegex
 	a.exludeRegex = exludeRegex
 	a.testMode = testMode
+	a.ignoreNumbers = ignoreNumbers
 
 	// set defaults
 	a.unitSecs = utils.CFreqDay
@@ -128,10 +129,11 @@ func LoadAnalyzer(dataDir, logPath string,
 	termCountBorder int,
 	minMatchRate float64,
 	customLogGroups []string,
-	readOnly, _debug, testMode bool) (*Analyzer, error) {
+	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
 	a.testMode = testMode
+	a.ignoreNumbers = ignoreNumbers
 	debug = _debug
 
 	if dataDir == "" {

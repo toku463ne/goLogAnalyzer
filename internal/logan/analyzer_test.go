@@ -229,7 +229,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	// close
 	a.Close()
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -437,7 +437,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -467,7 +467,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	a.Close()
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -526,7 +526,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	a.Close()
 
 	// rebuild trans
-	a, err = LoadAnalyzer(dataDir, "", 0, 20, 0.5, nil, false, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 20, 0.5, nil, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

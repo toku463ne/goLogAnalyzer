@@ -232,6 +232,7 @@ func applyDefaults(c *config) {
 	if ignorewords == nil {
 		ignorewords = c.Ignorewords
 	}
+	ignoreNumbers = c.IgnoreNumbers
 	if customLogGroups == nil {
 		customLogGroups = c.CustomLogGroups
 	}
@@ -345,7 +346,7 @@ func run() error {
 			termCountBorder,
 			minMatchRate,
 			customLogGroups,
-			readOnly, debug, testMode)
+			readOnly, debug, testMode, ignoreNumbers)
 	} else {
 		a, err = logan.NewAnalyzer(dataDir, logPath, logFormat, timestampLayout, useUtcTime,
 			searchRegex, excludeRegex,

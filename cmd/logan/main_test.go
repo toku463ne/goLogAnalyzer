@@ -154,6 +154,52 @@ func Test_testmode(t *testing.T) {
 	}
 }
 
+func Test_numbers(t *testing.T) {
+	testDir, err := utils.InitTestDir("Test_numbers")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	dataDir := testDir + "/data"
+	config := "../../testdata/loganal/sample_numbers.yml.j2"
+	os.Args = []string{"logan", "groups", "-c", config, "-o", dataDir, "-N", "3"}
+	main()
+
+	_, records, err := utils.ReadCsv(dataDir+"/logGroups.csv", ',', false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	line := "* Com1, grpf10 Com2 (uniq)* grpb50 (uniq)* <coM3> (uniq)* * grpc20 (uniq)*"
+	if err := utils.GetGotExpErr("line", records[0][3], line); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+}
+
+func Test_numbers2(t *testing.T) {
+	testDir, err := utils.InitTestDir("Test_numbers2")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	dataDir := testDir + "/data"
+	config := "../../testdata/loganal/sample_numbers2.yml.j2"
+	os.Args = []string{"logan", "groups", "-c", config, "-o", dataDir, "-N", "3"}
+	main()
+
+	_, records, err := utils.ReadCsv(dataDir+"/logGroups.csv", ',', false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	line := "246 Com1, grpf10 Com2 (uniq)* grpb50 (uniq)* <coM3> (uniq)* 1234 grpc20 (uniq)*"
+	if err := utils.GetGotExpErr("line", records[0][3], line); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+}
+
 func Test_netscreen(t *testing.T) {
 	dataDir := os.Getenv("HOME") + "/logantests/Test_netscreen/data"
 	utils.RemoveDirectory(dataDir)

@@ -13,9 +13,8 @@ const (
 	CDefaultMinMatchRate        = 0.7
 	CDefaultTermCountBorderRate = 0.999
 	CDefaultTermCountBorder     = 0
-	CDefaultSeparators          = ` \t\r\n\"'\\,;[]<>{}=()|:&?/+!@`
+	CDefaultSeparators          = ` "'\\,;[]<>{}=()|:&?/+!@`
 
-	cStaticSeparators        = `\t`
 	cAsteriskItemID          = -1
 	cMaxNumDigits            = 3 // HTTP codes
 	cLogPerLines             = 1000000
