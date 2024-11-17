@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type trans struct {
@@ -388,6 +390,7 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	groupId := tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos, -1)
 	cnt := len(tr.lgs.alllg)
 	if cnt > cMaxLogGroups {
+		logrus.Error(displayString)
 		return -1, fmt.Errorf("logTree size went over %d", cMaxLogGroups)
 	}
 
