@@ -46,6 +46,7 @@ type Analyzer struct {
 	rowID           int
 	readOnly        bool
 	linesProcessed  int
+	testMode        bool
 }
 
 func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime bool,
@@ -57,7 +58,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	minMatchRate float64,
 	keywords, ignorewords, customLogGroups []string,
 	separators string,
-	readOnly, _debug bool) (*Analyzer, error) {
+	readOnly, _debug, testMode bool) (*Analyzer, error) {
 	debug = _debug
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
@@ -73,6 +74,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	a.readOnly = readOnly
 	a.searchRegex = searchRegex
 	a.exludeRegex = exludeRegex
+	a.testMode = testMode
 
 	// set defaults
 	a.unitSecs = utils.CFreqDay
@@ -125,9 +127,10 @@ func LoadAnalyzer(dataDir, logPath string,
 	termCountBorder int,
 	minMatchRate float64,
 	customLogGroups []string,
-	readOnly, _debug bool) (*Analyzer, error) {
+	readOnly, _debug, testMode bool) (*Analyzer, error) {
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
+	a.testMode = testMode
 	debug = _debug
 
 	if dataDir == "" {
@@ -258,8 +261,10 @@ func (a *Analyzer) open() error {
 			if err := a.init(); err != nil {
 				return err
 			}
-			if err := a.prepareDB(); err != nil {
-				return err
+			if !a.readOnly {
+				if err := a.prepareDB(); err != nil {
+					return err
+				}
 			}
 			if err := a.saveLastStatus(); err != nil {
 				return err
@@ -308,8 +313,8 @@ func (a *Analyzer) init() error {
 		a.maxBlocks, a.blockSize, a.unitSecs, a.keepPeriod,
 		a.termCountBorderRate, a.termCountBorder, a.minMatchRate,
 		a.searchRegex, a.exludeRegex,
-		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, a.readOnly,
-	)
+		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true,
+		a.readOnly, a.testMode)
 	if err != nil {
 		return err
 	}
@@ -344,7 +349,7 @@ func (a *Analyzer) saveLastStatus() error {
 }
 
 func (a *Analyzer) loadStatus() error {
-	if a.dataDir != "" {
+	if a.dataDir != "" && !a.readOnly {
 		if err := a.prepareDB(); err != nil {
 			return err
 		}
@@ -409,6 +414,9 @@ func (a *Analyzer) getIgnorewordsFilePath() string {
 }
 
 func (a *Analyzer) saveKeywords() error {
+	if a.readOnly {
+		return nil
+	}
 	if err := utils.Slice2File(a.keywords, a.getKeywordsFilePath()); err != nil {
 		return err
 	}
@@ -597,13 +605,15 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 	return nil
 }
 
-func (a *Analyzer) OutputLogGroups(N int, outdir string, isHistory bool) error {
+func (a *Analyzer) OutputLogGroups(N int, outdir string, isHistory, asc bool) error {
 	if err := a.Feed(0); err != nil {
 		return err
 	}
 	var groupIds []int64
 	if N > 0 {
-		groupIds = a.trans.getBiggestGroupIds(N)
+		groupIds = a.trans.getTopNGroupIds(N, asc)
+	} else {
+		groupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), asc)
 	}
 
 	if outdir == "" {
@@ -636,10 +646,11 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	defer writer.Flush()
 	lgs := a.trans.lgs.alllg
 	// header
-	writer.Write([]string{"groupId", "count", "text"})
+	writer.Write([]string{"groupId", "count", "score", "text"})
 	for _, groupId := range groupIds {
 		lg := lgs[groupId]
-		writer.Write([]string{fmt.Sprint(groupId), fmt.Sprint(lg.count), lg.displayString})
+		writer.Write([]string{fmt.Sprint(groupId), fmt.Sprint(lg.count),
+			fmt.Sprintf("%.2f", lg.rareScore), lg.displayString})
 	}
 	writer.Flush()
 	file.Close()
@@ -656,9 +667,11 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
 	// header
-	writer.Write([]string{"groupId", "text"})
+	writer.Write([]string{"groupId", "count", "score", "text"})
 	for _, groupId := range groupIds {
-		writer.Write([]string{fmt.Sprint(groupId), a.trans.lgs.lastMessages[groupId]})
+		lg := lgs[groupId]
+		writer.Write([]string{fmt.Sprint(groupId), fmt.Sprint(lg.count),
+			fmt.Sprintf("%.3f", lg.rareScore), a.trans.lgs.lastMessages[groupId]})
 	}
 	writer.Flush()
 	file.Close()
@@ -788,7 +801,7 @@ a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,a.keywords, a.ig
 func (a *Analyzer) rebuildTrans() error {
 	tr2, err := newTrans(a.dataDir, "", "", a.useUtcTime, a.maxBlocks, a.blockSize, a.unitSecs, a.keepPeriod,
 		0, a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,
-		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, true)
+		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, true, a.testMode)
 	if err != nil {
 		return err
 	}

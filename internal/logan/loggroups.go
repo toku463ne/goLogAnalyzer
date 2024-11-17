@@ -20,6 +20,25 @@ type logGroup struct {
 	created       int64 // first epoch in the current block
 	updated       int64 // last epoch in the current block
 	countHistory  map[int64]int
+	rareScore     float64
+}
+
+func (lg *logGroup) calcScore(tokens []int, te *terms) {
+	scores := make([]float64, 0)
+	for _, itemID := range tokens {
+		if itemID >= 0 {
+			scores = append(scores, te.getIdf(itemID))
+		}
+	}
+	ss := 0.0
+	for _, v := range scores {
+		ss += v
+	}
+	score := 0.0
+	if len(scores) > 0 {
+		score = ss / float64(len(scores))
+	}
+	lg.rareScore = score
 }
 
 type logGroups struct {
@@ -35,20 +54,15 @@ type logGroups struct {
 	displayStrings    map[int64]string
 	lastMessages      map[int64]string
 	orgDisplayStrings map[int64]string
+	testMode          bool
 }
 
 func newLogGroups(dataDir string,
 	maxBlocks int,
 	unitSecs, keepPeriod int64,
-	useGzip bool) (*logGroups, error) {
+	useGzip, testMode bool) (*logGroups, error) {
 
 	lgs := new(logGroups)
-	lgdb, err := csvdb.NewCircuitDB(dataDir, "logGroups",
-		tableDefs["logGroups"], maxBlocks, 0, keepPeriod, unitSecs, useGzip)
-	if err != nil {
-		return nil, err
-	}
-	lgs.CircuitDB = lgdb
 
 	lgs.maxLgId = 0
 	lgs.totalCount = 0
@@ -58,6 +72,16 @@ func newLogGroups(dataDir string,
 	lgs.displayStrings = make(map[int64]string)
 	lgs.lastMessages = make(map[int64]string)
 	lgs.lt = newLogTree(0)
+	lgs.testMode = testMode
+	if testMode {
+		return lgs, nil
+	}
+	lgdb, err := csvdb.NewCircuitDB(dataDir, "logGroups",
+		tableDefs["logGroups"], maxBlocks, 0, keepPeriod, unitSecs, useGzip)
+	if err != nil {
+		return nil, err
+	}
+	lgs.CircuitDB = lgdb
 	return lgs, nil
 }
 

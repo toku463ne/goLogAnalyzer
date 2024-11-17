@@ -38,6 +38,7 @@ type trans struct {
 	currRetentionPos    int64
 	separators          string
 	timestampRe         *regexp.Regexp
+	testMode            bool
 }
 
 func newTrans(dataDir, logFormat, timestampLayout string,
@@ -51,23 +52,8 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	_keywords []string, _ignorewords []string,
 	_customLogGroups []string,
 	separators string,
-	useGzip, readOnly bool) (*trans, error) {
+	useGzip, readOnly, testMode bool) (*trans, error) {
 	tr := new(trans)
-
-	// don't need blockSize for terms because the rotation follows trans.next()
-	te, err := newTerms(dataDir, maxBlocks, unitSecs, keepPeriod, useGzip)
-	if err != nil {
-		return nil, err
-	}
-	tr.te = te
-
-	tr.lt = newLogTree(0)
-	// don't need blockSize for terms because the rotation follows trans.next()
-	lgs, err := newLogGroups(dataDir, maxBlocks, unitSecs, keepPeriod, useGzip)
-	if err != nil {
-		return nil, err
-	}
-	tr.lgs = lgs
 	tr.replacer = getDelimReplacer(separators)
 	tr.timestampLayout = timestampLayout
 	tr._parseLogFormat(logFormat)
@@ -77,6 +63,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	tr.useUtcTime = useUtcTime
 	tr.separators = separators
 	tr.readOnly = readOnly
+	tr.testMode = testMode
 	tr._setFilters(searchRegex, exludeRegex)
 
 	tr.keywords = make(map[string]bool)
@@ -89,6 +76,21 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	}
 	tr.unitSecs = unitSecs
 	tr.maxCountByBlock = blockSize
+
+	// don't need blockSize for terms because the rotation follows trans.next()
+	te, err := newTerms(dataDir, maxBlocks, unitSecs, keepPeriod, useGzip, tr.testMode)
+	if err != nil {
+		return nil, err
+	}
+	tr.te = te
+
+	tr.lt = newLogTree(0)
+	// don't need blockSize for terms because the rotation follows trans.next()
+	lgs, err := newLogGroups(dataDir, maxBlocks, unitSecs, keepPeriod, useGzip, tr.testMode)
+	if err != nil {
+		return nil, err
+	}
+	tr.lgs = lgs
 	tr.initCounters()
 	return tr, nil
 }
@@ -193,7 +195,7 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64) {
 				} else {
 					// system time zone
 					dtstr := ma[tr.timestampPos]
-					if needDateFormatCleaning {
+					if needDateFormatCleaning && tr.timestampRe != nil {
 						dtstr = tr.timestampRe.ReplaceAllString(dtstr, "$1")
 					}
 
@@ -229,7 +231,6 @@ func (tr *trans) toTokens(line string, addCnt int,
 	line = strings.TrimSpace(reMultiSpace.ReplaceAllString(line, " "))
 	words := strings.Split(line, " ")
 	tokens := make([]int, 0)
-	counts := make([]int, 0)
 	uniqTokens := make(map[int]bool, 0)
 	excludesMap := make(map[string]bool)
 
@@ -244,7 +245,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 			excludesMap[w] = true
 			w = "*"
 		}
-		keyOK := tr.keywords[w]
+		//keyOK := tr.keywords[w]
 		//if enStopWords[w] {
 		//	if keyOK {
 		//		w = "*"
@@ -277,22 +278,27 @@ func (tr *trans) toTokens(line string, addCnt int,
 		}
 		uniqTokens[termId] = true
 
-		if useTermBorder {
-			cnt := tr.te.counts[termId]
-			if !keyOK && tr.termCountBorder > cnt {
-				//termId = cAsteriskItemID
-				excludesMap[word] = true
-				termId = cAsteriskItemID
-			}
-			counts = append(counts, cnt)
-		}
+		//if useTermBorder {
+		//	cnt := tr.te.counts[termId]
+		//	if !keyOK && tr.termCountBorder > cnt {
+		//		//termId = cAsteriskItemID
+		//		excludesMap[word] = true
+		//		termId = cAsteriskItemID
+		//	}
+		//	counts = append(counts, cnt)
+		//}
 		tokens = append(tokens, termId)
 	}
 
 	if useTermBorder {
 		minMatchLen := int(float64(len(words)) * tr.minMatchRate)
-		if len(tokens) != len(counts) {
-			return nil, "", fmt.Errorf("length of tokens and counts does not match: tokens:%d counts:%d", len(tokens), len(counts))
+		//if len(tokens) != len(counts) {
+		//	return nil, "", fmt.Errorf("length of tokens and counts does not match: tokens:%d counts:%d", len(tokens), len(counts))
+		//}
+		counts := make([]int, 0)
+		for _, termId := range tokens {
+			cnt := tr.te.counts[termId]
+			counts = append(counts, cnt)
 		}
 		// sort in descending order
 		sort.Slice(counts, func(i, j int) bool {
@@ -378,15 +384,16 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	if err != nil {
 		return -1, err
 	}
-	//if displayString == "Com1, * Com2 * grpa50 * <coM3> * * *" {
-	//	print("")
-	//}
 
 	groupId := tr.lgs.registerLogTree(tokens, addCnt, displayString, updated, updated, true, retentionPos, -1)
 	cnt := len(tr.lgs.alllg)
 	if cnt > cMaxLogGroups {
 		return -1, fmt.Errorf("logTree size went over %d", cMaxLogGroups)
 	}
+
+	lg := tr.lgs.alllg[groupId]
+	lg.calcScore(tokens, tr.te)
+
 	tr.lgs.lastMessages[groupId] = orgLine
 
 	tr.currRetentionPos = retentionPos
@@ -624,8 +631,8 @@ func (tr *trans) setCountBorder() {
 	}
 }
 
-// get list of biggest N logGroups
-func (tr *trans) getBiggestGroupIds(N int) []int64 {
+// get top N logGroups
+func (tr *trans) getTopNGroupIds(N int, asc bool) []int64 {
 	lgs := tr.lgs
 
 	// Create a slice of key-value pairs
@@ -639,9 +646,23 @@ func (tr *trans) getBiggestGroupIds(N int) []int64 {
 		cnti := lgs.alllg[groupIds[i]].count
 		cntj := lgs.alllg[groupIds[j]].count
 		if cnti == cntj {
-			return groupIds[i] < groupIds[j]
+			scorei := lgs.alllg[groupIds[i]].rareScore
+			scorej := lgs.alllg[groupIds[j]].rareScore
+			if scorei == scorej {
+				return groupIds[i] < groupIds[j]
+			} else {
+				if asc {
+					return scorei > scorej
+				} else {
+					return scorei < scorej
+				}
+			}
 		}
-		return cnti > cntj
+		if asc {
+			return cnti < cntj
+		} else {
+			return cnti > cntj
+		}
 	})
 
 	// Extract the top N itemIDs

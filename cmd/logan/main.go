@@ -54,6 +54,7 @@ var (
 	separators          string
 	_flagSet            *flag.FlagSet
 	loaded              bool
+	ascOrder            bool
 )
 
 type config struct {
@@ -97,6 +98,7 @@ func setCommonFlag(fs *flag.FlagSet) {
 	fs.StringVar(&_keywords, "keys", "", "List of terms to include in all phrases. Comma separated")
 	fs.StringVar(&_ignorewords, "ignores", "", "List of terms to ignore in all phrases. Comma separated")
 	fs.StringVar(&separators, "sep", "", "separators of words")
+	fs.BoolVar(&ascOrder, "asc", false, "list up logGroups in ascending order or not")
 
 }
 
@@ -360,12 +362,14 @@ func run() error {
 	}
 
 	msg := ""
+	testMode := false
 	switch cmd {
 	case "feed":
 		msg = checkCommonFlag()
 	case "test":
 		msg = checkTestFlag()
 		readOnly = true
+		testMode = true
 	}
 	if msg != "" {
 		fmt.Printf("%s for '%s' option\n", msg, cmd)
@@ -373,14 +377,14 @@ func run() error {
 	}
 
 	tblDir := fmt.Sprintf("%s/config.tbl.ini", dataDir)
-	if utils.PathExist(tblDir) {
+	if utils.PathExist(tblDir) && !testMode {
 		logrus.Infof("Loading config from %s\n", tblDir)
 		a, err = logan.LoadAnalyzer(dataDir, logPath,
 			termCountBorderRate,
 			termCountBorder,
 			minMatchRate,
 			customLogGroups,
-			readOnly, debug)
+			readOnly, debug, testMode)
 	} else {
 		a, err = logan.NewAnalyzer(dataDir, logPath, logFormat, timestampLayout, useUtcTime,
 			searchRegex, excludeRegex,
@@ -391,7 +395,7 @@ func run() error {
 			minMatchRate,
 			keywords, ignorewords, customLogGroups,
 			separators,
-			readOnly, debug)
+			readOnly, debug, testMode)
 	}
 	if err != nil {
 		return err
@@ -401,9 +405,9 @@ func run() error {
 	case "feed":
 		err = a.Feed(0)
 	case "history":
-		err = a.OutputLogGroups(N, outDir, true)
+		err = a.OutputLogGroups(N, outDir, true, ascOrder)
 	case "groups":
-		err = a.OutputLogGroups(N, outDir, false)
+		err = a.OutputLogGroups(N, outDir, false, ascOrder)
 	case "test":
 		a.ParseLogLine(line)
 	default:

@@ -14,13 +14,23 @@ type terms struct {
 	counts     map[int]int
 	currCounts map[int]int
 	totalCount int
+	testMode   bool
 }
 
 func newTerms(dataDir string,
 	maxBlocks int,
 	unitSecs, keepPeriod int64,
-	useGzip bool) (*terms, error) {
+	useGzip, testMode bool) (*terms, error) {
 	te := new(terms)
+	te.maxTermId = 0
+	te.term2Id = make(map[string]int, 10000)
+	te.id2term = make(map[int]string, 10000)
+	te.counts = make(map[int]int, 10000)
+	te.currCounts = make(map[int]int, 10000)
+	te.testMode = testMode
+	if testMode {
+		return te, nil
+	}
 	tedb, err := csvdb.NewCircuitDB(dataDir, "terms",
 		tableDefs["terms"], maxBlocks, 0, keepPeriod, unitSecs, useGzip)
 	if err != nil {
@@ -28,11 +38,6 @@ func newTerms(dataDir string,
 	}
 	te.CircuitDB = tedb
 
-	te.maxTermId = 0
-	te.term2Id = make(map[string]int, 10000)
-	te.id2term = make(map[int]string, 10000)
-	te.counts = make(map[int]int, 10000)
-	te.currCounts = make(map[int]int, 10000)
 	return te, nil
 }
 
@@ -75,6 +80,7 @@ func (te *terms) getIdf(termId int) float64 {
 	score := math.Log(float64(te.totalCount)/float64(count)) + 1
 	return score
 }
+
 func (te *terms) getCount(word string) int {
 	termId, ok := te.term2Id[word]
 	if !ok {
@@ -84,7 +90,7 @@ func (te *terms) getCount(word string) int {
 }
 
 func (te *terms) flush() error {
-	if te.DataDir == "" {
+	if te.DataDir == "" || te.testMode {
 		return nil
 	}
 	for termId, count := range te.currCounts {

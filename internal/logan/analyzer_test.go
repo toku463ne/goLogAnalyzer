@@ -34,14 +34,14 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	blockSize := 100
 	keepPeriod := int64(100)
 	countBorder := 10
-	minMatchRate := 0.6
+	minMatchRate := 0.5
 	unitSecs := int64(3600 * 24)
 	useUtcTime := true
 	separator := " ,<>"
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -228,7 +228,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	// close
 	a.Close()
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -436,7 +436,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -466,13 +466,13 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	a.Close()
 
-	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 0, 0, nil, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	if err := a.OutputLogGroups(10, testDir, true); err != nil {
+	if err := a.OutputLogGroups(10, testDir, true, false); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -509,7 +509,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
-	if err := utils.GetGotExpErr("len(header)", len(header), 3); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -525,13 +525,13 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	a.Close()
 
 	// rebuild trans
-	a, err = LoadAnalyzer(dataDir, "", 0, 20, 0.5, nil, false, false)
+	a, err = LoadAnalyzer(dataDir, "", 0, 20, 0.5, nil, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	if err := a.OutputLogGroups(10, testDir, true); err != nil {
+	if err := a.OutputLogGroups(10, testDir, true, false); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -557,7 +557,7 @@ func _test_Trans_parse(line, logFormat, layout string,
 	expect_line string) error {
 	a, err := NewAnalyzer("", "", logFormat, layout, useUtcTime, nil, nil,
 		0, 0, 0,
-		unitSecs, 0, 0, 0, nil, nil, nil, "", false, false)
+		unitSecs, 0, 0, 0, nil, nil, nil, "", false, false, false)
 	if err != nil {
 		return err
 	}
@@ -591,4 +591,84 @@ func Test_Trans_parse(t *testing.T) {
 	_test_Trans_parse(line, logFormat, layout, useUtcTime, unitSecs,
 		expect_line)
 
+}
+
+func Test_Analyzer_multisize(t *testing.T) {
+	testDir, err := utils.InitTestDir("Test_Analyzer_multisize")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// new analyzer
+	logPath := "../../testdata/loganal/sample_multisize.log"
+	logFormat := `^(?P<timestamp>\d+-\d+-\d+T\d+:\d+:\d+)] (?P<message>.+)$`
+	layout := "2006-01-02T15:04:05"
+	dataDir := testDir + "/data"
+	maxBlocks := 100
+	blockSize := 100
+	keepPeriod := int64(100)
+	countBorder := 2
+	minMatchRate := 0.6
+	unitSecs := int64(3600 * 24)
+	useUtcTime := true
+	separator := " ,<>"
+
+	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
+		maxBlocks, blockSize, keepPeriod,
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	err = a.OutputLogGroups(10, dataDir, false, true)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// lines processed
+	if err := utils.GetGotExpErr("a.linesProcessed", a.linesProcessed, 34); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	header, records, err := utils.ReadCsv(dataDir+"/logGroups.csv", ',', false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("len(header)", len(header), 4); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(header)", len(records), 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("records[0][1]: count", records[0][1], "3"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("records[4][1]: count", records[4][1], "10"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	err = a.OutputLogGroups(10, dataDir, false, false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	_, records, err = utils.ReadCsv(dataDir+"/logGroups.csv", ',', false)
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("records[0][1]: count", records[0][1], "10"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 }

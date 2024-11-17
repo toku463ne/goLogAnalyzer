@@ -23,7 +23,7 @@ func Test_main_groups(t *testing.T) {
 		return
 	}
 
-	if err := utils.GetGotExpErr("len(header)", len(header), 3); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -101,11 +101,27 @@ func Test_main_config(t *testing.T) {
 	main()
 }
 
+func Test_testmode(t *testing.T) {
+	dataDir := os.Getenv("HOME") + "/logantests/Test_main_config/data"
+	utils.RemoveDirectory(dataDir)
+
+	config := "../../testdata/loganal/sample.yml.j2"
+	os.Args = []string{"logan", "test", "-c", config,
+		"-line", "2024-10-02T06:00:00] Com1, grpd10 Com2 (uniq)0031 grpa50 (uniq)0131 <coM3> (uniq)0231 grpb20 (uniq)0331"}
+	main()
+
+	if err := utils.GetGotExpErr("dataDir existance", utils.PathExist(dataDir), false); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+}
+
 func Test_real(t *testing.T) {
 	config := "/home/administrator/tests/sbc/g.yml"
 	//os.Args = []string{"logan", "clean", "-c", config, "-silent"}
 	//main()
 
-	os.Args = []string{"logan", "history", "-c", config, "-o", "/tmp/out"}
+	os.Args = []string{"logan", "history", "-c", config, "-o", "/tmp/out2", "-asc", "-N", "10"}
 	main()
 }
