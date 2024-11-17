@@ -41,6 +41,12 @@ func Test_Str2date(t *testing.T) {
 		shouldFail bool
 	}{
 		{
+			title:    "Syslog format without year",
+			format:   "Jan  2 15:04:05",
+			input:    "Nov  1 03:13:26",
+			expected: time.Date(time.Now().Year(), 11, 1, 3, 13, 26, 0, time.Local),
+		},
+		{
 			title:    "Time only",
 			format:   "15:04:05",
 			input:    "12:30:45",

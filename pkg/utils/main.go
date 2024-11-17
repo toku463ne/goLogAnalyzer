@@ -59,11 +59,11 @@ func Str2date(dateFormat, dateStr string) (time.Time, error) {
 	month := parsedDate.Month()
 	day := parsedDate.Day()
 
-	if month == 0 || (year == 0 && !strings.Contains(dateFormat, "01")) {
+	if month == 0 || (year == 0 && !strings.Contains(dateFormat, "01") && !strings.Contains(dateFormat, "Jan")) {
 		month = now.Month()
 	}
 
-	if day == 0 || (year == 0 && !strings.Contains(dateFormat, "02")) {
+	if day == 0 || (year == 0 && !strings.Contains(dateFormat, "2")) {
 		day = now.Day()
 	}
 
