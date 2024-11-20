@@ -5,19 +5,14 @@ import (
 	"os"
 )
 
-func (a *Analyzer) _checkLastStatusTable(expect_lastRowId, expect_lastFileRow int, filepath string) error {
-	var got_lastRowId int
-	var got_lastFileEpoch int64
-	var got_lastFileRow int
-	a.lastStatusTable.Select1Row(nil,
-		tableDefs["lastStatus"],
-		&got_lastRowId, &got_lastFileEpoch, &got_lastFileRow)
+func (a *Analyzer) _checkLastStatus(expect_lastRowId, expect_lastFileRow int, filepath string) error {
+	a.loadStatus()
 
-	if err := utils.GetGotExpErr("lastRowId", got_lastRowId, expect_lastRowId); err != nil {
+	if err := utils.GetGotExpErr("lastRowId", a.LastFileRow, expect_lastRowId); err != nil {
 		return err
 	}
 
-	if err := utils.GetGotExpErr("lastFileRow", got_lastFileRow, expect_lastFileRow); err != nil {
+	if err := utils.GetGotExpErr("lastFileRow", a.LastFileRow, expect_lastFileRow); err != nil {
 		return err
 	}
 
@@ -25,16 +20,16 @@ func (a *Analyzer) _checkLastStatusTable(expect_lastRowId, expect_lastFileRow in
 	if err != nil {
 		return err
 	}
-	expect_astFileEpoch := file.ModTime().Unix()
+	expect_lastFileEpoch := file.ModTime().Unix()
 
-	if err := utils.GetGotExpErr("lastFileEpoch", got_lastFileEpoch, expect_astFileEpoch); err != nil {
+	if err := utils.GetGotExpErr("lastFileEpoch", a.LastFileEpoch, expect_lastFileEpoch); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (a *Analyzer) _checkConfigTable(expect_logPath string,
+func (a *Analyzer) _checkConfig(expect_logPath string,
 	expect_blockSize, expect_maxBlocks int,
 	expect_keepPeriod int64, expect_keepUnit int64,
 	expect_termCountBorderRate float64, expect_termCountBorder int,
@@ -43,69 +38,45 @@ func (a *Analyzer) _checkConfigTable(expect_logPath string,
 	expect_separator string,
 	expect_logFormat string) error {
 
-	var got_logPath string
-	var got_blockSize, got_maxBlocks int
-	var got_keepPeriod int64
-	var got_keepUnit int64
-	var got_termCountBorderRate float64
-	var got_termCountBorder int
-	var got_minMatchRate float64
-	var got_timestampLayout, got_logFormat string
-	var got_useUtcTime bool
-	var got_ignoreNumbers bool
-	var got_separator string
-	a.configTable.Select1Row(nil,
-		tableDefs["config"],
-		&got_logPath,
-		&got_blockSize, &got_maxBlocks,
-		&got_keepPeriod,
-		&got_keepUnit,
-		&got_termCountBorderRate,
-		&got_termCountBorder,
-		&got_minMatchRate,
-		&got_timestampLayout,
-		&got_useUtcTime,
-		&got_ignoreNumbers,
-		&got_separator,
-		&got_logFormat)
+	a.loadConfig()
 
-	if err := utils.GetGotExpErr("logPath", got_logPath, expect_logPath); err != nil {
+	if err := utils.GetGotExpErr("logPath", a.LogPath, expect_logPath); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("blockSize", got_blockSize, expect_blockSize); err != nil {
+	if err := utils.GetGotExpErr("blockSize", a.BlockSize, expect_blockSize); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("maxBlocks", got_maxBlocks, expect_maxBlocks); err != nil {
+	if err := utils.GetGotExpErr("maxBlocks", a.MaxBlocks, expect_maxBlocks); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("keepPeriod", got_keepPeriod, expect_keepPeriod); err != nil {
+	if err := utils.GetGotExpErr("keepPeriod", a.KeepPeriod, expect_keepPeriod); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("keepUnit", got_keepUnit, expect_keepUnit); err != nil {
+	if err := utils.GetGotExpErr("keepUnit", a.UnitSecs, expect_keepUnit); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("termCountBorderRate", got_termCountBorderRate, expect_termCountBorderRate); err != nil {
+	if err := utils.GetGotExpErr("termCountBorderRate", a.TermCountBorderRate, expect_termCountBorderRate); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("termCountBorder", got_termCountBorder, expect_termCountBorder); err != nil {
+	if err := utils.GetGotExpErr("termCountBorder", a.TermCountBorder, expect_termCountBorder); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("minMatchRate", got_minMatchRate, expect_minMatchRate); err != nil {
+	if err := utils.GetGotExpErr("minMatchRate", a.MinMatchRate, expect_minMatchRate); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("timestampLayout", got_timestampLayout, expect_timestampLayout); err != nil {
+	if err := utils.GetGotExpErr("timestampLayout", a.TimestampLayout, expect_timestampLayout); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("useUtcTime", got_useUtcTime, expect_useUtcTime); err != nil {
+	if err := utils.GetGotExpErr("useUtcTime", a.UseUtcTime, expect_useUtcTime); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("ignoreNumbers", got_ignoreNumbers, expect_ignoreNumbers); err != nil {
+	if err := utils.GetGotExpErr("ignoreNumbers", a.IgnoreNumbers, expect_ignoreNumbers); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("separator", got_separator, expect_separator); err != nil {
+	if err := utils.GetGotExpErr("separator", a.Separators, expect_separator); err != nil {
 		return err
 	}
-	if err := utils.GetGotExpErr("logFormat", got_logFormat, expect_logFormat); err != nil {
+	if err := utils.GetGotExpErr("logFormat", a.LogFormat, expect_logFormat); err != nil {
 		return err
 	}
 

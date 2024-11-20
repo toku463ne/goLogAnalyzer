@@ -42,7 +42,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, separator, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -68,7 +68,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	// check config table
-	if err := a._checkConfigTable(logPath,
+	if err := a._checkConfig(logPath,
 		maxBlocks, blockSize,
 		keepPeriod, unitSecs,
 		0.999, countBorder, minMatchRate,
@@ -78,7 +78,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	// check status table
-	if err := a._checkLastStatusTable(a.rowID, a.rowID, targetFile); err != nil {
+	if err := a._checkLastStatus(a.RowID, a.RowID, targetFile); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -236,30 +236,30 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	// check the last status is loaded
-	if err := utils.GetGotExpErr("rowId", a.rowID, int(35)); err != nil {
+	if err := utils.GetGotExpErr("rowId", a.RowID, int(35)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
 	// check logPath
-	if err := utils.GetGotExpErr("logPath after load", a.logPath, logPath); err != nil {
+	if err := utils.GetGotExpErr("logPath after load", a.LogPath, logPath); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	if err := utils.GetGotExpErr("logFormat after load", a.logFormat, logFormat); err != nil {
+	if err := utils.GetGotExpErr("logFormat after load", a.LogFormat, logFormat); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("keepPeriod after load", a.keepPeriod, keepPeriod); err != nil {
+	if err := utils.GetGotExpErr("keepPeriod after load", a.KeepPeriod, keepPeriod); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("maxBlocks after load", a.maxBlocks, maxBlocks); err != nil {
+	if err := utils.GetGotExpErr("maxBlocks after load", a.MaxBlocks, maxBlocks); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("termCountBorder after load", a.termCountBorder, countBorder); err != nil {
+	if err := utils.GetGotExpErr("termCountBorder after load", a.TermCountBorder, countBorder); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -289,7 +289,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	}
 
 	// check the rowID is properly updated
-	if err := utils.GetGotExpErr("rowId", a.rowID, int(50)); err != nil {
+	if err := utils.GetGotExpErr("rowId", a.RowID, int(50)); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -558,7 +558,7 @@ func _test_Trans_parse(line, logFormat, layout string,
 	expect_line string) error {
 	a, err := NewAnalyzer("", "", logFormat, layout, useUtcTime, nil, nil,
 		0, 0, 0,
-		unitSecs, 0, 0, 0, nil, nil, nil, "", false, false, false, false)
+		unitSecs, 0, 0, 0, nil, nil, nil, nil, "", false, false, false, false)
 	if err != nil {
 		return err
 	}
@@ -595,7 +595,15 @@ func Test_Trans_parse(t *testing.T) {
 	logFormat = `^(?P<timestamp>\w{3} \d{1,2} \d{2}:\d{2}:\d{2}) .*? device_id=\S+.*?: .*?start_time="[^"]+" (?P<message>.*)$`
 	layout = "Jan _2 15:04:05"
 	line = `Nov 17 03:22:09 imtfw001 IMTFW001: NetScreen device_id=IMTFW001  [Root]system-notification-00257(traffic): start_time="2024-11-17 02:22:08" duration=0 policy_id=12 service=udp/port:389 proto=17 src zone=Trust dst zone=Private action=Deny sent=0 rcvd=214 src=1.2.48.128 dst=1.2.14.235 src_port=60910 dst_port=389 session_id=0 reason=Traffic Denied`
-	expect_line = "INVITE sip:0678786395@PRO-FE.ziptelecom.tel;user=phone;"
+	expect_line = "duration=0 policy_id=12 service=udp/port:389 proto=17 src zone=Trust dst zone=Private action=Deny sent=0 rcvd=214 src=1.2.48.128 dst=1.2.14.235 src_port=60910 dst_port=389 session_id=0 reason=Traffic Denied"
+	_test_Trans_parse(line, logFormat, layout, useUtcTime, unitSecs,
+		expect_line)
+
+	//(2024-10-21 *:06:*)
+	logFormat = `^(?P<timestamp>\w{3} \d{1,2} \d{2}:\d{2}:\d{2}) .*? device_id=\S+.*?: .*?start_time="[^"]+" (?P<message>.*) (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$`
+	layout = "Jan _2 15:04:05"
+	line = `Nov 17 03:22:09 imtfw001 IMTFW001: NetScreen device_id=IMTFW001  [Root]system-notification-00257(traffic): start_time="2024-11-17 02:22:08" duration=0 policy_id=12 service=udp/port:389 proto=17 src zone=Trust dst zone=Private action=Deny sent=0 rcvd=214 src=1.2.48.128 dst=1.2.14.235 src_port=60910 dst_port=389 session_id=0 reason=Traffic Denied`
+	expect_line = "duration=0 policy_id=12 service=udp/port:389 proto=17 src zone=Trust dst zone=Private action=Deny sent=0 rcvd=214 src=1.2.48.128 dst=1.2.14.235 src_port=60910 dst_port=389 session_id=0 reason=Traffic Denied"
 	_test_Trans_parse(line, logFormat, layout, useUtcTime, unitSecs,
 		expect_line)
 
@@ -624,7 +632,7 @@ func Test_Analyzer_multisize(t *testing.T) {
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, separator, false, false, false, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, separator, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

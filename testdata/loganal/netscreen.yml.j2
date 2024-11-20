@@ -2,12 +2,16 @@
 dataDir: "{{ HOME }}/logantests/Test_netscreen/data"
 logPath: "../../testdata/loganal/netscreen.log"
 # Nov 17 03:22:09 imtfw001 IMTFW001: NetScreen device_id=IMTFW001  [Root]system-notification-00257(traffic): start_time="2024-11-17 02:22:08" duration=0 policy_id=12 service=udp/port:389 proto=17 src zone=Trust dst zone=Private action=Deny sent=0 rcvd=214 src=1.2.48.128 dst=1.2.14.235 src_port=60910 dst_port=389 session_id=0 reason=Traffic Denied
-logFormat: '^(?P<timestamp>\w{3} \d{1,2} \d{2}:\d{2}:\d{2}) .*? device_id=\S+.*?: .*?start_time="[^"]+" (?P<message>.*)$'
+# logFormat: '^(?P<timestamp>\w{3}.*\d{1,2} \d{2}:\d{2}:\d{2}) .*? device_id=\S+.*?: .*?start_time="[^"]+" (?P<message>.*)$'
+logFormat: '^(?P<timestamp>\w{3}.*\d{1,2} \d{2}:\d{2}:\d{2}) .*? device_id=\S+.*?: (?P<message>.*)$'
+msgFormats:
+  - '^start_time="[^"]+" (?P<message>.*)$'
+  - '^(?P<message>.*) \(\d{4}-\d{2}-\d{2} .*\)'
 timestampLayout: "Jan _2 15:04:05"
 maxBlocks: 100
 blockSize: 100
 keepPeriod: 100
-termCountBorder: 10
+termCountBorder: 3
 minMatchRate: 0.6
 unitSecs: 86400
 useUtcTime: true

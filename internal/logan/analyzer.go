@@ -2,10 +2,11 @@ package logan
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
-	"goLogAnalyzer/pkg/csvdb"
 	"goLogAnalyzer/pkg/filepointer"
 	"goLogAnalyzer/pkg/utils"
+	"io/ioutil"
 	"math"
 	"os"
 	"strconv"
@@ -15,39 +16,42 @@ import (
 )
 
 type analConfig struct {
-	dataDir                  string
-	logPath                  string
-	logFormat                string
-	timestampLayout          string
-	useUtcTime               bool
-	blockSize                int
-	maxBlocks                int
-	keepPeriod               int64
-	unitSecs                 int64
-	searchRegex, exludeRegex []string
-	termCountBorderRate      float64
-	termCountBorder          int
-	minMatchRate             float64
-	keywords                 []string
-	ignorewords              []string
-	customLogGroups          []string
-	separators               string
-	ignoreNumbers            bool
+	DataDir             string   `json:"data_dir"`
+	LogPath             string   `json:"log_path"`
+	LogFormat           string   `json:"log_format"`
+	MsgFormats          []string `json:"msg_formats"`
+	TimestampLayout     string   `json:"timestamp_layout"`
+	UseUtcTime          bool     `json:"use_utc_time"`
+	BlockSize           int      `json:"block_size"`
+	MaxBlocks           int      `json:"max_blocks"`
+	KeepPeriod          int64    `json:"keep_period"`
+	UnitSecs            int64    `json:"unit_secs"`
+	SearchRegex         []string `json:"search_regex"`
+	ExludeRegex         []string `json:"exclude_regex"`
+	TermCountBorderRate float64  `json:"term_count_border_rate"`
+	TermCountBorder     int      `json:"term_count_border"`
+	MinMatchRate        float64  `json:"min_match_rate"`
+	Keywords            []string `json:"keywords"`
+	Ignorewords         []string `json:"ignorewords"`
+	CustomLogGroups     []string `json:"custom_log_groups"`
+	Separators          string   `json:"separators"`
+	IgnoreNumbers       bool     `json:"ignore_numbers"`
+}
+
+type analStatus struct {
+	LastFileEpoch int64 `json:"last_file_epoch"`
+	LastFileRow   int   `json:"last_file_row"`
+	RowID         int   `json:"row_id"`
 }
 
 type Analyzer struct {
-	*csvdb.CsvDB
 	*analConfig
-	configTable     *csvdb.Table
-	lastStatusTable *csvdb.Table
-	trans           *trans
-	fp              *filepointer.FilePointer
-	lastFileEpoch   int64
-	lastFileRow     int
-	rowID           int
-	readOnly        bool
-	linesProcessed  int
-	testMode        bool
+	*analStatus
+	trans          *trans
+	fp             *filepointer.FilePointer
+	readOnly       bool
+	testMode       bool
+	linesProcessed int
 }
 
 func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime bool,
@@ -57,55 +61,63 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	termCountBorderRate float64,
 	termCountBorder int,
 	minMatchRate float64,
-	keywords, ignorewords, customLogGroups []string,
+	keywords, ignorewords,
+	msgFormats []string,
+	customLogGroups []string,
 	separators string,
 	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
 	debug = _debug
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
-	a.dataDir = dataDir
-	a.logPath = logPath
-	a.logFormat = logFormat
-	a.useUtcTime = useUtcTime
-	a.keywords = keywords
-	a.ignorewords = ignorewords
-	a.timestampLayout = timestampLayout
-	a.maxBlocks = maxBlocks
-	a.blockSize = blockSize
+	a.analStatus = new(analStatus)
+	a.DataDir = dataDir
+	a.LogPath = logPath
+	a.LogFormat = logFormat
+	a.MsgFormats = msgFormats
+	a.UseUtcTime = useUtcTime
+	a.Keywords = keywords
+	a.Ignorewords = ignorewords
+	a.TimestampLayout = timestampLayout
+	a.MaxBlocks = maxBlocks
+	a.BlockSize = blockSize
 	a.readOnly = readOnly
-	a.searchRegex = searchRegex
-	a.exludeRegex = exludeRegex
+	a.SearchRegex = searchRegex
+	a.ExludeRegex = exludeRegex
 	a.testMode = testMode
-	a.ignoreNumbers = ignoreNumbers
+	a.IgnoreNumbers = ignoreNumbers
 
 	// set defaults
-	a.unitSecs = utils.CFreqDay
-	a.keepPeriod = CDefaultKeepPeriod
-	a.termCountBorder = CDefaultTermCountBorder
-	a.termCountBorderRate = CDefaultTermCountBorderRate
-	a.minMatchRate = CDefaultMinMatchRate
-	a.separators = CDefaultSeparators
+	a.UnitSecs = utils.CFreqDay
+	a.KeepPeriod = CDefaultKeepPeriod
+	a.TermCountBorder = CDefaultTermCountBorder
+	a.TermCountBorderRate = CDefaultTermCountBorderRate
+	a.MinMatchRate = CDefaultMinMatchRate
+	a.Separators = CDefaultSeparators
+
+	a.LastFileEpoch = 0
+	a.LastFileRow = 0
+	a.RowID = 0
 
 	// override passed params
 	if unitSecs > 0 {
-		a.unitSecs = unitSecs
+		a.UnitSecs = unitSecs
 	}
 	if keepPeriod > 0 {
-		a.keepPeriod = keepPeriod
+		a.KeepPeriod = keepPeriod
 	}
 
 	if termCountBorder > 0 {
-		a.termCountBorder = termCountBorder
+		a.TermCountBorder = termCountBorder
 	}
 	if termCountBorderRate > 0 {
-		a.termCountBorderRate = termCountBorderRate
+		a.TermCountBorderRate = termCountBorderRate
 	}
 	if minMatchRate > 0 {
-		a.minMatchRate = minMatchRate
+		a.MinMatchRate = minMatchRate
 	}
 
 	if separators != "" {
-		a.separators = separators
+		a.Separators = separators
 	}
 
 	// load or init data.
@@ -116,10 +128,10 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 
 	// for some parameters, the args takes place
 	if logPath != "" {
-		a.logPath = logPath
+		a.LogPath = logPath
 	}
 
-	a.customLogGroups = customLogGroups
+	a.CustomLogGroups = customLogGroups
 
 	return a, nil
 }
@@ -132,34 +144,36 @@ func LoadAnalyzer(dataDir, logPath string,
 	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
 	a := new(Analyzer)
 	a.analConfig = new(analConfig)
+	a.analStatus = new(analStatus)
+
 	a.testMode = testMode
-	a.ignoreNumbers = ignoreNumbers
+	a.IgnoreNumbers = ignoreNumbers
 	debug = _debug
+	a.DataDir = dataDir
+	a.LogPath = logPath
 
 	if dataDir == "" {
 		return nil, utils.ErrorStack("no data to load")
 	}
-	if !utils.PathExist(fmt.Sprintf("%s/lastStatus.tbl.ini", dataDir)) {
+	if !utils.PathExist(a._getConfigPath()) {
 		return nil, utils.ErrorStack("no data to load")
 	}
 
-	a.dataDir = dataDir
-	a.logPath = logPath
 	a.readOnly = readOnly
 
 	// set defaults
-	a.termCountBorder = CDefaultTermCountBorder
-	a.termCountBorderRate = CDefaultTermCountBorderRate
-	a.minMatchRate = CDefaultMinMatchRate
+	a.TermCountBorder = CDefaultTermCountBorder
+	a.TermCountBorderRate = CDefaultTermCountBorderRate
+	a.MinMatchRate = CDefaultMinMatchRate
 
 	if termCountBorder > 0 {
-		a.termCountBorder = termCountBorder
+		a.TermCountBorder = termCountBorder
 	}
 	if termCountBorderRate > 0 {
-		a.termCountBorderRate = termCountBorderRate
+		a.TermCountBorderRate = termCountBorderRate
 	}
 	if minMatchRate > 0 {
-		a.minMatchRate = minMatchRate
+		a.MinMatchRate = minMatchRate
 	}
 
 	// load data.
@@ -170,21 +184,21 @@ func LoadAnalyzer(dataDir, logPath string,
 
 	// for some parameters, the args takes place
 	if logPath != "" {
-		a.logPath = logPath
+		a.LogPath = logPath
 	}
 
 	needRebuild := false
-	if termCountBorder > 0 && a.termCountBorder != termCountBorder {
-		a.termCountBorder = termCountBorder
+	if termCountBorder > 0 && a.TermCountBorder != termCountBorder {
+		a.TermCountBorder = termCountBorder
 		needRebuild = true
 	}
-	if termCountBorderRate > 0 && a.termCountBorderRate != termCountBorderRate {
-		a.termCountBorderRate = termCountBorderRate
+	if termCountBorderRate > 0 && a.TermCountBorderRate != termCountBorderRate {
+		a.TermCountBorderRate = termCountBorderRate
 		a.trans.setCountBorder()
 		needRebuild = true
 	}
-	if minMatchRate > 0 && a.minMatchRate != minMatchRate {
-		a.minMatchRate = minMatchRate
+	if minMatchRate > 0 && a.MinMatchRate != minMatchRate {
+		a.MinMatchRate = minMatchRate
 		needRebuild = true
 	}
 	if needRebuild {
@@ -194,7 +208,7 @@ func LoadAnalyzer(dataDir, logPath string,
 		}
 	}
 
-	a.customLogGroups = customLogGroups
+	a.CustomLogGroups = customLogGroups
 
 	return a, nil
 }
@@ -214,7 +228,7 @@ func (a *Analyzer) Close() {
 
 func (a *Analyzer) Purge() error {
 	a.Close()
-	if err := utils.RemoveDirectory(a.dataDir); err != nil {
+	if err := utils.RemoveDirectory(a.DataDir); err != nil {
 		return err
 	}
 	return nil
@@ -233,10 +247,6 @@ func (a *Analyzer) Feed(targetLinesCnt int) error {
 }
 
 func (a *Analyzer) load() error {
-	if err := a.loadKeywords(); err != nil {
-		return err
-	}
-
 	if err := a.trans.load(); err != nil {
 		return err
 	}
@@ -244,13 +254,16 @@ func (a *Analyzer) load() error {
 }
 
 func (a *Analyzer) open() error {
-	if a.dataDir == "" {
+	if a.DataDir == "" {
 		a.initBlocks()
 		if err := a.init(); err != nil {
 			return err
 		}
 	} else {
-		if utils.PathExist(a.dataDir) {
+		if utils.PathExist(a.DataDir) {
+			if err := a.loadConfig(); err != nil {
+				return err
+			}
 			if err := a.loadStatus(); err != nil {
 				return err
 			}
@@ -264,60 +277,32 @@ func (a *Analyzer) open() error {
 			if err := a.init(); err != nil {
 				return err
 			}
-			if !a.readOnly {
-				if err := a.prepareDB(); err != nil {
-					return err
-				}
-			}
+
 			if err := a.saveLastStatus(); err != nil {
 				return err
 			}
 			if err := a.saveConfig(); err != nil {
 				return err
 			}
-			if err := a.saveKeywords(); err != nil {
-				return err
-			}
 		}
 	}
-	return nil
-}
-
-func (a *Analyzer) prepareDB() error {
-	d, err := csvdb.NewCsvDB(a.dataDir)
-	if err != nil {
-		return err
-	}
-
-	ct, err := d.CreateTableIfNotExists("config", tableDefs["config"], false, 1, 1)
-	if err != nil {
-		return err
-	}
-	a.configTable = ct
-
-	ls, err := d.CreateTableIfNotExists("lastStatus", tableDefs["lastStatus"], false, 1, 1)
-	if err != nil {
-		return err
-	}
-	a.lastStatusTable = ls
-
-	a.CsvDB = d
 	return nil
 }
 
 func (a *Analyzer) init() error {
-	if a.dataDir != "" && !a.readOnly && a.testMode {
-		if err := utils.EnsureDir(a.dataDir); err != nil {
+	if a.DataDir != "" && !a.readOnly && a.testMode {
+		if err := utils.EnsureDir(a.DataDir); err != nil {
 			return err
 		}
 	}
-	trans, err := newTrans(a.dataDir, a.logFormat, a.timestampLayout,
-		a.useUtcTime,
-		a.maxBlocks, a.blockSize, a.unitSecs, a.keepPeriod,
-		a.termCountBorderRate, a.termCountBorder, a.minMatchRate,
-		a.searchRegex, a.exludeRegex,
-		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true,
-		a.readOnly, a.testMode, a.ignoreNumbers)
+	trans, err := newTrans(a.DataDir, a.LogFormat, a.TimestampLayout,
+		a.UseUtcTime,
+		a.MaxBlocks, a.BlockSize, a.UnitSecs, a.KeepPeriod,
+		a.TermCountBorderRate, a.TermCountBorder, a.MinMatchRate,
+		a.SearchRegex, a.ExludeRegex,
+		a.Keywords, a.Ignorewords, a.MsgFormats,
+		a.CustomLogGroups, a.Separators, true,
+		a.readOnly, a.testMode, a.IgnoreNumbers)
 	if err != nil {
 		return err
 	}
@@ -325,8 +310,12 @@ func (a *Analyzer) init() error {
 	return nil
 }
 
+func (a *Analyzer) _getLastStatusPath() string {
+	return fmt.Sprintf("%s/status.json", a.DataDir)
+}
+
 func (a *Analyzer) saveLastStatus() error {
-	if a.dataDir == "" || a.readOnly || a.testMode {
+	if a.DataDir == "" || a.readOnly || a.testMode {
 		return nil
 	}
 
@@ -335,18 +324,23 @@ func (a *Analyzer) saveLastStatus() error {
 	if a.fp != nil {
 		epoch = a.fp.CurrFileEpoch()
 		rowNo = a.fp.Row()
-		a.lastFileEpoch = epoch
-		a.rowID = rowNo
+		a.LastFileEpoch = epoch
+		a.RowID = rowNo
+		a.LastFileRow = a.fp.Row()
 	} else {
 		epoch = 0
 		rowNo = 0
 	}
 
-	err := a.lastStatusTable.Upsert(nil, map[string]interface{}{
-		"lastRowId":     a.rowID,
-		"lastFileEpoch": epoch,
-		"lastFileRow":   rowNo,
-	})
+	data, err := json.MarshalIndent(a.analStatus, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config to JSON: %w", err)
+	}
+
+	err = ioutil.WriteFile(a._getLastStatusPath(), data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write JSON to file: %w", err)
+	}
 
 	return err
 }
@@ -355,106 +349,60 @@ func (a *Analyzer) loadStatus() error {
 	if a.testMode {
 		return nil
 	}
-	if a.dataDir != "" && !a.readOnly {
-		if err := a.prepareDB(); err != nil {
-			return err
+
+	if a.LastFileEpoch == 0 {
+		data, err := ioutil.ReadFile(a._getLastStatusPath())
+		if err != nil {
+			return fmt.Errorf("failed to read JSON file: %w", err)
 		}
-	}
 
-	if err := a.configTable.Select1Row(nil,
-		tableDefs["config"],
-		&a.logPath,
-		&a.blockSize, &a.maxBlocks,
-		&a.keepPeriod, &a.unitSecs,
-		&a.termCountBorderRate,
-		&a.termCountBorder,
-		&a.minMatchRate,
-		&a.timestampLayout,
-		&a.useUtcTime,
-		&a.ignoreNumbers,
-		&a.separators,
-		&a.logFormat); err != nil {
-		return err
-	}
-
-	if a.lastFileEpoch == 0 {
-		if err := a.lastStatusTable.Select1Row(nil,
-			[]string{"lastRowId", "lastFileEpoch", "lastFileRow"},
-			&a.rowID, &a.lastFileEpoch, &a.lastFileRow); err != nil {
-			return err
+		err = json.Unmarshal(data, a.analStatus)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal JSON: %w", err)
 		}
 
 	}
 
 	return nil
+}
+
+func (a *Analyzer) _getConfigPath() string {
+	return fmt.Sprintf("%s/config.json", a.DataDir)
 }
 
 func (a *Analyzer) saveConfig() error {
-	if a.readOnly {
-		return nil
+	data, err := json.MarshalIndent(a.analConfig, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config to JSON: %w", err)
 	}
 
-	if err := a.configTable.Upsert(nil, map[string]interface{}{
-		"logPath":             a.logPath,
-		"blockSize":           a.blockSize,
-		"maxBlocks":           a.maxBlocks,
-		"keepPeriod":          a.keepPeriod,
-		"unitSecs":            a.unitSecs,
-		"termCountBorderRate": a.termCountBorderRate,
-		"termCountBorder":     a.termCountBorder,
-		"minMatchRate":        a.minMatchRate,
-		"timestampLayout":     a.timestampLayout,
-		"useUtcTime":          a.useUtcTime,
-		"ignoreNumbers":       a.ignoreNumbers,
-		"separators":          a.separators,
-		"logFormat":           a.logFormat,
-	}); err != nil {
-		return err
+	err = ioutil.WriteFile(a._getConfigPath(), data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write JSON to file: %w", err)
 	}
+
 	return nil
 }
 
-func (a *Analyzer) getKeywordsFilePath() string {
-	return fmt.Sprintf("%s/keywords.txt", a.dataDir)
-}
-func (a *Analyzer) getIgnorewordsFilePath() string {
-	return fmt.Sprintf("%s/ignorewords.txt", a.dataDir)
-}
+func (a *Analyzer) loadConfig() error {
+	data, err := ioutil.ReadFile(a._getConfigPath())
+	if err != nil {
+		return fmt.Errorf("failed to read JSON file: %w", err)
+	}
 
-func (a *Analyzer) saveKeywords() error {
-	if a.readOnly {
-		return nil
+	err = json.Unmarshal(data, a.analConfig)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
-	if err := utils.Slice2File(a.keywords, a.getKeywordsFilePath()); err != nil {
-		return err
-	}
-	return utils.Slice2File(a.keywords, a.getIgnorewordsFilePath())
-}
 
-func (a *Analyzer) loadKeywords() error {
-	var err error
-	keywordsPath := a.getKeywordsFilePath()
-	if utils.PathExist(keywordsPath) {
-		a.keywords, err = utils.ReadFile2Slice(keywordsPath)
-		if err != nil {
-			return err
-		}
-	}
-	ignorewordsPath := a.getIgnorewordsFilePath()
-	if utils.PathExist(ignorewordsPath) {
-		a.ignorewords, err = utils.ReadFile2Slice(ignorewordsPath)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func (a *Analyzer) initBlocks() {
-	if a.maxBlocks > 0 && a.blockSize > 0 {
+	if a.MaxBlocks > 0 && a.BlockSize > 0 {
 		if a.trans != nil {
-			a.trans.setBlockSize(a.blockSize)
-			a.trans.setMaxBlocks(a.maxBlocks)
+			a.trans.setBlockSize(a.BlockSize)
+			a.trans.setMaxBlocks(a.MaxBlocks)
 		}
 		return
 	}
@@ -464,29 +412,29 @@ func (a *Analyzer) initBlocks() {
 	}
 
 	maxCountByBlock := a.trans.maxCountByBlock
-	keepPeriod := a.keepPeriod
+	keepPeriod := a.KeepPeriod
 	if keepPeriod == 0 {
 		keepPeriod = 30
 	}
 
-	if a.blockSize == 0 {
+	if a.BlockSize == 0 {
 		if maxCountByBlock < 3000 {
-			a.blockSize = 10000
+			a.BlockSize = 10000
 		} else if maxCountByBlock < 30000 {
-			a.blockSize = 100000
+			a.BlockSize = 100000
 		} else if maxCountByBlock < 300000 {
-			a.blockSize = 100000
+			a.BlockSize = 100000
 		} else {
-			a.blockSize = 1000000
+			a.BlockSize = 1000000
 		}
 	}
 
-	if a.maxBlocks == 0 {
-		n := int(math.Ceil(float64(a.trans.maxCountByBlock) / float64(a.blockSize)))
-		a.maxBlocks = n * int(a.keepPeriod)
+	if a.MaxBlocks == 0 {
+		n := int(math.Ceil(float64(a.trans.maxCountByBlock) / float64(a.BlockSize)))
+		a.MaxBlocks = n * int(a.KeepPeriod)
 	}
-	a.trans.setBlockSize(a.blockSize)
-	a.trans.setMaxBlocks(a.maxBlocks)
+	a.trans.setBlockSize(a.BlockSize)
+	a.trans.setMaxBlocks(a.MaxBlocks)
 
 }
 
@@ -494,7 +442,7 @@ func (a *Analyzer) _commit(completed bool) error {
 	if a.readOnly {
 		return nil
 	}
-	if a.dataDir == "" {
+	if a.DataDir == "" {
 		return nil
 	}
 	if err := a.trans.commit(completed); err != nil {
@@ -506,9 +454,6 @@ func (a *Analyzer) _commit(completed bool) error {
 	if err := a.saveLastStatus(); err != nil {
 		return err
 	}
-	if err := a.saveKeywords(); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -516,7 +461,7 @@ func (a *Analyzer) _commit(completed bool) error {
 func (a *Analyzer) _initFilePointer() error {
 	var err error
 	if a.fp == nil || !a.fp.IsOpen() {
-		a.fp, err = filepointer.NewFilePointer(a.logPath, a.lastFileEpoch, a.lastFileRow)
+		a.fp, err = filepointer.NewFilePointer(a.LogPath, a.LastFileEpoch, a.LastFileRow)
 		if err != nil {
 			return err
 		}
@@ -584,7 +529,7 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 		if _, err := a.trans.lineToLogGroup(line, 1, a.fp.CurrFileEpoch()); err != nil {
 			return err
 		}
-		a.rowID++
+		a.RowID++
 		if a.fp.IsEOF && (!a.fp.IsLastFile()) {
 			if err := a.saveLastStatus(); err != nil {
 				return err
@@ -736,7 +681,7 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
 
-	format := utils.GetDatetimeFormatFromUnitSecs(a.unitSecs)
+	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
 	header := []string{"groupId"}
 	for _, ep := range lgsh.timeline {
 		header = append(header, time.Unix(ep, 0).Format(format))
@@ -804,12 +749,14 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 
 /*
 In case some of below have changed since the saved config, rebuild trans with read only
-a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,a.keywords, a.ignorewords, a.customLogGroups
+a.TermCountBorder, a.MinMatchRate, a.SearchRegex, a.ExludeRegex,a.Keywords, a.Ignorewords, a.CustomLogGroups
 */
 func (a *Analyzer) rebuildTrans() error {
-	tr2, err := newTrans(a.dataDir, "", "", a.useUtcTime, a.maxBlocks, a.blockSize, a.unitSecs, a.keepPeriod,
-		0, a.termCountBorder, a.minMatchRate, a.searchRegex, a.exludeRegex,
-		a.keywords, a.ignorewords, a.customLogGroups, a.separators, true, true, a.testMode, a.ignoreNumbers)
+	tr2, err := newTrans(a.DataDir, "", "", a.UseUtcTime, a.MaxBlocks, a.BlockSize, a.UnitSecs, a.KeepPeriod,
+		0, a.TermCountBorder, a.MinMatchRate, a.SearchRegex, a.ExludeRegex,
+		a.Keywords, a.Ignorewords, a.MsgFormats,
+		a.CustomLogGroups, a.Separators,
+		true, true, a.testMode, a.IgnoreNumbers)
 	if err != nil {
 		return err
 	}
@@ -842,7 +789,7 @@ func (a *Analyzer) ParseLogLine(line string) {
 	}
 
 	line, updated, _ := a.trans.parseLine(line, 0)
-	format := utils.GetDatetimeFormatFromUnitSecs(a.unitSecs)
+	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
 	dt := ""
 	if updated > 0 {
 		dt = time.Unix(updated, 0).Format(format)

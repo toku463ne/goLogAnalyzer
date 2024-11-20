@@ -14,15 +14,16 @@ import (
 )
 
 type trans struct {
-	te              *terms
-	lt              *logTree
-	lgs             *logGroups
-	customLogGroups []string
-	replacer        *strings.Replacer
-	logFormatRe     *regexp.Regexp
-	timestampLayout string
-	useUtcTime      bool
-
+	te                  *terms
+	lt                  *logTree
+	lgs                 *logGroups
+	customLogGroups     []string
+	replacer            *strings.Replacer
+	logFormatRe         *regexp.Regexp
+	msgFormatRes        []*regexp.Regexp
+	msgPoses            map[*regexp.Regexp]int
+	timestampLayout     string
+	useUtcTime          bool
 	timestampPos        int
 	messagePos          int
 	readOnly            bool
@@ -51,8 +52,9 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	termCountBorderRate float64,
 	termCountBorder int,
 	minMatchRate float64,
-	searchRegex, exludeRegex []string,
-	_keywords []string, _ignorewords []string,
+	searchRegex, exludeRegex,
+	_keywords, _ignorewords,
+	_msgFormats []string,
 	_customLogGroups []string,
 	separators string,
 	useGzip, readOnly, testMode, ignoreNumbers bool) (*trans, error) {
@@ -87,6 +89,10 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 		return nil, err
 	}
 	tr.te = te
+
+	if len(_msgFormats) > 0 {
+		tr._parseMsgFormat(_msgFormats)
+	}
 
 	tr.lt = newLogTree(0)
 	// don't need blockSize for terms because the rotation follows trans.next()
@@ -130,6 +136,21 @@ func (tr *trans) _parseLogFormat(logFormat string) {
 		}
 	}
 	tr.logFormatRe = re
+}
+
+func (tr *trans) _parseMsgFormat(msgFormats []string) {
+	tr.msgFormatRes = make([]*regexp.Regexp, 0)
+	tr.msgPoses = make(map[*regexp.Regexp]int)
+	for _, msgFormat := range msgFormats {
+		re := regexp.MustCompile(`` + msgFormat)
+		tr.msgFormatRes = append(tr.msgFormatRes, re)
+		names := re.SubexpNames()
+		for i, name := range names {
+			if name == "message" {
+				tr.msgPoses[re] = i
+			}
+		}
+	}
 }
 
 func (tr *trans) _setFilters(searchRegex, exludeRegex []string) {
@@ -223,6 +244,16 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64) {
 		lastUpdate = updated
 	}
 	return line, lastUpdate, retentionPos
+}
+
+func (tr *trans) parseMessage(line string) string {
+	for _, re := range tr.msgFormatRes {
+		ma := re.FindStringSubmatch(line)
+		if len(ma) > 0 {
+			line = ma[tr.msgPoses[re]]
+		}
+	}
+	return line
 }
 
 // convert line to list of tokens and register to tr.te.
@@ -381,6 +412,7 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 		return -1, nil
 	}
 	line, updated, retentionPos := tr.parseLine(orgLine, updated)
+	line = tr.parseMessage(line)
 	if (tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos) || tr.countByBlock > tr.maxCountByBlock {
 		if err := tr.next(updated); err != nil {
 			return -1, err

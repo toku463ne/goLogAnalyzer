@@ -33,6 +33,7 @@ var (
 	searchRegex         []string
 	excludeRegex        []string
 	logFormat           string
+	msgFormats          []string
 	timestampLayout     string
 	maxBlocks           int
 	blockSize           int
@@ -65,6 +66,7 @@ type config struct {
 	SearchRegex         []string `yaml:"searchRegex"`
 	ExcludeRegex        []string `yaml:"excludeRegex"`
 	LogFormat           string   `yaml:"logFormat"`
+	MsgFormats          []string `yaml:"msgFormats"`
 	TimestampLayout     string   `yaml:"timestampLayout"`
 	KeepPeriod          int64    `yaml:"keepPeriod"`
 	UnitSecs            int64    `yaml:"unitSecs"`
@@ -201,6 +203,9 @@ func applyDefaults(c *config) {
 	}
 	if logFormat == "" {
 		logFormat = c.LogFormat
+	}
+	if msgFormats == nil || len(msgFormats) == 0 {
+		msgFormats = c.MsgFormats
 	}
 	if timestampLayout == "" {
 		timestampLayout = c.TimestampLayout
@@ -355,7 +360,8 @@ func run() error {
 			termCountBorderRate,
 			termCountBorder,
 			minMatchRate,
-			keywords, ignorewords, customLogGroups,
+			keywords, ignorewords, msgFormats,
+			customLogGroups,
 			separators,
 			readOnly, debug, testMode, ignoreNumbers)
 	}
