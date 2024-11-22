@@ -1,0 +1,15 @@
+---
+dataDir: "{{ HOME }}/logantests/others_002_anomaly_test/data"
+outDir: "{{ HOME }}/logantests/others_002_anomaly_test/out"
+logPath: "../../testdata/loganal/sample50_*.log"
+logFormat: '^(?P<timestamp>\d+-\d+-\d+T\d+:\d+:\d+)] (?P<message>.+)$'
+timestampLayout: "2006-01-02T15:04:05"
+maxBlocks: 100
+blockSize: 100
+keepPeriod: 100
+termCountBorder: 10
+minMatchRate: 0.5
+unitSecs: 86400
+useUtcTime: true
+stdThreshold: 2
+minOccurrences: 10

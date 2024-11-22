@@ -27,7 +27,7 @@ func runGroups(t *testing.T, testName, config string) [][]string {
 
 func getGroupCount(records [][]string, displayString string) string {
 	for _, row := range records {
-		if row[2] == displayString {
+		if row[3] == displayString {
 			return row[1]
 		}
 	}
@@ -35,7 +35,7 @@ func getGroupCount(records [][]string, displayString string) string {
 }
 
 func Test_groups_001_filter(t *testing.T) {
-	tbl := runGroups(t, "Test_groups_001_filter", "groups_001_filter.yml")
+	tbl := runGroups(t, "Test_groups_001_filter", "../../testdata/loganal/groups_001_filter.yml")
 
 	if err := utils.GetGotExpErr("Test_groups_001_filter:rows", len(tbl), 3); err != nil {
 		t.Errorf("%v", err)
@@ -66,14 +66,14 @@ func Test_groups_001_filter(t *testing.T) {
 }
 
 func Test_groups_002_kw_igw(t *testing.T) {
-	tbl := runGroups(t, "Test_groups_002_kw_igw", "groups_002_kw_igw.yml")
+	tbl := runGroups(t, "Test_groups_002_kw_igw", "../../testdata/loganal/groups_002_kw_igw.yml")
 
-	if err := utils.GetGotExpErr("Test_groups_002_kw_igw:rows", len(tbl), 3); err != nil {
+	if err := utils.GetGotExpErr("Test_groups_002_kw_igw:rows", len(tbl), 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	ds := "Com1, * Com2 * grpa50 * <coM3> * * *"
+	ds := "Com1, * Com2 * grpa50 * <coM3> * grpb20 *"
 	cntstr := getGroupCount(tbl, ds)
 	if err := utils.GetGotExpErr("Test_groups_001_filter:group count", cntstr, "20"); err != nil {
 		t.Errorf("%v", err)

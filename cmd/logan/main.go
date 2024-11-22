@@ -58,6 +58,11 @@ var (
 	ascOrder            bool
 	analLogPath         string
 	ignoreNumbers       bool
+	minLastUpdate       int64
+	minLogCount         int
+	maxLogCount         int
+	stdThreshold        float64
+	minOccurrences      float64
 )
 
 type config struct {
@@ -79,9 +84,14 @@ type config struct {
 	Ignorewords         []string `yaml:"ignorewords"`
 	CustomLogGroups     []string `yaml:"phrases"`
 	UseUtcTime          bool     `yaml:"useUtcTime"`
-	outDir              string   `yaml:"outDir"`
+	OutDir              string   `yaml:"outDir"`
 	Separators          string   `yaml:"separators"`
 	IgnoreNumbers       bool     `yaml:"ignoreNumbers"`
+	MinLastUpdate       int64    `yaml:"minLastUpdate"`
+	MinLogCount         int      `yaml:"minLogCount"`
+	MaxLogCount         int      `yaml:"maxLogCount"`
+	StdThreshold        float64  `yaml:"stdThreshold"`
+	MinOccurrences      float64  `yaml:"minOccurrences"`
 }
 
 func setCommonFlag(fs *flag.FlagSet) {
@@ -118,6 +128,15 @@ func setOutFlag(fs *flag.FlagSet) {
 	setNonFeedFlag(fs)
 	fs.StringVar(&outDir, "o", "", "Output file")
 	fs.IntVar(&N, "N", 0, "Number of items to output")
+	fs.IntVar(&minLogCount, "minCount", 0, "Minimum of logGroup size")
+	fs.IntVar(&maxLogCount, "maxCount", 0, "Maximum of logGroup size")
+	fs.Int64Var(&minLastUpdate, "lastepoch", 0, "minimum of the last updated epoch to show in output")
+}
+
+func setStatsFlag(fs *flag.FlagSet) {
+	setOutFlag(fs)
+	fs.Float64Var(&stdThreshold, "stdThreshold", 0, "std threshold to detect anommaly")
+	fs.Float64Var(&minOccurrences, "minOccurrences", 0, "minimum occurrences to detect anommaly")
 }
 
 func setParseLineFlag(fs *flag.FlagSet) {
@@ -195,6 +214,9 @@ func applyDefaults(c *config) {
 	if logPath == "" {
 		logPath = c.LogPath
 	}
+	if outDir == "" {
+		outDir = c.OutDir
+	}
 	if searchRegex == nil {
 		searchRegex = c.SearchRegex
 	}
@@ -204,7 +226,7 @@ func applyDefaults(c *config) {
 	if logFormat == "" {
 		logFormat = c.LogFormat
 	}
-	if msgFormats == nil || len(msgFormats) == 0 {
+	if len(msgFormats) == 0 {
 		msgFormats = c.MsgFormats
 	}
 	if timestampLayout == "" {
@@ -241,12 +263,25 @@ func applyDefaults(c *config) {
 	if customLogGroups == nil {
 		customLogGroups = c.CustomLogGroups
 	}
-	if outDir == "" {
-		outDir = c.outDir
-	}
 	if separators == "" {
 		separators = c.Separators
 	}
+	if minLastUpdate == 0 {
+		minLastUpdate = c.MinLastUpdate
+	}
+	if minLogCount == 0 {
+		minLogCount = c.MinLogCount
+	}
+	if maxLogCount == 0 {
+		maxLogCount = c.MaxLogCount
+	}
+	if stdThreshold == 0 {
+		stdThreshold = c.StdThreshold
+	}
+	if minOccurrences == 0 {
+		minOccurrences = c.MinOccurrences
+	}
+
 }
 
 func clean() {
@@ -373,9 +408,11 @@ func run() error {
 	case "feed":
 		err = a.Feed(0)
 	case "history":
-		err = a.OutputLogGroups(N, outDir, true, ascOrder)
+		err = a.OutputLogGroups(N, outDir, minLastUpdate, minLogCount, maxLogCount, true, ascOrder)
 	case "groups":
-		err = a.OutputLogGroups(N, outDir, false, ascOrder)
+		err = a.OutputLogGroups(N, outDir, minLastUpdate, minLogCount, maxLogCount, false, ascOrder)
+	case "stats":
+		err = a.Stats(N, outDir, minLastUpdate, maxLogCount, minLogCount, stdThreshold, minOccurrences)
 	case "test":
 		a.ParseLogLine(line)
 	default:
@@ -408,6 +445,8 @@ func main() {
 			setOutFlag(_flagSet)
 		case "groups":
 			setOutFlag(_flagSet)
+		case "stats":
+			setStatsFlag(_flagSet)
 		case "test":
 			setParseLineFlag(_flagSet)
 		default:

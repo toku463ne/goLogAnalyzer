@@ -473,7 +473,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
-	if err := a.OutputLogGroups(10, testDir, true, false); err != nil {
+	if err := a.OutputLogGroups(10, testDir, 0, 0, 0, true, false); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -532,7 +532,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
-	if err := a.OutputLogGroups(10, testDir, true, false); err != nil {
+	if err := a.OutputLogGroups(10, testDir, 0, 0, 0, true, false); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -638,7 +638,7 @@ func Test_Analyzer_multisize(t *testing.T) {
 		return
 	}
 
-	err = a.OutputLogGroups(10, dataDir, false, true)
+	err = a.OutputLogGroups(10, dataDir, 0, 0, 0, false, true)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -673,7 +673,7 @@ func Test_Analyzer_multisize(t *testing.T) {
 		return
 	}
 
-	err = a.OutputLogGroups(10, dataDir, false, false)
+	err = a.OutputLogGroups(10, dataDir, 0, 0, 0, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

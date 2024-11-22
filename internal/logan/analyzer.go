@@ -558,15 +558,67 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 	return nil
 }
 
-func (a *Analyzer) OutputLogGroups(N int, outdir string, isHistory, asc bool) error {
+func (a *Analyzer) Stats(N int, outdir string,
+	minLastUpdate int64,
+	maxRareCount, minFreqCount int,
+	stdThreshold, minOccurrences float64) error {
+	if err := a.Feed(0); err != nil {
+		return err
+	}
+	var rareGroupIds []int64
+	if N > 0 {
+		rareGroupIds = a.trans.getTopNGroupIds(N, minLastUpdate, 0, maxRareCount, true)
+	} else {
+		rareGroupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, 0, maxRareCount, true)
+	}
+
+	if err := utils.EnsureDir(outdir); err != nil {
+		return err
+	}
+
+	// output rare logs
+	if err := a._outputLogGroups(outdir, rareGroupIds); err != nil {
+		return err
+	}
+
+	var freqGroupIds []int64
+	if N > 0 {
+		freqGroupIds = a.trans.getTopNGroupIds(N, minLastUpdate, minFreqCount, 0, false)
+	} else {
+		freqGroupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, minFreqCount, 0, false)
+	}
+
+	lgsh, err := a.trans.getLogGroupsHistory(freqGroupIds)
+	if err != nil {
+		return err
+	}
+
+	anomalGroupIds := make([]int64, 0)
+	for _, groupId := range freqGroupIds {
+		epochs := lgsh.detectAnomaly(groupId, stdThreshold, minOccurrences, minLastUpdate)
+		if len(epochs) > 0 {
+			anomalGroupIds = append(anomalGroupIds, groupId)
+		}
+	}
+	// output history with anomly
+	if err := a._outputLogGroupsHistory(outdir, anomalGroupIds); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Analyzer) OutputLogGroups(N int, outdir string,
+	minLastUpdate int64, minCnt, maxCnt int,
+	isHistory, asc bool) error {
 	if err := a.Feed(0); err != nil {
 		return err
 	}
 	var groupIds []int64
 	if N > 0 {
-		groupIds = a.trans.getTopNGroupIds(N, asc)
+		groupIds = a.trans.getTopNGroupIds(N, minLastUpdate, minCnt, maxCnt, asc)
 	} else {
-		groupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), asc)
+		groupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, minCnt, maxCnt, asc)
 	}
 
 	if outdir == "" {

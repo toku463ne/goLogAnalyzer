@@ -1,0 +1,20 @@
+---
+searchRegex: 
+  - grpa20|grpb20
+excludeRegex:
+  - grpa10
+  - grpe10
+separators: ' ,;[]<>{}=|:&?/+.!@'
+dataDir: "{{ DATADIR }}"
+logPath: "../../testdata/loganal/sample50_1.log"
+logFormat: '^(?P<timestamp>\d+-\d+-\d+T\d+:\d+:\d+)] (?P<message>.+)$'
+timestampLayout: "2006-01-02T15:04:05"
+termCountBorder: 10
+maxBlocks: 100
+blockSize: 100
+keepPeriod: 100
+unitSecs: 86400
+countBorder: 10
+minMatchRate: 0.6
+useUtcTime: true
+

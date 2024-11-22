@@ -3,9 +3,10 @@ no logformat
 no dateformat
 no timestamp
 interrupt in the middle -> detect corruption
-history: not ordered when N is absent
+output recent last messages
 
-
+verify history date and date in the lastMessage
+verify one groupId one displayName
 test options 
 test topN frequency
 test without data path

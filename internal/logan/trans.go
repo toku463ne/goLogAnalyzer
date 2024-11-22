@@ -672,13 +672,16 @@ func (tr *trans) setCountBorder() {
 }
 
 // get top N logGroups
-func (tr *trans) getTopNGroupIds(N int, asc bool) []int64 {
+func (tr *trans) getTopNGroupIds(N int, minLastUpdate int64,
+	minCnt, maxCnt int, asc bool) []int64 {
 	lgs := tr.lgs
 
 	// Create a slice of key-value pairs
 	groupIds := make([]int64, 0, len(lgs.alllg))
-	for groupId := range lgs.alllg {
-		groupIds = append(groupIds, groupId)
+	for groupId, lg := range lgs.alllg {
+		if lg.updated >= minLastUpdate && lg.count >= minCnt && (maxCnt == 0 || lg.count <= maxCnt) {
+			groupIds = append(groupIds, groupId)
+		}
 	}
 
 	// Sort the slice by Count in descending order

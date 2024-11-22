@@ -1,5 +1,9 @@
 package logan
 
+import (
+	"goLogAnalyzer/pkg/utils"
+)
+
 type logGroupsHistory struct {
 	timeline       []int64
 	counts         [][]int
@@ -70,4 +74,45 @@ func (lgsh *logGroupsHistory) getCount(groupId, epoch int64) int {
 		return -1
 	}
 	return lgsh.counts[i][j]
+}
+
+func (lgsh *logGroupsHistory) detectAnomaly(groupId int64,
+	stdThreshold, minOccurrences float64,
+	minEpoch int64) (epochs []int64) {
+	i, ok := lgsh.groupIdsMap[groupId]
+	if !ok {
+		return
+	}
+	epochs = make([]int64, 0)
+
+	values := make([]float64, 0)
+	for _, cnt := range lgsh.counts[i] {
+		values = append(values, float64(cnt))
+	}
+	mean, stdDev := utils.CalculateStats(values)
+	upperThreshold := mean + stdThreshold*stdDev
+	lowerThreshold := mean - stdThreshold*stdDev
+
+	if utils.DetectPeriodicityByThreshold(values, upperThreshold, lowerThreshold) {
+		return
+	}
+
+	for j := range lgsh.counts[i][1:] {
+		epoch := lgsh.timeline[j]
+		if minEpoch > epoch {
+			continue
+		}
+		// Sudden disappearance
+		if values[i-1] >= minOccurrences && values[i] < minOccurrences {
+			if values[i-1] > upperThreshold {
+				epochs = append(epochs, epoch)
+			}
+		}
+
+		// Below lower threshold anomaly
+		if values[i] < lowerThreshold {
+			epochs = append(epochs, epoch)
+		}
+	}
+	return
 }

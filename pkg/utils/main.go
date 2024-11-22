@@ -579,3 +579,50 @@ func CountGzFileLines(filePath string) (int, error) {
 
 	return lineCount, nil
 }
+
+func CalculateStats(values []float64) (mean float64, stdDev float64) {
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+	mean = sum / float64(len(values))
+
+	var varianceSum float64
+	for _, v := range values {
+		varianceSum += math.Pow(v-mean, 2)
+	}
+	stdDev = math.Sqrt(varianceSum / float64(len(values)))
+	return
+}
+
+func DetectPeriodicityByThreshold(values []float64, upperThreshold, lowerThreshold float64) bool {
+	crossingPattern := make([]int, len(values))
+
+	// Record threshold crossings
+	for i, v := range values {
+		if v > upperThreshold {
+			crossingPattern[i] = 1 // Above upper threshold
+		} else if v < lowerThreshold {
+			crossingPattern[i] = -1 // Below lower threshold
+		} else {
+			crossingPattern[i] = 0 // Within thresholds
+		}
+	}
+
+	// Check for periodicity in the crossing pattern
+	n := len(crossingPattern)
+	for period := 2; period <= n/2; period++ {
+		isPeriodic := true
+		for i := 0; i < n-period; i++ {
+			if crossingPattern[i] != crossingPattern[i+period] {
+				isPeriodic = false
+				break
+			}
+		}
+		if isPeriodic {
+			return true
+		}
+	}
+
+	return false
+}
