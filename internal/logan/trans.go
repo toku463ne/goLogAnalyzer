@@ -394,6 +394,9 @@ func (tr *trans) lineToTerms(line string, addCnt int) error {
 	if !tr._match(line) {
 		return nil
 	}
+	if line == "" {
+		return nil
+	}
 	line, _, retentionPos, err := tr.parseLine(line, 0)
 	if err != nil {
 		return err
@@ -416,6 +419,9 @@ func (tr *trans) lineToTerms(line string, addCnt int) error {
 // analyze the line and
 func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int64, error) {
 	if !tr._match(orgLine) {
+		return -1, nil
+	}
+	if orgLine == "" {
 		return -1, nil
 	}
 	line, updated, retentionPos, err := tr.parseLine(orgLine, updated)
