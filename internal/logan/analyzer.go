@@ -318,6 +318,9 @@ func (a *Analyzer) saveLastStatus() error {
 	if a.DataDir == "" || a.readOnly || a.testMode {
 		return nil
 	}
+	if !utils.PathExist(a.DataDir) {
+		return fmt.Errorf("%s does not exist", a.DataDir)
+	}
 
 	var epoch int64
 	rowNo := 0
