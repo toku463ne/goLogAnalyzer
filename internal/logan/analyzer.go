@@ -385,6 +385,9 @@ func (a *Analyzer) saveConfig() error {
 }
 
 func (a *Analyzer) loadConfig() error {
+	if a.testMode {
+		return nil
+	}
 	data, err := ioutil.ReadFile(a._getConfigPath())
 	if err != nil {
 		return fmt.Errorf("failed to read JSON file: %w", err)
@@ -848,7 +851,11 @@ func (a *Analyzer) ParseLogLine(line string) {
 		logrus.Errorf("%+v", err)
 	}
 
-	line, updated, _ := a.trans.parseLine(line, 0)
+	line, updated, _, err := a.trans.parseLine(line, 0)
+	if err != nil {
+		print(err)
+		return
+	}
 	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
 	dt := ""
 	if updated > 0 {

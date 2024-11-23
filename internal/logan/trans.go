@@ -205,7 +205,7 @@ func (tr *trans) setBlockSize(blockSize int) {
 	tr.maxCountByBlock = blockSize
 }
 
-func (tr *trans) parseLine(line string, updated int64) (string, int64, int64) {
+func (tr *trans) parseLine(line string, updated int64) (string, int64, int64, error) {
 	var lastdt time.Time
 	var err error
 	lastUpdate := int64(0)
@@ -213,6 +213,9 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64) {
 
 	if tr.timestampPos >= 0 || tr.messagePos >= 0 {
 		ma := tr.logFormatRe.FindStringSubmatch(line)
+		if tr.timestampPos >= 0 && len(ma) == 0 {
+			return "", 0, 0, fmt.Errorf("line does not match format:\n%s", line)
+		}
 		if len(ma) > 0 {
 			if tr.timestampPos >= 0 && tr.timestampLayout != "" && len(ma) > tr.timestampPos {
 				if tr.useUtcTime {
@@ -243,7 +246,7 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64) {
 	if lastUpdate == 0 {
 		lastUpdate = updated
 	}
-	return line, lastUpdate, retentionPos
+	return line, lastUpdate, retentionPos, nil
 }
 
 func (tr *trans) parseMessage(line string) string {
@@ -387,11 +390,14 @@ func (tr *trans) toTokens(line string, addCnt int,
 	return tokens, displayString, nil
 }
 
-func (tr *trans) lineToTerms(line string, addCnt int) {
+func (tr *trans) lineToTerms(line string, addCnt int) error {
 	if !tr._match(line) {
-		return
+		return nil
 	}
-	line, _, retentionPos := tr.parseLine(line, 0)
+	line, _, retentionPos, err := tr.parseLine(line, 0)
+	if err != nil {
+		return err
+	}
 
 	tr.toTokens(line, addCnt, false, false, false)
 	if tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos {
@@ -404,6 +410,7 @@ func (tr *trans) lineToTerms(line string, addCnt int) {
 	tr.totalLines++
 
 	tr.currRetentionPos = retentionPos
+	return nil
 }
 
 // analyze the line and
@@ -411,7 +418,10 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	if !tr._match(orgLine) {
 		return -1, nil
 	}
-	line, updated, retentionPos := tr.parseLine(orgLine, updated)
+	line, updated, retentionPos, err := tr.parseLine(orgLine, updated)
+	if err != nil {
+		return -1, err
+	}
 	line = tr.parseMessage(line)
 	if (tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos) || tr.countByBlock > tr.maxCountByBlock {
 		if err := tr.next(updated); err != nil {

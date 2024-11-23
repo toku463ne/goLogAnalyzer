@@ -563,7 +563,10 @@ func _test_Trans_parse(line, logFormat, layout string,
 		return err
 	}
 
-	line, updated, _ := a.trans.parseLine(line, 0)
+	line, updated, _, err := a.trans.parseLine(line, 0)
+	if err != nil {
+		return err
+	}
 
 	if err := utils.GetGotExpErr("line", line, expect_line); err != nil {
 		return err
