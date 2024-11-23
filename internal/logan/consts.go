@@ -14,6 +14,8 @@ const (
 	CDefaultTermCountBorderRate = 0.999
 	CDefaultTermCountBorder     = 0
 	CDefaultSeparators          = ` "'\\,;[]<>{}=()|:&?/+!@`
+	CDefaultStdThreshold        = 2
+	CDefaultMinOccurrences      = 10
 
 	cAsteriskItemID          = -1
 	cMaxNumDigits            = 3 // HTTP codes

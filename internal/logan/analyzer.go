@@ -562,6 +562,14 @@ func (a *Analyzer) Stats(N int, outdir string,
 	minLastUpdate int64,
 	maxRareCount, minFreqCount int,
 	stdThreshold, minOccurrences float64) error {
+
+	if stdThreshold == 0 {
+		stdThreshold = CDefaultStdThreshold
+	}
+	if minOccurrences == 0 {
+		minOccurrences = CDefaultMinOccurrences
+	}
+
 	if err := a.Feed(0); err != nil {
 		return err
 	}

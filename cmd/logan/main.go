@@ -183,7 +183,7 @@ func loadConfig(path string) error {
 	}
 
 	// Set defaults
-	applyDefaults(&c)
+	applyConfigValues(&c)
 
 	return nil
 }
@@ -206,8 +206,8 @@ func replaceEnvVarsInMap(data map[string]interface{}) {
 	}
 }
 
-// applyDefaults applies default values for config fields if they are unset
-func applyDefaults(c *config) {
+// applyConfigValues applies default values for config fields if they are unset
+func applyConfigValues(c *config) {
 	if dataDir == "" {
 		dataDir = c.DataDir
 	}
