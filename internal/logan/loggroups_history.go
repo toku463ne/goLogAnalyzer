@@ -103,14 +103,14 @@ func (lgsh *logGroupsHistory) detectAnomaly(groupId int64,
 			continue
 		}
 		// Sudden disappearance
-		if values[i-1] >= minOccurrences && values[i] < minOccurrences {
-			if values[i-1] > upperThreshold {
+		if values[j-1] >= minOccurrences && values[i] < minOccurrences {
+			if values[j-1] > upperThreshold {
 				epochs = append(epochs, epoch)
 			}
 		}
 
 		// Below lower threshold anomaly
-		if values[i] < lowerThreshold {
+		if values[j] < lowerThreshold {
 			epochs = append(epochs, epoch)
 		}
 	}
