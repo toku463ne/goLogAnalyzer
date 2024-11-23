@@ -374,6 +374,9 @@ func (a *Analyzer) _getConfigPath() string {
 }
 
 func (a *Analyzer) saveConfig() error {
+	if a.testMode {
+		return nil
+	}
 	data, err := json.MarshalIndent(a.analConfig, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config to JSON: %w", err)
