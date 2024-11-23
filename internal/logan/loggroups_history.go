@@ -97,20 +97,21 @@ func (lgsh *logGroupsHistory) detectAnomaly(groupId int64,
 		return
 	}
 
-	for j := range lgsh.counts[i][1:] {
+	for j := range lgsh.counts[i] {
+		if j == 0 {
+			continue
+		}
 		epoch := lgsh.timeline[j]
 		if minEpoch > epoch {
 			continue
 		}
 		// Sudden disappearance
-		if values[j-1] >= minOccurrences && values[i] < minOccurrences {
-			if values[j-1] > upperThreshold {
-				epochs = append(epochs, epoch)
-			}
+		if values[j-1] >= minOccurrences && values[j] < lowerThreshold {
+			epochs = append(epochs, epoch)
 		}
 
 		// Below lower threshold anomaly
-		if values[j] < lowerThreshold {
+		if values[j] > upperThreshold {
 			epochs = append(epochs, epoch)
 		}
 	}
