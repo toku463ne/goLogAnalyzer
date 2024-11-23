@@ -210,6 +210,10 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64, er
 	var err error
 	lastUpdate := int64(0)
 	retentionPos := int64(-1)
+	line = strings.TrimSpace(reMultiSpace.ReplaceAllString(line, " "))
+	if line == "" {
+		return "", 0, 0, nil
+	}
 
 	if tr.timestampPos >= 0 || tr.messagePos >= 0 {
 		ma := tr.logFormatRe.FindStringSubmatch(line)
@@ -266,7 +270,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 ) ([]int, string, error) {
 	displayString := line
 	line = tr.replacer.Replace(line)
-	line = strings.TrimSpace(reMultiSpace.ReplaceAllString(line, " "))
+	//line = strings.TrimSpace(reMultiSpace.ReplaceAllString(line, " "))
 	words := strings.Split(line, " ")
 	tokens := make([]int, 0)
 	uniqTokens := make(map[int]bool, 0)
