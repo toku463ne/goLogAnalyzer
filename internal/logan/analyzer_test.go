@@ -588,6 +588,11 @@ func Test_Trans_parse(t *testing.T) {
 	_test_Trans_parse(line, logFormat, layout, useUtcTime, unitSecs,
 		expect_line)
 
+	line = "09th, 20:35:38.880+0900 TBLV3 CALL: Leg 0x0823A6D5 [0x72A62388: 0x8823A672-0x0823A6D5] CTBCAFBridge: CTBCAFCallFlow::LegStats: Rtp:Rx=502 Err=0 100%"
+	expect_line = "TBLV3 CALL: Leg 0x0823A6D5 [0x72A62388: 0x8823A672-0x0823A6D5] CTBCAFBridge: CTBCAFCallFlow::LegStats: Rtp:Rx=502 Err=0 100%"
+	_test_Trans_parse(line, logFormat, layout, useUtcTime, unitSecs,
+		expect_line)
+
 	logFormat = `^(?P<timestamp>\d+\-\d+\-\d+ \d+:\d+:\d+)\|(?P<timestamp2>\d+\-\d+\-\d+ \d+:\d+:\d+)\|(?P<message>.*)$`
 	layout = "2006-01-02 15:04:05"
 	line = "2024-08-31 23:21:43|2024-08-31 23:21:49|INVITE sip:0678786395@PRO-FE.ziptelecom.tel;user=phone;"

@@ -275,6 +275,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 	tokens := make([]int, 0)
 	uniqTokens := make(map[int]bool, 0)
 	excludesMap := make(map[string]bool)
+	excludedNumbers := make(map[string]bool)
 
 	termId := -1
 
@@ -308,7 +309,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 		//}
 		if !tr.keywords[word] && tr.ignoreNumbers && utils.IsInt(word) {
 			termId = cAsteriskItemID
-			excludesMap[word] = true
+			excludedNumbers[word] = true
 		} else if word == "*" {
 			termId = cAsteriskItemID
 		} else {
@@ -336,7 +337,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 	}
 
 	if useTermBorder {
-		minMatchLen := int(float64(len(words)) * tr.minMatchRate)
+		minMatchLen := int(float64(len(tokens)) * tr.minMatchRate)
 		//if len(tokens) != len(counts) {
 		//	return nil, "", fmt.Errorf("length of tokens and counts does not match: tokens:%d counts:%d", len(tokens), len(counts))
 		//}
@@ -386,6 +387,9 @@ func (tr *trans) toTokens(line string, addCnt int,
 		for target := range excludesMap {
 			displayString = utils.Replace(displayString, target, "*", tr.separators)
 		}
+		for target := range excludedNumbers {
+			displayString = utils.Replace(displayString, target, "*", tr.separators)
+		}
 		// Combine multiple consecutive "*" into a single "*"
 	} else {
 		displayString = ""
@@ -422,6 +426,10 @@ func (tr *trans) lineToTerms(line string, addCnt int) error {
 
 // analyze the line and
 func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int64, error) {
+	//if orgLine == "09th, 20:35:34.107+0900 TBLV3 CALL:  [0x00610F9A: 0x8823B0B2-0x00000000] CTBCAFBridge:     m=audio 27868 RTP/AVP 0 101 " {
+	//	print("")
+	//}
+
 	if !tr._match(orgLine) {
 		return -1, nil
 	}

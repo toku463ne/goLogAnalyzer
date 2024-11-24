@@ -505,7 +505,7 @@ func Replace(s, target, replacement, separators string) string {
 	}
 
 	// Handle any remaining part after the loop
-	if part == target {
+	if strings.EqualFold(part, target) { // Use EqualFold for case-insensitive comparison
 		result.WriteString(replacement)
 	} else {
 		result.WriteString(part)

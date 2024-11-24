@@ -230,7 +230,7 @@ func Test_netscreen(t *testing.T) {
 }
 
 func Test_real(t *testing.T) {
-	config := "/home/administrator/tests/sbc/g.yml"
+	config := "/home/administrator/tests/sbc/gateway.yml"
 	//os.Args = []string{"logan", "clean", "-c", config, "-silent"}
 	//main()
 
