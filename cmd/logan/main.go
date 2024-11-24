@@ -50,6 +50,7 @@ var (
 	ignorewords         []string
 	customLogGroups     []string
 	N                   int
+	B                   int
 	cmd                 string
 	useUtcTime          bool
 	separators          string
@@ -87,7 +88,7 @@ type config struct {
 	OutDir              string   `yaml:"outDir"`
 	Separators          string   `yaml:"separators"`
 	IgnoreNumbers       bool     `yaml:"ignoreNumbers"`
-	MinLastUpdate       int64    `yaml:"minLastUpdate"`
+	DaysToShow          int64    `yaml:"daysToShow"`
 	MinLogCount         int      `yaml:"minLogCount"`
 	MaxLogCount         int      `yaml:"maxLogCount"`
 	StdThreshold        float64  `yaml:"stdThreshold"`
@@ -128,6 +129,7 @@ func setOutFlag(fs *flag.FlagSet) {
 	setNonFeedFlag(fs)
 	fs.StringVar(&outDir, "o", "", "Output file")
 	fs.IntVar(&N, "N", 0, "Number of items to output")
+	fs.IntVar(&B, "B", 0, "Number of days to show the results")
 	fs.IntVar(&minLogCount, "minCount", 0, "Minimum of logGroup size")
 	fs.IntVar(&maxLogCount, "maxCount", 0, "Maximum of logGroup size")
 	fs.Int64Var(&minLastUpdate, "lastepoch", 0, "minimum of the last updated epoch to show in output")
@@ -266,8 +268,8 @@ func applyConfigValues(c *config) {
 	if separators == "" {
 		separators = c.Separators
 	}
-	if minLastUpdate == 0 {
-		minLastUpdate = c.MinLastUpdate
+	if minLastUpdate == 0 && c.DaysToShow > 0 {
+		minLastUpdate = utils.GetNdaysBefore(int(c.DaysToShow))
 	}
 	if minLogCount == 0 {
 		minLogCount = c.MinLogCount
@@ -361,6 +363,9 @@ func run() error {
 	}
 	if _ignorewords != "" {
 		ignorewords = strings.Split(_ignorewords, ",")
+	}
+	if minLastUpdate == 0 && B > 0 {
+		minLastUpdate = utils.GetNdaysBefore(B)
 	}
 
 	msg := ""

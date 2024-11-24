@@ -3,6 +3,7 @@ package main
 import (
 	"goLogAnalyzer/pkg/utils"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -226,6 +227,64 @@ func Test_netscreen(t *testing.T) {
 	if err := utils.GetGotExpErr("records[0][1]", records[0][1], "5"); err != nil {
 		t.Errorf("%v", err)
 		return
+	}
+}
+
+func Test_no_datadir(t *testing.T) {
+	testDir, err := utils.InitTestDir("Test_no_datadir")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	// Prepare output redirection
+	outputFile := testDir + "/output.log"
+	file, err := os.Create(outputFile)
+	if err != nil {
+		t.Errorf("Failed to create output file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	// Save original Stdout and Stderr
+	origStdout := os.Stdout
+	origStderr := os.Stderr
+
+	// Redirect Stdout and Stderr
+	os.Stdout = file
+	os.Stderr = file
+
+	// Run the main function
+	logPath := "../../testdata/loganal/sample50_1.log"
+	os.Args = []string{"logan", "groups", "-f", logPath}
+	main()
+
+	// Restore original Stdout and Stderr
+	os.Stdout = origStdout
+	os.Stderr = origStderr
+
+	// Optionally check the output file content
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Errorf("Failed to read output file: %v", err)
+		return
+	}
+	// Convert content to a string for processing
+	output := string(content)
+
+	// Extract lines that look like group IDs
+	lines := strings.Split(output, "\n")
+	var groupIDCount int
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "1730671576") {
+			groupIDCount++
+		}
+	}
+
+	// Assert that there are 5 group IDs
+	if groupIDCount != 5 {
+		t.Errorf("Expected 5 group IDs, but found %d", groupIDCount)
 	}
 }
 

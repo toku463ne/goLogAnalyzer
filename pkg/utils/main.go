@@ -626,3 +626,16 @@ func DetectPeriodicityByThreshold(values []float64, upperThreshold, lowerThresho
 
 	return false
 }
+
+func GetNdaysBefore(N int) int64 {
+	// Get the current time
+	now := time.Now()
+
+	// Calculate the time N days before today
+	nDaysBefore := now.AddDate(0, 0, -N)
+
+	// Convert to Unix epoch time
+	epoch := nDaysBefore.Unix()
+
+	return epoch
+}
