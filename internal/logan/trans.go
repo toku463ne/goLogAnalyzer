@@ -35,6 +35,8 @@ type trans struct {
 	minMatchRate        float64
 	keywords            map[string]bool
 	ignorewords         map[string]bool
+	keyRes              []*regexp.Regexp
+	ignoreRes           []*regexp.Regexp
 	unitSecs            int64
 	countByBlock        int
 	maxCountByBlock     int
@@ -54,6 +56,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	minMatchRate float64,
 	searchRegex, exludeRegex,
 	_keywords, _ignorewords,
+	_keyRegexes, _ignoreRegexes,
 	_msgFormats []string,
 	_customLogGroups []string,
 	separators string,
@@ -71,6 +74,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	tr.testMode = testMode
 	tr.ignoreNumbers = ignoreNumbers
 	tr._setFilters(searchRegex, exludeRegex)
+	tr._setKeyRegexes(_keyRegexes, _ignoreRegexes)
 
 	tr.keywords = make(map[string]bool)
 	tr.ignorewords = make(map[string]bool)
@@ -165,6 +169,18 @@ func (tr *trans) _setFilters(searchRegex, exludeRegex []string) {
 	}
 }
 
+func (tr *trans) _setKeyRegexes(keyRegexes, ignoreRegexes []string) {
+	tr.keyRes = make([]*regexp.Regexp, 0)
+	for _, s := range keyRegexes {
+		tr.keyRes = append(tr.keyRes, utils.GetRegex(s))
+	}
+
+	tr.ignoreRes = make([]*regexp.Regexp, 0)
+	for _, s := range ignoreRegexes {
+		tr.ignoreRes = append(tr.ignoreRes, utils.GetRegex(s))
+	}
+}
+
 // filtering text
 func (tr *trans) _match(text string) bool {
 	if tr.filterRe == nil && tr.xFilterRe == nil {
@@ -191,6 +207,17 @@ func (tr *trans) _match(text string) bool {
 		}
 	}
 	return !matched
+}
+
+func (tr *trans) _matchKey(res []*regexp.Regexp, text string) bool {
+	b := []byte(text)
+	matched := false
+	for _, re := range res {
+		if re.Match(b) {
+			matched = true
+		}
+	}
+	return matched
 }
 
 func (tr *trans) setMaxBlocks(maxBlocks int) {
@@ -284,16 +311,10 @@ func (tr *trans) toTokens(line string, addCnt int,
 			continue
 		}
 
-		if tr.ignorewords[w] {
+		if tr.ignorewords[w] || tr._matchKey(tr.ignoreRes, w) {
 			excludesMap[w] = true
 			w = "*"
 		}
-		//keyOK := tr.keywords[w]
-		//if enStopWords[w] {
-		//	if keyOK {
-		//		w = "*"
-		//	}
-		//}
 
 		word := strings.ToLower(w)
 		lenw := len(word)
@@ -307,7 +328,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 		//	tokens = append(tokens, cAsteriskItemID)
 		//	continue
 		//}
-		if !tr.keywords[word] && tr.ignoreNumbers && utils.IsInt(word) {
+		if !tr.keywords[word] && tr.ignoreNumbers && utils.IsInt(word) && !tr._matchKey(tr.keyRes, word) {
 			termId = cAsteriskItemID
 			excludedNumbers[word] = true
 		} else if word == "*" {
@@ -375,12 +396,11 @@ func (tr *trans) toTokens(line string, addCnt int,
 			}
 			cnt := tr.te.counts[termId]
 			w := tr.te.id2term[termId]
-			if !tr.keywords[w] && cnt < border {
+			if !tr.keywords[w] && !tr._matchKey(tr.keyRes, w) && cnt < border {
 				tokens[i] = cAsteriskItemID
 				excludesMap[w] = true
 			}
 		}
-
 	}
 
 	if needDisplayString {

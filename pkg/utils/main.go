@@ -245,7 +245,8 @@ func GetRegex(reStr string) *regexp.Regexp {
 		return nil
 	}
 
-	return regexp.MustCompile(fmt.Sprintf(".*%s.*", reStr))
+	//return regexp.MustCompile(fmt.Sprintf(".*%s.*", reStr))
+	return regexp.MustCompile(`` + reStr)
 }
 
 func Re2str(re *regexp.Regexp) string {

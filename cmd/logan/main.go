@@ -48,6 +48,10 @@ var (
 	keywords            []string
 	_ignorewords        string
 	ignorewords         []string
+	_keyRegexes         string
+	keyRegexes          []string
+	_ignoreRegexes      string
+	ignoRegexes         []string
 	customLogGroups     []string
 	N                   int
 	B                   int
@@ -83,6 +87,8 @@ type config struct {
 	TermCountBorder     int      `yaml:"termCountBorder"`
 	Keywords            []string `yaml:"keywords"`
 	Ignorewords         []string `yaml:"ignorewords"`
+	KeyRegexes          []string `yaml:"keyRegexes"`
+	IgnoreRegexes       []string `yaml:"ignoreRegexes"`
 	CustomLogGroups     []string `yaml:"phrases"`
 	UseUtcTime          bool     `yaml:"useUtcTime"`
 	OutDir              string   `yaml:"outDir"`
@@ -261,6 +267,12 @@ func applyConfigValues(c *config) {
 	if ignorewords == nil {
 		ignorewords = c.Ignorewords
 	}
+	if keyRegexes == nil {
+		keyRegexes = c.KeyRegexes
+	}
+	if ignoRegexes == nil {
+		ignoRegexes = c.IgnoreRegexes
+	}
 	ignoreNumbers = c.IgnoreNumbers
 	if customLogGroups == nil {
 		customLogGroups = c.CustomLogGroups
@@ -364,6 +376,12 @@ func run() error {
 	if _ignorewords != "" {
 		ignorewords = strings.Split(_ignorewords, ",")
 	}
+	if _keyRegexes != "" {
+		keyRegexes = strings.Split(_keyRegexes, ",")
+	}
+	if _ignoreRegexes != "" {
+		ignoRegexes = strings.Split(_ignoreRegexes, ",")
+	}
 	if minLastUpdate == 0 && B > 0 {
 		minLastUpdate = utils.GetNdaysBefore(B)
 	}
@@ -400,7 +418,9 @@ func run() error {
 			termCountBorderRate,
 			termCountBorder,
 			minMatchRate,
-			keywords, ignorewords, msgFormats,
+			keywords, ignorewords,
+			keyRegexes, ignoRegexes,
+			msgFormats,
 			customLogGroups,
 			separators,
 			readOnly, debug, testMode, ignoreNumbers)

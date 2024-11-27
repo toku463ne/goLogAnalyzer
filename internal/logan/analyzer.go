@@ -32,7 +32,9 @@ type analConfig struct {
 	TermCountBorder     int      `json:"term_count_border"`
 	MinMatchRate        float64  `json:"min_match_rate"`
 	Keywords            []string `json:"keywords"`
+	KeyRegexes          []string `json:"keywords"`
 	Ignorewords         []string `json:"ignorewords"`
+	IgnoreRegexes       []string `json:"ignorewords"`
 	CustomLogGroups     []string `json:"custom_log_groups"`
 	Separators          string   `json:"separators"`
 	IgnoreNumbers       bool     `json:"ignore_numbers"`
@@ -62,6 +64,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	termCountBorder int,
 	minMatchRate float64,
 	keywords, ignorewords,
+	keyreRexes, ignoreRegexes,
 	msgFormats []string,
 	customLogGroups []string,
 	separators string,
@@ -77,6 +80,8 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	a.UseUtcTime = useUtcTime
 	a.Keywords = keywords
 	a.Ignorewords = ignorewords
+	a.KeyRegexes = keyreRexes
+	a.IgnoreRegexes = ignoreRegexes
 	a.TimestampLayout = timestampLayout
 	a.MaxBlocks = maxBlocks
 	a.BlockSize = blockSize
@@ -300,7 +305,9 @@ func (a *Analyzer) init() error {
 		a.MaxBlocks, a.BlockSize, a.UnitSecs, a.KeepPeriod,
 		a.TermCountBorderRate, a.TermCountBorder, a.MinMatchRate,
 		a.SearchRegex, a.ExludeRegex,
-		a.Keywords, a.Ignorewords, a.MsgFormats,
+		a.Keywords, a.Ignorewords,
+		a.KeyRegexes, a.IgnoreRegexes,
+		a.MsgFormats,
 		a.CustomLogGroups, a.Separators, true,
 		a.readOnly, a.testMode, a.IgnoreNumbers)
 	if err != nil {
@@ -823,7 +830,9 @@ a.TermCountBorder, a.MinMatchRate, a.SearchRegex, a.ExludeRegex,a.Keywords, a.Ig
 func (a *Analyzer) rebuildTrans() error {
 	tr2, err := newTrans(a.DataDir, "", "", a.UseUtcTime, a.MaxBlocks, a.BlockSize, a.UnitSecs, a.KeepPeriod,
 		0, a.TermCountBorder, a.MinMatchRate, a.SearchRegex, a.ExludeRegex,
-		a.Keywords, a.Ignorewords, a.MsgFormats,
+		a.Keywords, a.Ignorewords,
+		a.KeyRegexes, a.IgnoreRegexes,
+		a.MsgFormats,
 		a.CustomLogGroups, a.Separators,
 		true, true, a.testMode, a.IgnoreNumbers)
 	if err != nil {

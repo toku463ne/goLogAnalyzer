@@ -75,13 +75,36 @@ func Test_groups_002_kw_igw(t *testing.T) {
 
 	ds := "Com1, * Com2 * grpa50 * <coM3> * grpb20 *"
 	cntstr := getGroupCount(tbl, ds)
-	if err := utils.GetGotExpErr("Test_groups_001_filter:group count", cntstr, "20"); err != nil {
+	if err := utils.GetGotExpErr("Test_groups_002_kw_igw:group count", cntstr, "20"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	ds = "Com1, grpa10 Com2 * grpa50 * <coM3> * * *"
 	cntstr = getGroupCount(tbl, ds)
-	if err := utils.GetGotExpErr("Test_groups_001_filter:group count", cntstr, "10"); err != nil {
+	if err := utils.GetGotExpErr("Test_groups_002_kw_igw:group count", cntstr, "10"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+}
+
+func Test_groups_003_regex(t *testing.T) {
+	tbl := runGroups(t, "Test_groups_003_regex", "../../testdata/loganal/groups_003_regex.yml")
+
+	if err := utils.GetGotExpErr("Test_groups_003_regex:rows", len(tbl), 6); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	ds := "Com1, grpb10 Com2 * * * <coM3> * grpa20 *"
+	cntstr := getGroupCount(tbl, ds)
+	if err := utils.GetGotExpErr("Test_groups_003_regex:group count", cntstr, "10"); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	ds = "Com1, grpa10 Com2 (uniq)0010 * (uniq)0110 <coM3> (uniq)0210 grpa20 (uniq)0310"
+	cntstr = getGroupCount(tbl, ds)
+	if err := utils.GetGotExpErr("Test_groups_003_regex:group count", cntstr, "1"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
