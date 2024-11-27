@@ -328,7 +328,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 		//	tokens = append(tokens, cAsteriskItemID)
 		//	continue
 		//}
-		if !tr.keywords[word] && tr.ignoreNumbers && utils.IsInt(word) && !tr._matchKey(tr.keyRes, word) {
+		if !tr.keywords[word] && tr.ignoreNumbers && utils.IsRealNumber(word) && !tr._matchKey(tr.keyRes, word) {
 			termId = cAsteriskItemID
 			excludedNumbers[word] = true
 		} else if word == "*" {

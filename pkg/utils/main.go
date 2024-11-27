@@ -235,6 +235,26 @@ func IsInt(s string) bool {
 	return true
 }
 
+func IsRealNumber(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+
+	dotCount := 0
+	for i, c := range s {
+		if c == '.' {
+			// Only allow one dot and it should not be at the start or end
+			dotCount++
+			if dotCount > 1 || i == 0 || i == len(s)-1 {
+				return false
+			}
+		} else if !unicode.IsDigit(c) {
+			return false
+		}
+	}
+	return true
+}
+
 func IsNumeric(s string) bool {
 	_, err := strconv.ParseFloat(s, 64)
 	return err == nil
