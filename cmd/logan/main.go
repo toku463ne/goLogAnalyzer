@@ -141,7 +141,7 @@ func setOutFlag(fs *flag.FlagSet) {
 	fs.Int64Var(&minLastUpdate, "lastepoch", 0, "minimum of the last updated epoch to show in output")
 }
 
-func setStatsFlag(fs *flag.FlagSet) {
+func setAnomalyFlag(fs *flag.FlagSet) {
 	setOutFlag(fs)
 	fs.Float64Var(&stdThreshold, "stdThreshold", 0, "std threshold to detect anommaly")
 	fs.Float64Var(&minOccurrences, "minOccurrences", 0, "minimum occurrences to detect anommaly")
@@ -433,11 +433,11 @@ func run() error {
 	case "feed":
 		err = a.Feed(0)
 	case "history":
-		err = a.OutputLogGroups(N, outDir, minLastUpdate, minLogCount, maxLogCount, true, ascOrder)
+		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, true, ascOrder)
 	case "groups":
-		err = a.OutputLogGroups(N, outDir, minLastUpdate, minLogCount, maxLogCount, false, ascOrder)
-	case "stats":
-		err = a.Stats(N, outDir, minLastUpdate, maxLogCount, minLogCount, stdThreshold, minOccurrences)
+		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, false, ascOrder)
+	case "anomaly":
+		err = a.Anomaly(N, outDir, searchString, excludeString, minLastUpdate, maxLogCount, minLogCount, stdThreshold, minOccurrences)
 	case "test":
 		a.ParseLogLine(line)
 	default:
@@ -470,8 +470,8 @@ func main() {
 			setOutFlag(_flagSet)
 		case "groups":
 			setOutFlag(_flagSet)
-		case "stats":
-			setStatsFlag(_flagSet)
+		case "anomaly":
+			setAnomalyFlag(_flagSet)
 		case "test":
 			setParseLineFlag(_flagSet)
 		default:

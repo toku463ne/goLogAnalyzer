@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func runGroups(t *testing.T, testName, config string) [][]string {
+func runGroups(t *testing.T, testName, config string, extraArgs []string) [][]string {
 	testDir, err := initTestDir(t, testName)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -15,6 +15,9 @@ func runGroups(t *testing.T, testName, config string) [][]string {
 
 	// run test
 	os.Args = []string{"logan", "groups", "-c", config, "-o", testDir}
+	if extraArgs != nil && len(extraArgs) > 0 {
+		os.Args = append(os.Args, extraArgs...)
+	}
 	main()
 
 	_, records, err := utils.ReadCsv(testDir+"/logGroups.csv", ',', false)
@@ -35,7 +38,7 @@ func getGroupCount(records [][]string, displayString string) string {
 }
 
 func Test_groups_001_filter(t *testing.T) {
-	tbl := runGroups(t, "Test_groups_001_filter", "../../testdata/loganal/groups_001_filter.yml")
+	tbl := runGroups(t, "Test_groups_001_filter", "../../testdata/loganal/groups_001_filter.yml", nil)
 
 	if err := utils.GetGotExpErr("Test_groups_001_filter:rows", len(tbl), 3); err != nil {
 		t.Errorf("%v", err)
@@ -66,7 +69,7 @@ func Test_groups_001_filter(t *testing.T) {
 }
 
 func Test_groups_002_kw_igw(t *testing.T) {
-	tbl := runGroups(t, "Test_groups_002_kw_igw", "../../testdata/loganal/groups_002_kw_igw.yml")
+	tbl := runGroups(t, "Test_groups_002_kw_igw", "../../testdata/loganal/groups_002_kw_igw.yml", nil)
 
 	if err := utils.GetGotExpErr("Test_groups_002_kw_igw:rows", len(tbl), 4); err != nil {
 		t.Errorf("%v", err)
@@ -89,7 +92,7 @@ func Test_groups_002_kw_igw(t *testing.T) {
 }
 
 func Test_groups_003_regex(t *testing.T) {
-	tbl := runGroups(t, "Test_groups_003_regex", "../../testdata/loganal/groups_003_regex.yml")
+	tbl := runGroups(t, "Test_groups_003_regex", "../../testdata/loganal/groups_003_regex.yml", nil)
 
 	if err := utils.GetGotExpErr("Test_groups_003_regex:rows", len(tbl), 6); err != nil {
 		t.Errorf("%v", err)
@@ -109,4 +112,22 @@ func Test_groups_003_regex(t *testing.T) {
 		return
 	}
 
+}
+
+func Test_groups_004_outfilter(t *testing.T) {
+	extraArgs := []string{"-s", "grpa20"}
+	tbl := runGroups(t, "Test_groups_004_outfilter", "../../testdata/loganal/groups_004_outfilter.yml", extraArgs)
+
+	if err := utils.GetGotExpErr("Test_groups_004_outfilter:rows", len(tbl), 2); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	extraArgs = []string{"-s", "grpa20", "-x", "grpa10"}
+	tbl = runGroups(t, "Test_groups_004_outfilter", "../../testdata/loganal/groups_004_outfilter.yml", extraArgs)
+
+	if err := utils.GetGotExpErr("Test_groups_004_outfilter:rows", len(tbl), 1); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 }

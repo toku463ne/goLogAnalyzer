@@ -721,13 +721,27 @@ func (tr *trans) setCountBorder() {
 
 // get top N logGroups
 func (tr *trans) getTopNGroupIds(N int, minLastUpdate int64,
+	searchString, excludeString string,
 	minCnt, maxCnt int, asc bool) []int64 {
 	lgs := tr.lgs
+
+	searchStrings := make([]string, 0)
+	exludeStrings := make([]string, 0)
+	if searchString != "" {
+		searchStrings = append(searchStrings, searchString)
+	}
+	if excludeString != "" {
+		exludeStrings = append(exludeStrings, excludeString)
+	}
+	tr._setFilters(searchStrings, exludeStrings)
 
 	// Create a slice of key-value pairs
 	groupIds := make([]int64, 0, len(lgs.alllg))
 	for groupId, lg := range lgs.alllg {
 		if lg.updated >= minLastUpdate && lg.count >= minCnt && (maxCnt == 0 || lg.count <= maxCnt) {
+			if !tr._match(lg.displayString) {
+				continue
+			}
 			groupIds = append(groupIds, groupId)
 		}
 	}

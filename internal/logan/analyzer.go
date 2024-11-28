@@ -574,7 +574,8 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 	return nil
 }
 
-func (a *Analyzer) Stats(N int, outdir string,
+func (a *Analyzer) Anomaly(N int, outdir string,
+	searchString, excludeString string,
 	minLastUpdate int64,
 	maxRareCount, minFreqCount int,
 	stdThreshold, minOccurrences float64) error {
@@ -591,9 +592,9 @@ func (a *Analyzer) Stats(N int, outdir string,
 	}
 	var rareGroupIds []int64
 	if N > 0 {
-		rareGroupIds = a.trans.getTopNGroupIds(N, minLastUpdate, 0, maxRareCount, true)
+		rareGroupIds = a.trans.getTopNGroupIds(N, minLastUpdate, searchString, excludeString, 0, maxRareCount, true)
 	} else {
-		rareGroupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, 0, maxRareCount, true)
+		rareGroupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, searchString, excludeString, 0, maxRareCount, true)
 	}
 
 	if err := utils.EnsureDir(outdir); err != nil {
@@ -601,15 +602,17 @@ func (a *Analyzer) Stats(N int, outdir string,
 	}
 
 	// output rare logs
-	if err := a._outputLogGroups(outdir, rareGroupIds); err != nil {
+	if err := a._outputLogGroups("rareGroups", outdir, rareGroupIds); err != nil {
 		return err
 	}
 
 	var freqGroupIds []int64
 	if N > 0 {
-		freqGroupIds = a.trans.getTopNGroupIds(N, minLastUpdate, minFreqCount, 0, false)
+		freqGroupIds = a.trans.getTopNGroupIds(N, minLastUpdate,
+			searchString, excludeString, minFreqCount, 0, false)
 	} else {
-		freqGroupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, minFreqCount, 0, false)
+		freqGroupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate,
+			searchString, excludeString, minFreqCount, 0, false)
 	}
 
 	lgsh, err := a.trans.getLogGroupsHistory(freqGroupIds)
@@ -625,7 +628,10 @@ func (a *Analyzer) Stats(N int, outdir string,
 		}
 	}
 	// output history with anomly
-	if err := a._outputLogGroupsHistory(outdir, anomalGroupIds); err != nil {
+	if err := a._outputLogGroupsHistory("anomaly_history", outdir, anomalGroupIds); err != nil {
+		return err
+	}
+	if err := a._outputLogGroups("anomaly", outdir, anomalGroupIds); err != nil {
 		return err
 	}
 
@@ -633,6 +639,7 @@ func (a *Analyzer) Stats(N int, outdir string,
 }
 
 func (a *Analyzer) OutputLogGroups(N int, outdir string,
+	searchString, excludeString string,
 	minLastUpdate int64, minCnt, maxCnt int,
 	isHistory, asc bool) error {
 	if err := a.Feed(0); err != nil {
@@ -640,9 +647,9 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	}
 	var groupIds []int64
 	if N > 0 {
-		groupIds = a.trans.getTopNGroupIds(N, minLastUpdate, minCnt, maxCnt, asc)
+		groupIds = a.trans.getTopNGroupIds(N, minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
 	} else {
-		groupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, minCnt, maxCnt, asc)
+		groupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
 	}
 
 	if outdir == "" {
@@ -655,16 +662,16 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	}
 
 	if isHistory {
-		if err := a._outputLogGroupsHistory(outdir, groupIds); err != nil {
+		if err := a._outputLogGroupsHistory("history", outdir, groupIds); err != nil {
 			return err
 		}
 	}
-	return a._outputLogGroups(outdir, groupIds)
+	return a._outputLogGroups("logGroups", outdir, groupIds)
 }
 
-func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
+func (a *Analyzer) _outputLogGroups(title, outdir string, groupIds []int64) error {
 	var writer *csv.Writer
-	file, err := os.Create(fmt.Sprintf("%s/logGroups.csv", outdir))
+	file, err := os.Create(fmt.Sprintf("%s/%s.csv", outdir, title))
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
@@ -685,7 +692,7 @@ func (a *Analyzer) _outputLogGroups(outdir string, groupIds []int64) error {
 	file.Close()
 
 	// lastMessages
-	file, err = os.Create(fmt.Sprintf("%s/lastMessages.csv", outdir))
+	file, err = os.Create(fmt.Sprintf("%s/%s_last.csv", title, outdir))
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
@@ -736,7 +743,7 @@ func (a *Analyzer) _generateCiclePattern(row []int) string {
 	return pattern
 }
 
-func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) error {
+func (a *Analyzer) _outputLogGroupsHistory(title string, outdir string, groupIds []int64) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
 		return err
@@ -747,7 +754,7 @@ func (a *Analyzer) _outputLogGroupsHistory(outdir string, groupIds []int64) erro
 	if err := utils.EnsureDir(outdir); err != nil {
 		return err
 	}
-	file, err := os.Create(fmt.Sprintf("%s/history.csv", outdir))
+	file, err := os.Create(fmt.Sprintf("%s/%s.csv", outdir, title))
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
