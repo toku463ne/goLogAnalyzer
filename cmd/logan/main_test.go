@@ -77,7 +77,7 @@ func Test_main_config(t *testing.T) {
 		return
 	}
 
-	if _, records, err = utils.ReadCsv(dataDir+"/lastMessages.csv", ',', false); err != nil {
+	if _, records, err = utils.ReadCsv(dataDir+"/logGroups_last.csv", ',', false); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

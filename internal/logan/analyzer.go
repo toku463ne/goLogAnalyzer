@@ -692,7 +692,7 @@ func (a *Analyzer) _outputLogGroups(title, outdir string, groupIds []int64) erro
 	file.Close()
 
 	// lastMessages
-	file, err = os.Create(fmt.Sprintf("%s/%s_last.csv", title, outdir))
+	file, err = os.Create(fmt.Sprintf("%s/%s_last.csv", outdir, title))
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}

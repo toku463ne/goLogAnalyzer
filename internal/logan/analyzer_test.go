@@ -121,7 +121,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/lastMessages.txt.gz"); err != nil {
+	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/logGroups_last.txt.gz"); err != nil {
 		t.Errorf("%v", err)
 		return
 	} else {

@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	usageStr = "usage: logan feed|history|groups|clean"
+	usageStr = "usage: logan feed|history|groups|anomaly|clean"
 )
 
 var (
