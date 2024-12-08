@@ -631,7 +631,7 @@ func (a *Analyzer) Anomaly(N int, outdir string,
 	if err := a._outputLogGroupsHistoryToCsv("anomaly_history", outdir, anomalGroupIds); err != nil {
 		return err
 	}
-	if err := a._outputLogGroupsHistoryToJSON("anomaly_history", outdir, anomalGroupIds); err != nil {
+	if err := a._outputLogGroupsHistoryToGrafanaJSON("anomaly_history", outdir, anomalGroupIds); err != nil {
 		return err
 	}
 	if err := a._outputLogGroups("anomaly", outdir, anomalGroupIds); err != nil {
@@ -668,7 +668,7 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 		if err := a._outputLogGroupsHistoryToCsv("history", outdir, groupIds); err != nil {
 			return err
 		}
-		if err := a._outputLogGroupsHistoryToJSON("history", outdir, groupIds); err != nil {
+		if err := a._outputLogGroupsHistoryToGrafanaJSON("history", outdir, groupIds); err != nil {
 			return err
 		}
 
@@ -750,7 +750,7 @@ func (a *Analyzer) _generateCiclePattern(row []int) string {
 	return pattern
 }
 
-func (a *Analyzer) _outputLogGroupsHistoryToJSON(title string, outdir string, groupIds []int64) error {
+func (a *Analyzer) _outputLogGroupsHistoryToGrafanaJSON(title string, outdir string, groupIds []int64) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
 		return err
@@ -763,43 +763,26 @@ func (a *Analyzer) _outputLogGroupsHistoryToJSON(title string, outdir string, gr
 
 	// Prepare JSON output structure
 	type DataPoint struct {
-		Value     int    `json:"value"`
-		Timestamp string `json:"timestamp"`
+		Time   string `json:"time"`
+		Metric string `json:"metric"`
+		Value  int    `json:"value"`
 	}
 
-	type MetricData struct {
-		Metric     string          `json:"metric"`
-		DataPoints [][]interface{} `json:"datapoints"`
-	}
-
-	// Wrapper for the structure that fits the Grafana Infinity Datasource format
-	type JSONResponse struct {
-		Data []MetricData `json:"data"`
-	}
-
-	// Prepare the metrics data
-	var metrics []MetricData
+	var dataPoints []DataPoint
 	//format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
 
 	for i, groupId := range lgsh.groupIds {
-		metric := MetricData{
-			Metric: fmt.Sprint(groupId),
-		}
-
-		var datapoints [][]interface{}
+		metric := fmt.Sprint(groupId)
 		for j, cnt := range lgsh.counts[i] {
 			timestamp := time.Unix(lgsh.timeline[j], 0).UTC().Format(time.RFC3339)
 			if cnt > 0 {
-				datapoints = append(datapoints, []interface{}{cnt, timestamp})
+				dataPoints = append(dataPoints, DataPoint{
+					Time:   timestamp,
+					Metric: metric,
+					Value:  cnt,
+				})
 			}
 		}
-		metric.DataPoints = datapoints
-		metrics = append(metrics, metric)
-	}
-
-	// Wrap the response in the appropriate structure
-	response := JSONResponse{
-		Data: metrics,
 	}
 
 	// Write JSON file
@@ -812,11 +795,11 @@ func (a *Analyzer) _outputLogGroupsHistoryToJSON(title string, outdir string, gr
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(response); err != nil {
+	if err := encoder.Encode(dataPoints); err != nil {
 		return fmt.Errorf("error encoding JSON: %w", err)
 	}
 
-	logrus.Infof("JSON data written to %s", filePath)
+	logrus.Infof("Grafana-compatible JSON data written to %s", filePath)
 	return nil
 }
 
