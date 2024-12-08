@@ -631,9 +631,6 @@ func (a *Analyzer) Anomaly(N int, outdir string,
 	if err := a._outputLogGroupsHistoryToCsv("anomaly_history", outdir, anomalGroupIds); err != nil {
 		return err
 	}
-	if err := a._outputLogGroupsHistoryToGrafanaJSON("anomaly_history", outdir, anomalGroupIds); err != nil {
-		return err
-	}
 	if err := a._outputLogGroups("anomaly", outdir, anomalGroupIds); err != nil {
 		return err
 	}
@@ -668,10 +665,6 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 		if err := a._outputLogGroupsHistoryToCsv("history", outdir, groupIds); err != nil {
 			return err
 		}
-		if err := a._outputLogGroupsHistoryToGrafanaJSON("history", outdir, groupIds); err != nil {
-			return err
-		}
-
 	}
 	return a._outputLogGroups("logGroups", outdir, groupIds)
 }
@@ -750,59 +743,6 @@ func (a *Analyzer) _generateCiclePattern(row []int) string {
 	return pattern
 }
 
-func (a *Analyzer) _outputLogGroupsHistoryToGrafanaJSON(title string, outdir string, groupIds []int64) error {
-	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
-	if err != nil {
-		return err
-	}
-
-	// Ensure output directory exists
-	if err := utils.EnsureDir(outdir); err != nil {
-		return err
-	}
-
-	// Prepare JSON output structure
-	type DataPoint struct {
-		Time   string `json:"time"`
-		Metric string `json:"metric"`
-		Value  int    `json:"value"`
-	}
-
-	var dataPoints []DataPoint
-	//format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
-
-	for i, groupId := range lgsh.groupIds {
-		metric := fmt.Sprint(groupId)
-		for j, cnt := range lgsh.counts[i] {
-			timestamp := time.Unix(lgsh.timeline[j], 0).UTC().Format(time.RFC3339)
-			if cnt > 0 {
-				dataPoints = append(dataPoints, DataPoint{
-					Time:   timestamp,
-					Metric: metric,
-					Value:  cnt,
-				})
-			}
-		}
-	}
-
-	// Write JSON file
-	filePath := fmt.Sprintf("%s/%s.json", outdir, title)
-	file, err := os.Create(filePath)
-	if err != nil {
-		return fmt.Errorf("error creating file: %w", err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(dataPoints); err != nil {
-		return fmt.Errorf("error encoding JSON: %w", err)
-	}
-
-	logrus.Infof("Grafana-compatible JSON data written to %s", filePath)
-	return nil
-}
-
 func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, groupIds []int64) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
@@ -814,38 +754,29 @@ func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, gro
 		return err
 	}
 
-	// Prepare data for CSV
-	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
-	header := []string{"groupId"}
-	for _, ep := range lgsh.timeline {
-		header = append(header, time.Unix(ep, 0).Format(format))
-	}
+	// Prepare CSV rows
+	//format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
+	var rows [][]string
+	rows = append(rows, []string{"time", "metric", "value"}) // Add CSV header
 
-	// Prepare transposed data
-	transposed := make([][]string, len(header))
-	for i := range transposed {
-		transposed[i] = make([]string, len(lgsh.groupIds)+1)
-	}
-
-	// Fill header in the first column
-	for i, h := range header {
-		transposed[i][0] = h
-	}
-
-	// Fill data
+	// Build rows from log group history
 	for i, groupId := range lgsh.groupIds {
-		transposed[0][i+1] = fmt.Sprint(groupId)
-		for j, cnt := range lgsh.counts[i] {
-			if cnt > 0 {
-				transposed[j+1][i+1] = strconv.Itoa(cnt)
-			} else {
-				transposed[j+1][i+1] = ""
+		for j, timestamp := range lgsh.timeline {
+			count := lgsh.counts[i][j]
+			// Add rows only for non-zero counts
+			if count > 0 {
+				rows = append(rows, []string{
+					fmt.Sprint(timestamp), // time
+					fmt.Sprint(groupId),   // metric
+					strconv.Itoa(count),   // value
+				})
 			}
 		}
 	}
 
 	// Write CSV file
-	file, err := os.Create(fmt.Sprintf("%s/%s.csv", outdir, title))
+	filePath := fmt.Sprintf("%s/%s.csv", outdir, title)
+	file, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
@@ -854,76 +785,14 @@ func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, gro
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	for _, row := range transposed {
+	// Write rows to CSV
+	for _, row := range rows {
 		if err := writer.Write(row); err != nil {
-			return fmt.Errorf("error writing row: %w", err)
+			return fmt.Errorf("error writing row to CSV: %w", err)
 		}
 	}
 
-	logrus.Infof("Transposed data written to %s", file.Name())
-
-	// Prepare and write history_sum.csv (transposed)
-	cicleGroups := make(map[string][]int)
-	cicleGroupIDs := make(map[string]int64)
-	cicleIDs := make(map[int64]string)
-
-	for i, groupId := range lgsh.groupIds {
-		row := lgsh.counts[i]
-		cicle := a._generateCiclePattern(row)
-		if _, exists := cicleGroups[cicle]; !exists {
-			cicleGroups[cicle] = make([]int, len(lgsh.timeline))
-			if _, ok := cicleGroupIDs[cicle]; !ok {
-				cicleGroupIDs[cicle] = groupId
-				cicleIDs[groupId] = cicle
-			}
-		}
-		for j, cnt := range lgsh.counts[i] {
-			cicleGroups[cicle][j] += cnt
-		}
-	}
-
-	// Transpose history_sum data
-	sumTransposed := make([][]string, len(header))
-	for i := range sumTransposed {
-		sumTransposed[i] = make([]string, len(groupIds)+1)
-	}
-	// Fill header in the first column
-	for i, h := range header {
-		sumTransposed[i][0] = h
-	}
-
-	// Fill data for history_sum
-	for col, groupId := range groupIds {
-		sumTransposed[0][col+1] = fmt.Sprint(groupId)
-		if cicle, ok := cicleIDs[groupId]; ok {
-			for row, sum := range cicleGroups[cicle] {
-				if sum > 0 {
-					sumTransposed[row+1][col+1] = strconv.Itoa(sum)
-				} else {
-					sumTransposed[row+1][col+1] = ""
-				}
-			}
-		}
-	}
-
-	// Write transposed history_sum.csv to file
-	file, err = os.Create(fmt.Sprintf("%s/%s_sum.csv", outdir, title))
-	if err != nil {
-		return fmt.Errorf("error creating file: %w", err)
-	}
-	defer file.Close()
-
-	writer = csv.NewWriter(file)
-	defer writer.Flush()
-
-	for _, row := range sumTransposed {
-		if err := writer.Write(row); err != nil {
-			return fmt.Errorf("error writing row: %w", err)
-		}
-	}
-
-	logrus.Infof("Transposed history sum data written to %s", file.Name())
-
+	logrus.Infof("Data written to CSV in the format 'time,metric,value' at %s", filePath)
 	return nil
 }
 
