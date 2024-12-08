@@ -772,6 +772,12 @@ func (a *Analyzer) _outputLogGroupsHistoryToJSON(title string, outdir string, gr
 		DataPoints [][]interface{} `json:"datapoints"`
 	}
 
+	// Wrapper for the structure that fits the Grafana Infinity Datasource format
+	type JSONResponse struct {
+		Data []MetricData `json:"data"`
+	}
+
+	// Prepare the metrics data
 	var metrics []MetricData
 	//format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
 
@@ -782,13 +788,18 @@ func (a *Analyzer) _outputLogGroupsHistoryToJSON(title string, outdir string, gr
 
 		var datapoints [][]interface{}
 		for j, cnt := range lgsh.counts[i] {
-			//timestamp := time.Unix(lgsh.timeline[j], 0).UTC().Format(time.RFC3339)
+			timestamp := time.Unix(lgsh.timeline[j], 0).UTC().Format(time.RFC3339)
 			if cnt > 0 {
-				datapoints = append(datapoints, []interface{}{cnt, lgsh.timeline[j]})
+				datapoints = append(datapoints, []interface{}{cnt, timestamp})
 			}
 		}
 		metric.DataPoints = datapoints
 		metrics = append(metrics, metric)
+	}
+
+	// Wrap the response in the appropriate structure
+	response := JSONResponse{
+		Data: metrics,
 	}
 
 	// Write JSON file
@@ -801,7 +812,7 @@ func (a *Analyzer) _outputLogGroupsHistoryToJSON(title string, outdir string, gr
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(metrics); err != nil {
+	if err := encoder.Encode(response); err != nil {
 		return fmt.Errorf("error encoding JSON: %w", err)
 	}
 
