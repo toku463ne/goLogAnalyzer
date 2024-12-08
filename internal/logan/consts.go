@@ -16,6 +16,8 @@ const (
 	CDefaultSeparators          = ` "'\\,;[]<>{}=()|:&?/+!@`
 	CDefaultStdThreshold        = 2
 	CDefaultMinOccurrences      = 10
+	CFileFormatJson             = "json"
+	CFileFormatCsv              = "csv"
 
 	cAsteriskItemID          = -1
 	cMaxNumDigits            = 3 // HTTP codes

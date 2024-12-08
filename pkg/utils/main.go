@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"compress/gzip"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -441,6 +443,65 @@ func ReadCsv(csfvile string, separator rune, skipHeader bool) ([]string, [][]str
 	}
 
 	return header, records, nil
+}
+
+// Function to read JSON and convert to header and records
+func ReadJSONToRecords(filename string) ([]string, [][]string, error) {
+	// Structure of the JSON input
+	type MetricData struct {
+		Metric     string          `json:"metric"`
+		Datapoints [][]interface{} `json:"datapoints"`
+	}
+	// Open the file
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer file.Close()
+
+	// Read the file content
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Parse the JSON
+	var metrics []MetricData
+	err = json.Unmarshal(data, &metrics)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Prepare headers and records
+	var headers []string
+	var recordsMap = make(map[string][]string)
+
+	for _, metric := range metrics {
+		headers = append(headers, metric.Metric) // Add metric to headers
+		for _, point := range metric.Datapoints {
+			var value string
+			// Ensure point[0] is a float/int (value) and point[1] is a float/int (epoch)
+			if point[0] == "" {
+				value = "0"
+			} else {
+				value = strconv.FormatFloat(point[0].(float64), 'f', -1, 64)
+			}
+			timestamp := strconv.FormatInt(int64(point[1].(float64)), 10)
+
+			// Append the value to the correct timestamp in recordsMap
+			recordsMap[timestamp] = append(recordsMap[timestamp], value)
+		}
+	}
+
+	// Construct records slice
+	var records [][]string
+	for timestamp, values := range recordsMap {
+		row := append([]string{timestamp}, values...) // Add timestamp to the row
+		records = append(records, row)
+	}
+
+	// Return the headers and records
+	return headers, records, nil
 }
 
 func Slice2File(lines []string, filePath string) error {

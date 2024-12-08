@@ -628,7 +628,10 @@ func (a *Analyzer) Anomaly(N int, outdir string,
 		}
 	}
 	// output history with anomly
-	if err := a._outputLogGroupsHistory("anomaly_history", outdir, anomalGroupIds); err != nil {
+	if err := a._outputLogGroupsHistoryToCsv("anomaly_history", outdir, anomalGroupIds); err != nil {
+		return err
+	}
+	if err := a._outputLogGroupsHistoryToJSON("anomaly_history", outdir, anomalGroupIds); err != nil {
 		return err
 	}
 	if err := a._outputLogGroups("anomaly", outdir, anomalGroupIds); err != nil {
@@ -662,9 +665,13 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	}
 
 	if isHistory {
-		if err := a._outputLogGroupsHistory("history", outdir, groupIds); err != nil {
+		if err := a._outputLogGroupsHistoryToCsv("history", outdir, groupIds); err != nil {
 			return err
 		}
+		if err := a._outputLogGroupsHistoryToJSON("history", outdir, groupIds); err != nil {
+			return err
+		}
+
 	}
 	return a._outputLogGroups("logGroups", outdir, groupIds)
 }
@@ -743,7 +750,66 @@ func (a *Analyzer) _generateCiclePattern(row []int) string {
 	return pattern
 }
 
-func (a *Analyzer) _outputLogGroupsHistory(title string, outdir string, groupIds []int64) error {
+func (a *Analyzer) _outputLogGroupsHistoryToJSON(title string, outdir string, groupIds []int64) error {
+	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
+	if err != nil {
+		return err
+	}
+
+	// Ensure output directory exists
+	if err := utils.EnsureDir(outdir); err != nil {
+		return err
+	}
+
+	// Prepare JSON output structure
+	type DataPoint struct {
+		Value     int    `json:"value"`
+		Timestamp string `json:"timestamp"`
+	}
+
+	type MetricData struct {
+		Metric     string          `json:"metric"`
+		DataPoints [][]interface{} `json:"datapoints"`
+	}
+
+	var metrics []MetricData
+	//format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
+
+	for i, groupId := range lgsh.groupIds {
+		metric := MetricData{
+			Metric: fmt.Sprint(groupId),
+		}
+
+		var datapoints [][]interface{}
+		for j, cnt := range lgsh.counts[i] {
+			//timestamp := time.Unix(lgsh.timeline[j], 0).UTC().Format(time.RFC3339)
+			if cnt > 0 {
+				datapoints = append(datapoints, []interface{}{cnt, lgsh.timeline[j]})
+			}
+		}
+		metric.DataPoints = datapoints
+		metrics = append(metrics, metric)
+	}
+
+	// Write JSON file
+	filePath := fmt.Sprintf("%s/%s.json", outdir, title)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(metrics); err != nil {
+		return fmt.Errorf("error encoding JSON: %w", err)
+	}
+
+	logrus.Infof("JSON data written to %s", filePath)
+	return nil
+}
+
+func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, groupIds []int64) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
 		return err
@@ -867,7 +933,7 @@ func (a *Analyzer) _outputLogGroupsHistory(title string, outdir string, groupIds
 	return nil
 }
 
-func (a *Analyzer) OLD_outputLogGroupsHistory(title string, outdir string, groupIds []int64) error {
+func (a *Analyzer) OLD_outputLogGroupsHistoryToCsv(title string, outdir string, groupIds []int64) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
 		return err

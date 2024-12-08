@@ -504,6 +504,21 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		return
 	}
 
+	header, records, err = utils.ReadJSONToRecords(testDir + "/history.json")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("len(header)", len(header), 10); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
 	header, records, err = utils.ReadCsv(testDir+"/logGroups.csv", ',', false)
 	if err != nil {
 		t.Errorf("%v", err)
