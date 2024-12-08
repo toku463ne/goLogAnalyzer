@@ -755,7 +755,7 @@ func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, gro
 	}
 
 	// Prepare CSV rows
-	//format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
+	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
 	var rows [][]string
 	rows = append(rows, []string{"time", "metric", "value"}) // Add CSV header
 
@@ -766,9 +766,9 @@ func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, gro
 			// Add rows only for non-zero counts
 			if count > 0 {
 				rows = append(rows, []string{
-					fmt.Sprint(timestamp), // time
-					fmt.Sprint(groupId),   // metric
-					strconv.Itoa(count),   // value
+					time.Unix(timestamp, 0).Format(format), // time
+					fmt.Sprint(groupId),                    // metric
+					strconv.Itoa(count),                    // value
 				})
 			}
 		}
