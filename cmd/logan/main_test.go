@@ -54,11 +54,11 @@ func Test_main_config(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(header)", len(header), 6); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 3); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -68,7 +68,7 @@ func Test_main_config(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 2); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -93,7 +93,7 @@ func Test_main_config(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 3); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

@@ -703,10 +703,10 @@ func (a *Analyzer) _outputLogGroups(title, outdir string, groupIds []int64) erro
 	writer = csv.NewWriter(file)
 	defer writer.Flush()
 	// header
-	writer.Write([]string{"groupId", "count", "score", "text"})
+	writer.Write([]string{"groupId", "lastUpdate", "count", "score", "text"})
 	for _, groupId := range groupIds {
 		lg := lgs[groupId]
-		writer.Write([]string{fmt.Sprint(groupId), fmt.Sprint(lg.count),
+		writer.Write([]string{fmt.Sprint(groupId), utils.EpochToString(lg.updated), fmt.Sprint(lg.count),
 			fmt.Sprintf("%.3f", lg.rareScore), a.trans.lgs.lastMessages[groupId]})
 	}
 	writer.Flush()
@@ -744,6 +744,130 @@ func (a *Analyzer) _generateCiclePattern(row []int) string {
 }
 
 func (a *Analyzer) _outputLogGroupsHistory(title string, outdir string, groupIds []int64) error {
+	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
+	if err != nil {
+		return err
+	}
+
+	// Ensure output directory exists
+	if err := utils.EnsureDir(outdir); err != nil {
+		return err
+	}
+
+	// Prepare data for CSV
+	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
+	header := []string{"groupId"}
+	for _, ep := range lgsh.timeline {
+		header = append(header, time.Unix(ep, 0).Format(format))
+	}
+
+	// Prepare transposed data
+	transposed := make([][]string, len(header))
+	for i := range transposed {
+		transposed[i] = make([]string, len(lgsh.groupIds)+1)
+	}
+
+	// Fill header in the first column
+	for i, h := range header {
+		transposed[i][0] = h
+	}
+
+	// Fill data
+	for i, groupId := range lgsh.groupIds {
+		transposed[0][i+1] = fmt.Sprint(groupId)
+		for j, cnt := range lgsh.counts[i] {
+			if cnt > 0 {
+				transposed[j+1][i+1] = strconv.Itoa(cnt)
+			} else {
+				transposed[j+1][i+1] = ""
+			}
+		}
+	}
+
+	// Write CSV file
+	file, err := os.Create(fmt.Sprintf("%s/%s.csv", outdir, title))
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	for _, row := range transposed {
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("error writing row: %w", err)
+		}
+	}
+
+	logrus.Infof("Transposed data written to %s", file.Name())
+
+	// Prepare and write history_sum.csv (transposed)
+	cicleGroups := make(map[string][]int)
+	cicleGroupIDs := make(map[string]int64)
+	cicleIDs := make(map[int64]string)
+
+	for i, groupId := range lgsh.groupIds {
+		row := lgsh.counts[i]
+		cicle := a._generateCiclePattern(row)
+		if _, exists := cicleGroups[cicle]; !exists {
+			cicleGroups[cicle] = make([]int, len(lgsh.timeline))
+			if _, ok := cicleGroupIDs[cicle]; !ok {
+				cicleGroupIDs[cicle] = groupId
+				cicleIDs[groupId] = cicle
+			}
+		}
+		for j, cnt := range lgsh.counts[i] {
+			cicleGroups[cicle][j] += cnt
+		}
+	}
+
+	// Transpose history_sum data
+	sumTransposed := make([][]string, len(header))
+	for i := range sumTransposed {
+		sumTransposed[i] = make([]string, len(groupIds)+1)
+	}
+	// Fill header in the first column
+	for i, h := range header {
+		sumTransposed[i][0] = h
+	}
+
+	// Fill data for history_sum
+	for col, groupId := range groupIds {
+		sumTransposed[0][col+1] = fmt.Sprint(groupId)
+		if cicle, ok := cicleIDs[groupId]; ok {
+			for row, sum := range cicleGroups[cicle] {
+				if sum > 0 {
+					sumTransposed[row+1][col+1] = strconv.Itoa(sum)
+				} else {
+					sumTransposed[row+1][col+1] = ""
+				}
+			}
+		}
+	}
+
+	// Write transposed history_sum.csv to file
+	file, err = os.Create(fmt.Sprintf("%s/%s_sum.csv", outdir, title))
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+
+	writer = csv.NewWriter(file)
+	defer writer.Flush()
+
+	for _, row := range sumTransposed {
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("error writing row: %w", err)
+		}
+	}
+
+	logrus.Infof("Transposed history sum data written to %s", file.Name())
+
+	return nil
+}
+
+func (a *Analyzer) OLD_outputLogGroupsHistory(title string, outdir string, groupIds []int64) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
 		return err

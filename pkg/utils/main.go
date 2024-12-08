@@ -660,3 +660,10 @@ func GetNdaysBefore(N int) int64 {
 
 	return epoch
 }
+
+func EpochToString(epoch int64) string {
+	// Convert epoch to time.Time
+	t := time.Unix(epoch, 0)
+	// Format time.Time to the desired string format
+	return t.Format("2006-01-02 15:04:05")
+}

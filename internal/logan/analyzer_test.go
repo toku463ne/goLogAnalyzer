@@ -121,7 +121,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/logGroups_last.txt.gz"); err != nil {
+	if cnt, err := utils.CountGzFileLines(dataDir + "/logGroups/lastMessages.txt.gz"); err != nil {
 		t.Errorf("%v", err)
 		return
 	} else {
@@ -482,11 +482,11 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(header)", len(header), 6); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 11); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 10); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -495,11 +495,11 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("records[2][1]", records[2][1], "4"); err != nil {
+	if err := utils.GetGotExpErr("records[2][1]", records[0][3], "4"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("records[2][2]", records[2][2], "6"); err != nil {
+	if err := utils.GetGotExpErr("records[2][2]", records[1][3], "6"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -541,7 +541,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 6); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

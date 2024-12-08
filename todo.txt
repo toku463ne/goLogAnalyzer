@@ -5,7 +5,6 @@ no timestamp
 interrupt in the middle -> detect corruption
 output recent last messages
 
-verify history date and date in the lastMessage
 verify one groupId one displayName
 test options 
 test topN frequency
