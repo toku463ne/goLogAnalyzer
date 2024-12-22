@@ -482,24 +482,25 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(header)", len(header), 11); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 3); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 14); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	if err := utils.GetGotExpErr("records[0][1]", records[0][1], "10"); err != nil {
+	header, records, err = utils.ReadCsv(testDir+"/history_kmeans.csv", ',', false)
+	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("records[2][1]", records[0][3], "4"); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 3); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("records[2][2]", records[1][3], "6"); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 8); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -556,12 +557,12 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 10); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	if err := utils.GetGotExpErr("records[0][1]", records[0][1], "20"); err != nil {
+	if err := utils.GetGotExpErr("records[0][1]", records[0][2], "20"); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

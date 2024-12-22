@@ -54,25 +54,11 @@ func Test_main_config(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(header)", len(header), 4); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 3); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	_, records, err = utils.ReadCsv(dataDir+"/history_sum.csv", ',', false)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	if err := utils.GetGotExpErr("records[1][2]", records[1][2], "20"); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -93,7 +79,7 @@ func Test_main_config(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

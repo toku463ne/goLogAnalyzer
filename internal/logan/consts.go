@@ -25,4 +25,8 @@ const (
 	cStageRegisterTerms      = 1
 	cStageRegisterLogStrings = 2
 	cMaxLogGroups            = 1000000
+	cKmeansMinK              = 5
+	cKmeansMaxIter           = 10
+	cKmeansTrial             = 10
+	cKmeansKRate             = 0.1
 )

@@ -728,3 +728,38 @@ func EpochToString(epoch int64) string {
 	// Format time.Time to the desired string format
 	return t.Format("2006-01-02 15:04:05")
 }
+
+func NormalizeInt(values []int) []float64 {
+	if len(values) == 0 {
+		return []float64{} // Return an empty slice if values is empty
+	}
+
+	// Find min and max values
+	min, max := values[0], values[0]
+	for _, value := range values {
+		if value < min {
+			min = value
+		}
+		if value > max {
+			max = value
+		}
+	}
+
+	// Handle case where all values are the same
+	if min == max {
+		normalized := make([]float64, len(values))
+		for i := range values {
+			normalized[i] = 0 // All values are effectively the same, normalized to 0
+		}
+		return normalized
+	}
+
+	// Normalize the values
+	normalized := make([]float64, len(values))
+	base := float64(max - min)
+	for i, value := range values {
+		normalized[i] = float64(value-min) / base
+	}
+
+	return normalized
+}

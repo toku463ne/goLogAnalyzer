@@ -628,7 +628,7 @@ func (a *Analyzer) Anomaly(N int, outdir string,
 		}
 	}
 	// output history with anomly
-	if err := a._outputLogGroupsHistoryToCsv("anomaly_history", outdir, anomalGroupIds); err != nil {
+	if err := a._outputLogGroupsHistoryToCsv("anomaly_history", outdir, anomalGroupIds, N); err != nil {
 		return err
 	}
 	if err := a._outputLogGroups("anomaly", outdir, anomalGroupIds); err != nil {
@@ -662,7 +662,7 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	}
 
 	if isHistory {
-		if err := a._outputLogGroupsHistoryToCsv("history", outdir, groupIds); err != nil {
+		if err := a._outputLogGroupsHistoryToCsv("history", outdir, groupIds, N); err != nil {
 			return err
 		}
 	}
@@ -743,7 +743,39 @@ func (a *Analyzer) _generateCiclePattern(row []int) string {
 	return pattern
 }
 
-func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, groupIds []int64) error {
+func (a *Analyzer) _outputMetrics(title, outdir string, rows [][]string) error {
+	if err := utils.EnsureDir(outdir); err != nil {
+		return err
+	}
+
+	file, err := os.Create(fmt.Sprintf("%s/%s.csv", outdir, title))
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write header to CSV
+	if err := writer.Write([]string{"time", "metric", "value"}); err != nil {
+		return fmt.Errorf("error writing header to CSV: %w", err)
+	}
+
+	// Write rows to CSV
+	for _, row := range rows {
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("error writing row to CSV: %w", err)
+		}
+	}
+	logrus.Infof("Data written to CSV in the format 'time,metric,value' at %s", file.Name())
+
+	return nil
+
+}
+
+func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string,
+	groupIds []int64, topN int) error {
 	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
 	if err != nil {
 		return err
@@ -754,45 +786,41 @@ func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string, gro
 		return err
 	}
 
-	// Prepare CSV rows
 	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
-	var rows [][]string
-	rows = append(rows, []string{"time", "metric", "value"}) // Add CSV header
-
-	// Build rows from log group history
-	for i, groupId := range lgsh.groupIds {
-		for j, timestamp := range lgsh.timeline {
-			count := lgsh.counts[i][j]
-			// Add rows only for non-zero counts
-			if count > 0 {
-				rows = append(rows, []string{
-					time.Unix(timestamp, 0).Format(format), // time
-					fmt.Sprint(groupId),                    // metric
-					strconv.Itoa(count),                    // value
-				})
-			}
-		}
-	}
+	// Prepare CSV rows
+	rows := lgsh.buildRows(format)
 
 	// Write CSV file
-	filePath := fmt.Sprintf("%s/%s.csv", outdir, title)
-	file, err := os.Create(filePath)
+	if err := a._outputMetrics(title, outdir, rows); err != nil {
+		return err
+	}
+
+	// prepare CSV rows
+	rows, kms := lgsh.buildRowsByKmeans(groupIds, cKmeansMaxIter, topN, cKmeansTrial, format)
+
+	// Write CSV file
+	if err := a._outputMetrics(fmt.Sprintf("%s_kmeans", title), outdir, rows); err != nil {
+		return err
+	}
+
+	kmsData, err := kms.toJSON()
 	if err != nil {
-		return fmt.Errorf("error creating file: %w", err)
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	// Write rows to CSV
-	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
-			return fmt.Errorf("error writing row to CSV: %w", err)
-		}
+		return fmt.Errorf("failed to marshal kmeans data to JSON: %w", err)
 	}
 
-	logrus.Infof("Data written to CSV in the format 'time,metric,value' at %s", filePath)
+	kmsFile, err := os.Create(fmt.Sprintf("%s/%s_kmeans.json", outdir, title))
+	if err != nil {
+		return fmt.Errorf("error creating kmeans JSON file: %w", err)
+	}
+	defer kmsFile.Close()
+
+	_, err = kmsFile.Write([]byte(kmsData))
+	if err != nil {
+		return fmt.Errorf("failed to write kmeans JSON to file: %w", err)
+	}
+
+	logrus.Infof("Kmeans data written to JSON at %s", kmsFile.Name())
+
 	return nil
 }
 
