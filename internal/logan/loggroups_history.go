@@ -148,15 +148,13 @@ func (lgsh *logGroupsHistory) buildRows(timeFormat string) (rows [][]string) {
 // Sum per kmeans group per epoch and build rows from log group history
 func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations, topN, trials int,
 	timeFormat string) (rows [][]string, kms *kmClusters) {
-	sums, kms, nonClusterGroupIds := lgsh.sumByKmeans(groupIds, maxIterations, topN, trials)
-	lastKmId := len(kms.clusters) - 1
-	nonClusterI := 0
+	sums, kms := lgsh.sumByKmeans(groupIds, maxIterations, topN, trials)
 	for i, sum := range sums {
 		for j, timestamp := range lgsh.timeline {
 			count := sum[j]
 			// Add rows only for non-zero counts
 			if count > 0 {
-				if i <= lastKmId {
+				if kms.clusters[i].id >= 0 {
 					rows = append(rows, []string{
 						time.Unix(timestamp, 0).Format(timeFormat), // time
 						fmt.Sprintf("cluster_%d", i),               // metric
@@ -164,11 +162,10 @@ func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations,
 					})
 				} else {
 					rows = append(rows, []string{
-						time.Unix(timestamp, 0).Format(timeFormat),  // time
-						fmt.Sprint(nonClusterGroupIds[nonClusterI]), // metric
-						strconv.Itoa(int(count)),                    // value
+						time.Unix(timestamp, 0).Format(timeFormat), // time
+						fmt.Sprint(kms.clusters[i].groupIds[0]),    // metric
+						strconv.Itoa(int(count)),                   // value
 					})
-					nonClusterI++
 				}
 			}
 		}
@@ -176,8 +173,30 @@ func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations,
 	return rows, kms
 }
 
+// plot: make plots per kmeans group. x-axis: time, y-axis: count
+func (lgsh *logGroupsHistory) plotByKmeans(groupIds []int64, maxIterations, topN, trials int,
+	timeFormat, title, xlabel, ylabel, output string) error {
+	sums, kms := lgsh.sumByKmeans(groupIds, maxIterations, topN, trials)
+	plotData := make([][]float64, len(sums))
+	for i, sum := range sums {
+		plotData[i] = make([]float64, len(lgsh.timeline))
+		for j, count := range sum {
+			plotData[i][j] = float64(count)
+		}
+	}
+	plotLabels := make([]string, len(sums))
+	for i, cluster := range kms.clusters {
+		if cluster.id >= 0 {
+			plotLabels[i] = fmt.Sprintf("cluster_%d", i)
+		} else {
+			plotLabels[i] = fmt.Sprint(cluster.groupIds[0])
+		}
+	}
+	return utils.Plot(lgsh.timeline, plotData, plotLabels, title, xlabel, ylabel, output, timeFormat)
+}
+
 func (lgsh *logGroupsHistory) sumByKmeans(groupIds []int64,
-	maxIterations, topN, trials int) ([][]int64, *kmClusters, []int64) {
+	maxIterations, topN, trials int) ([][]int64, *kmClusters) {
 	k := int(math.Ceil(float64(len(groupIds))*cKmeansKRate)) + 1
 	if k < cKmeansMinK {
 		k = cKmeansMinK
@@ -196,27 +215,17 @@ func (lgsh *logGroupsHistory) sumByKmeans(groupIds []int64,
 
 	kms := newKmClusters(score)
 	for i, cluster := range clusters {
+		if i >= len(clusterScores) {
+			break
+		}
 		groupIds := make([]int64, 0)
 		totalCount := 0
 		for _, j := range cluster {
 			groupIds = append(groupIds, lgsh.groupIds[j])
 			totalCount += lgsh.totalCounts[j]
 		}
-		kms.addCluster(i, sizes[i], clusterScores[i], groupIds, totalCount)
+		kms.addCluster(i, sizes[i], clusterScores[i], cluster, groupIds, counts, totalCount)
 	}
-
-	// sum up the counts per cluster per epoch
-	sums := make([][]int64, len(clusters))
-	for i, cluster := range clusters {
-		sums[i] = make([]int64, len(counts[0]))
-		for _, j := range cluster {
-			for l, cnt := range counts[j] {
-				sums[i][l] += int64(cnt)
-			}
-		}
-	}
-
-	nonClusterGroupIds := make([]int64, 0)
 
 	// Identify log groups that do not belong to any k-means cluster and have a size larger than the total count
 	// of each cluster, then add these log groups to the sums
@@ -234,19 +243,23 @@ func (lgsh *logGroupsHistory) sumByKmeans(groupIds []int64,
 			}
 		}
 		if !inCluster {
-			for _, size := range sizes {
-				if totalCount > size {
-					newRow := make([]int64, len(counts[i]))
-					for l, cnt := range counts[i] {
-						newRow[l] = int64(cnt)
-					}
-					sums = append(sums, newRow)
-					break
-				}
-			}
-			nonClusterGroupIds = append(nonClusterGroupIds, lgsh.groupIds[i])
+			kms.addCluster(-1, 0, 0, []int{i}, []int64{lgsh.groupIds[i]}, [][]int{counts[i]}, totalCount)
 		}
 	}
 
-	return sums, kms, nonClusterGroupIds
+	// sort kmClusters by logCountTotal
+	kms.sortByLogCountTotal()
+	kms.filterTopN(topN)
+
+	sums := make([][]int64, len(kms.clusters))
+	for i, cluster := range kms.clusters {
+		sums[i] = make([]int64, len(lgsh.timeline))
+		for j, _ := range lgsh.timeline {
+			for _, k := range cluster.memberIds {
+				sums[i][j] += int64(counts[k][j])
+			}
+		}
+	}
+
+	return sums, kms
 }

@@ -645,11 +645,18 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	if err := a.Feed(0); err != nil {
 		return err
 	}
+
+	if len(a.trans.lgs.alllg) == 0 {
+		return fmt.Errorf("no log groups found")
+	}
+
+	allgroupIds := a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
+
 	var groupIds []int64
 	if N > 0 {
 		groupIds = a.trans.getTopNGroupIds(N, minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
 	} else {
-		groupIds = a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
+		groupIds = allgroupIds
 	}
 
 	if outdir == "" {
@@ -662,7 +669,7 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	}
 
 	if isHistory {
-		if err := a._outputLogGroupsHistoryToCsv("history", outdir, groupIds, N); err != nil {
+		if err := a._outputLogGroupsHistoryToCsv("history", outdir, allgroupIds, N); err != nil {
 			return err
 		}
 	}

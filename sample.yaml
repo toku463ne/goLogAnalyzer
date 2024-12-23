@@ -1,0 +1,7 @@
+---
+dataDir: "myLogDataDir"
+logPath: "/var/log/syslog*"
+logFormat: '^(?P<timestamp>\w{3} \d{1,2} \d{2}:\d{2}:\d{2}) (?P<message>.*)$'
+keepPeriod: 60 # terms to keep the analyzed data
+unitSecs: 86400 # daily
+timestampLayout: "Jan 2 15:04:05"

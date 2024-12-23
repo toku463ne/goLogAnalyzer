@@ -275,10 +275,10 @@ func Test_no_datadir(t *testing.T) {
 }
 
 func Test_real(t *testing.T) {
-	config := "/home/administrator/tests/sbc/gateway.yml"
+	config := "/home/administrator/tests/loganal/NFPFW003.yml"
 	//os.Args = []string{"logan", "clean", "-c", config, "-silent"}
 	//main()
 
-	os.Args = []string{"logan", "history", "-c", config, "-o", "/tmp/out2", "-asc", "-N", "10"}
+	os.Args = []string{"logan", "history", "-c", config, "-o", "/tmp/NFPFW003", "-asc", "-N", "10"}
 	main()
 }

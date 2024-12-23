@@ -151,7 +151,11 @@ func KMeans(data [][]float64, k, maxIterations int) ([][]int, [][]float64, []int
 	// Randomly initialize centroids
 	centroids := make([][]float64, k)
 	for i := 0; i < k; i++ {
-		centroids[i] = data[rand.Intn(len(data))]
+		if len(data) > 0 {
+			centroids[i] = data[rand.Intn(len(data))]
+		} else {
+			return nil, nil, nil
+		}
 	}
 
 	var clusters [][]int
@@ -231,13 +235,16 @@ func KMeans(data [][]float64, k, maxIterations int) ([][]int, [][]float64, []int
 	return clusters, centroids, clusterSizes
 }
 
+// Sort clusters by size (descending order)
+type ClusterInfo struct {
+	ID   int
+	Size int
+}
+
 // CompactnessScore calculates the average intra-cluster distance for the top N clusters.
-func CompactnessScore(data [][]float64, clusters [][]int, clusterSizes []int, topN int) (float64, []float64) {
-	// Sort clusters by size (descending order)
-	type ClusterInfo struct {
-		ID   int
-		Size int
-	}
+func CompactnessScore(data [][]float64, clusters [][]int,
+	clusterSizes []int, topN int) (float64, []float64, []ClusterInfo) {
+
 	clusterInfos := make([]ClusterInfo, len(clusterSizes))
 	for i, size := range clusterSizes {
 		clusterInfos[i] = ClusterInfo{ID: i, Size: size}
@@ -271,7 +278,7 @@ func CompactnessScore(data [][]float64, clusters [][]int, clusterSizes []int, to
 	}
 
 	// Average score across top N clusters
-	return totalScore / float64(count), clusterScores
+	return totalScore / float64(count), clusterScores, clusterInfos[:topN]
 }
 
 func BestKMeans(data [][]float64, k, maxIterations, topN, trials int) ([][]int, [][]float64,
@@ -282,9 +289,23 @@ func BestKMeans(data [][]float64, k, maxIterations, topN, trials int) ([][]int, 
 	var bestClusters [][]int
 	var bestSizes []int
 
+	if len(data) == 0 {
+		return nil, nil, nil, 0, nil
+	}
+
 	for t := 0; t < trials; t++ {
 		clusters, centroids, clusterSizes := KMeans(data, k, maxIterations)
-		score, clusterScores := CompactnessScore(data, clusters, clusterSizes, topN)
+		score, clusterScores, clusterInfos := CompactnessScore(data, clusters, clusterSizes, topN)
+
+		// filter clusters, centroids and clusterSizes to be members of clusterInfos
+		filteredClusters := make([][]int, len(clusterInfos))
+		filteredCentroids := make([][]float64, len(clusterInfos))
+		filteredClusterSizes := make([]int, len(clusterInfos))
+		for i, clusterInfo := range clusterInfos {
+			filteredClusters[i] = clusters[clusterInfo.ID]
+			filteredCentroids[i] = centroids[clusterInfo.ID]
+			filteredClusterSizes[i] = clusterSizes[clusterInfo.ID]
+		}
 
 		if score > 0 && score < bestScore {
 			bestScore = score
@@ -295,7 +316,8 @@ func BestKMeans(data [][]float64, k, maxIterations, topN, trials int) ([][]int, 
 		}
 	}
 
-	return bestClusters, bestCentroids, bestSizes, bestScore, bestClusterScores
+	return bestClusters, bestCentroids,
+		bestSizes, bestScore, bestClusterScores
 }
 
 // FilterOutliers removes points that are more than 2σ away from the centroid of their cluster.

@@ -401,7 +401,7 @@ func run() error {
 		return nil
 	}
 
-	tblDir := fmt.Sprintf("%s/config.tbl.ini", dataDir)
+	tblDir := fmt.Sprintf("%s/config.json", dataDir)
 	if utils.PathExist(tblDir) && !testMode {
 		logrus.Infof("Loading config from %s\n", tblDir)
 		a, err = logan.LoadAnalyzer(dataDir, logPath,
