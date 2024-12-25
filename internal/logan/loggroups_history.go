@@ -158,7 +158,7 @@ func (lgsh *logGroupsHistory) buildRows(timeFormat string, topN int) (rows [][]s
 			if count > 0 {
 				epoch := time.Unix(timestamp, 0)
 				rows = append(rows, []string{
-					fmt.Sprint(epoch),         // time
+					fmt.Sprint(epoch.Unix()),  // epoch time
 					epoch.Format(timeFormat),  // timestr
 					fmt.Sprint(group.groupId), // metric
 					strconv.Itoa(count),       // value
@@ -181,14 +181,14 @@ func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations,
 				epoch := time.Unix(timestamp, 0)
 				if kms.clusters[i].id >= 0 {
 					rows = append(rows, []string{
-						fmt.Sprint(epoch),            // time
+						fmt.Sprint(epoch.Unix()),     // epoch time
 						epoch.Format(timeFormat),     // timestr
 						fmt.Sprintf("cluster_%d", i), // metric
 						strconv.Itoa(int(count)),     // value
 					})
 				} else {
 					rows = append(rows, []string{
-						fmt.Sprint(epoch),                       // time
+						fmt.Sprint(epoch.Unix()),                // epoch time
 						epoch.Format(timeFormat),                // timestr
 						fmt.Sprint(kms.clusters[i].groupIds[0]), // metric
 						strconv.Itoa(int(count)),                // value
