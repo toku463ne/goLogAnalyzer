@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"goLogAnalyzer/pkg/utils"
 	"math"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -127,17 +128,40 @@ func (lgsh *logGroupsHistory) detectAnomaly(groupId int64,
 }
 
 // Build rows from log group history
-func (lgsh *logGroupsHistory) buildRows(timeFormat string) (rows [][]string) {
+func (lgsh *logGroupsHistory) buildRows(timeFormat string, topN int) (rows [][]string) {
 	rows = make([][]string, 0)
+	type groupTotal struct {
+		groupId    int64
+		totalCount int
+	}
+	groupTotals := make([]groupTotal, len(lgsh.groupIds))
 	for i, groupId := range lgsh.groupIds {
+		groupTotals[i] = groupTotal{groupId, lgsh.totalCounts[i]}
+	}
+
+	// Sort groups by totalCount in descending order
+	sort.Slice(groupTotals, func(i, j int) bool {
+		return groupTotals[i].totalCount > groupTotals[j].totalCount
+	})
+
+	// Take topN groups
+	if topN > len(groupTotals) {
+		topN = len(groupTotals)
+	}
+	topGroups := groupTotals[:topN]
+
+	for _, group := range topGroups {
+		i := lgsh.groupIdsMap[group.groupId]
 		for j, timestamp := range lgsh.timeline {
 			count := lgsh.counts[i][j]
 			// Add rows only for non-zero counts
 			if count > 0 {
+				epoch := time.Unix(timestamp, 0)
 				rows = append(rows, []string{
-					time.Unix(timestamp, 0).Format(timeFormat), // time
-					fmt.Sprint(groupId),                        // metric
-					strconv.Itoa(count),                        // value
+					fmt.Sprint(epoch),         // time
+					epoch.Format(timeFormat),  // timestr
+					fmt.Sprint(group.groupId), // metric
+					strconv.Itoa(count),       // value
 				})
 			}
 		}
@@ -154,17 +178,20 @@ func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations,
 			count := sum[j]
 			// Add rows only for non-zero counts
 			if count > 0 {
+				epoch := time.Unix(timestamp, 0)
 				if kms.clusters[i].id >= 0 {
 					rows = append(rows, []string{
-						time.Unix(timestamp, 0).Format(timeFormat), // time
-						fmt.Sprintf("cluster_%d", i),               // metric
-						strconv.Itoa(int(count)),                   // value
+						fmt.Sprint(epoch),            // time
+						epoch.Format(timeFormat),     // timestr
+						fmt.Sprintf("cluster_%d", i), // metric
+						strconv.Itoa(int(count)),     // value
 					})
 				} else {
 					rows = append(rows, []string{
-						time.Unix(timestamp, 0).Format(timeFormat), // time
-						fmt.Sprint(kms.clusters[i].groupIds[0]),    // metric
-						strconv.Itoa(int(count)),                   // value
+						fmt.Sprint(epoch),                       // time
+						epoch.Format(timeFormat),                // timestr
+						fmt.Sprint(kms.clusters[i].groupIds[0]), // metric
+						strconv.Itoa(int(count)),                // value
 					})
 				}
 			}

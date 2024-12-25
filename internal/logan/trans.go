@@ -757,16 +757,16 @@ func (tr *trans) getTopNGroupIds(N int, minLastUpdate int64,
 				return groupIds[i] < groupIds[j]
 			} else {
 				if asc {
-					return scorei < scorej
-				} else {
 					return scorei > scorej
+				} else {
+					return scorei < scorej
 				}
 			}
 		}
 		if asc {
-			return cnti > cntj
-		} else {
 			return cnti < cntj
+		} else {
+			return cnti > cntj
 		}
 	})
 

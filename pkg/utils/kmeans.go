@@ -257,7 +257,7 @@ func CompactnessScore(data [][]float64, clusters [][]int,
 	var totalScore float64
 	var count int
 	clusterScores := make([]float64, 0)
-	for i := 0; i < topN && i < len(clusterInfos); i++ {
+	for i := 0; (topN == 0 || i < topN) && i < len(clusterInfos); i++ {
 		clusterID := clusterInfos[i].ID
 		if len(clusters[clusterID]) == 0 {
 			clusterScores = append(clusterScores, -1)
@@ -277,8 +277,12 @@ func CompactnessScore(data [][]float64, clusters [][]int,
 		count++
 	}
 
+	if len(clusterScores) > topN && topN > 0 {
+		clusterScores = clusterScores[:topN]
+	}
+
 	// Average score across top N clusters
-	return totalScore / float64(count), clusterScores, clusterInfos[:topN]
+	return totalScore / float64(count), clusterScores, clusterInfos
 }
 
 func BestKMeans(data [][]float64, k, maxIterations, topN, trials int) ([][]int, [][]float64,
