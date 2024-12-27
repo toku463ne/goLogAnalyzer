@@ -486,7 +486,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 14); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 13); err != nil {
 		t.Errorf("%v", err)
 		return
 	}

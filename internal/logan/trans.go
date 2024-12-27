@@ -746,7 +746,7 @@ func (tr *trans) getTopNGroupIds(N int, minLastUpdate int64,
 		}
 	}
 
-	// Sort the slice by Count in descending order
+	// Sort the slice by Count in ascending order if asc is true else descending order
 	sort.Slice(groupIds, func(i, j int) bool {
 		cnti := lgs.alllg[groupIds[i]].count
 		cntj := lgs.alllg[groupIds[j]].count

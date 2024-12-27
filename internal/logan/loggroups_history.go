@@ -181,10 +181,10 @@ func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations,
 				epoch := time.Unix(timestamp, 0)
 				if kms.clusters[i].id >= 0 {
 					rows = append(rows, []string{
-						fmt.Sprint(epoch.Unix()),     // epoch time
-						epoch.Format(timeFormat),     // timestr
-						fmt.Sprintf("cluster_%d", i), // metric
-						strconv.Itoa(int(count)),     // value
+						fmt.Sprint(epoch.Unix()),                      // epoch time
+						epoch.Format(timeFormat),                      // timestr
+						fmt.Sprintf("cluster_%d", kms.clusters[i].id), // metric
+						strconv.Itoa(int(count)),                      // value
 					})
 				} else {
 					rows = append(rows, []string{
@@ -198,28 +198,6 @@ func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations,
 		}
 	}
 	return rows, kms
-}
-
-// plot: make plots per kmeans group. x-axis: time, y-axis: count
-func (lgsh *logGroupsHistory) plotByKmeans(groupIds []int64, maxIterations, topN, trials int,
-	timeFormat, title, xlabel, ylabel, output string) error {
-	sums, kms := lgsh.sumByKmeans(groupIds, maxIterations, topN, trials)
-	plotData := make([][]float64, len(sums))
-	for i, sum := range sums {
-		plotData[i] = make([]float64, len(lgsh.timeline))
-		for j, count := range sum {
-			plotData[i][j] = float64(count)
-		}
-	}
-	plotLabels := make([]string, len(sums))
-	for i, cluster := range kms.clusters {
-		if cluster.id >= 0 {
-			plotLabels[i] = fmt.Sprintf("cluster_%d", i)
-		} else {
-			plotLabels[i] = fmt.Sprint(cluster.groupIds[0])
-		}
-	}
-	return utils.Plot(lgsh.timeline, plotData, plotLabels, title, xlabel, ylabel, output, timeFormat)
 }
 
 func (lgsh *logGroupsHistory) sumByKmeans(groupIds []int64,
