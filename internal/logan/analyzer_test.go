@@ -482,7 +482,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(header)", len(header), 4); err != nil {
+	if err := utils.GetGotExpErr("len(header)", len(header), 3); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -490,35 +490,6 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-
-	_, records, err = utils.ReadCsv(testDir+"/history_kmeans.csv", ',', true)
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-	//if err := utils.GetGotExpErr("len(header)", len(header), 4); err != nil {
-	//	t.Errorf("%v", err)
-	//	return
-	//}
-	if err := utils.GetGotExpErr("len(records)", len(records), 8); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	//header, records, err = utils.ReadJSONToRecords(testDir + "/history.json")
-	//if err != nil {
-	//	t.Errorf("%v", err)
-	//	return
-	//}
-
-	//if err := utils.GetGotExpErr("len(header)", len(header), 10); err != nil {
-	//	t.Errorf("%v", err)
-	//	return
-	//}
-	//if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
-	//	t.Errorf("%v", err)
-	//	return
-	//}
 
 	header, records, err = utils.ReadCsv(testDir+"/logGroups.csv", ',', false)
 	if err != nil {

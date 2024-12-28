@@ -3,7 +3,6 @@ package logan
 import (
 	"fmt"
 	"goLogAnalyzer/pkg/utils"
-	"math"
 	"sort"
 	"strconv"
 	"time"
@@ -128,7 +127,7 @@ func (lgsh *logGroupsHistory) detectAnomaly(groupId int64,
 }
 
 // Build rows from log group history
-func (lgsh *logGroupsHistory) buildRows(timeFormat string, topN int) (rows [][]string) {
+func (lgsh *logGroupsHistory) buildRows(topN int) (rows [][]string) {
 	rows = make([][]string, 0)
 	type groupTotal struct {
 		groupId    int64
@@ -158,113 +157,13 @@ func (lgsh *logGroupsHistory) buildRows(timeFormat string, topN int) (rows [][]s
 			if count > 0 {
 				epoch := time.Unix(timestamp, 0)
 				rows = append(rows, []string{
-					fmt.Sprint(epoch.Unix()),  // epoch time
-					epoch.Format(timeFormat),  // timestr
+					//epoch.Format(timeFormat),  // timestr
 					fmt.Sprint(group.groupId), // metric
+					fmt.Sprint(epoch.Unix()),  // epoch time
 					strconv.Itoa(count),       // value
 				})
 			}
 		}
 	}
 	return rows
-}
-
-// Sum per kmeans group per epoch and build rows from log group history
-func (lgsh *logGroupsHistory) buildRowsByKmeans(groupIds []int64, maxIterations, topN, trials int,
-	timeFormat string) (rows [][]string, kms *kmClusters) {
-	sums, kms := lgsh.sumByKmeans(groupIds, maxIterations, topN, trials)
-	for i, sum := range sums {
-		for j, timestamp := range lgsh.timeline {
-			count := sum[j]
-			// Add rows only for non-zero counts
-			if count > 0 {
-				epoch := time.Unix(timestamp, 0)
-				if kms.clusters[i].id >= 0 {
-					rows = append(rows, []string{
-						fmt.Sprint(epoch.Unix()),                      // epoch time
-						epoch.Format(timeFormat),                      // timestr
-						fmt.Sprintf("cluster_%d", kms.clusters[i].id), // metric
-						strconv.Itoa(int(count)),                      // value
-					})
-				} else {
-					rows = append(rows, []string{
-						fmt.Sprint(epoch.Unix()),                // epoch time
-						epoch.Format(timeFormat),                // timestr
-						fmt.Sprint(kms.clusters[i].groupIds[0]), // metric
-						strconv.Itoa(int(count)),                // value
-					})
-				}
-			}
-		}
-	}
-	return rows, kms
-}
-
-func (lgsh *logGroupsHistory) sumByKmeans(groupIds []int64,
-	maxIterations, topN, trials int) ([][]int64, *kmClusters) {
-	k := int(math.Ceil(float64(len(groupIds))*cKmeansKRate)) + 1
-	if k < cKmeansMinK {
-		k = cKmeansMinK
-	}
-	if k > len(groupIds) {
-		k = int(math.Ceil(float64(len(groupIds))*cKmeansKRate)) + 1
-	}
-
-	counts := lgsh.counts
-	ncounts := make([][]float64, len(counts))
-	for i, cnt := range counts {
-		ncounts[i] = utils.NormalizeInt(cnt)
-	}
-	clusters, centroids, sizes, score, clusterScores := utils.BestKMeans(ncounts, k, maxIterations, topN, trials)
-	clusters, _ = utils.FilterOutliers(2.0, ncounts, clusters, centroids)
-
-	kms := newKmClusters(score)
-	for i, cluster := range clusters {
-		if i >= len(clusterScores) {
-			break
-		}
-		groupIds := make([]int64, 0)
-		totalCount := 0
-		for _, j := range cluster {
-			groupIds = append(groupIds, lgsh.groupIds[j])
-			totalCount += lgsh.totalCounts[j]
-		}
-		kms.addCluster(i, sizes[i], clusterScores[i], cluster, groupIds, counts, totalCount)
-	}
-
-	// Identify log groups that do not belong to any k-means cluster and have a size larger than the total count
-	// of each cluster, then add these log groups to the sums
-	for i, totalCount := range lgsh.totalCounts {
-		inCluster := false
-		for _, cluster := range clusters {
-			for _, j := range cluster {
-				if j == i {
-					inCluster = true
-					break
-				}
-			}
-			if inCluster {
-				break
-			}
-		}
-		if !inCluster {
-			kms.addCluster(-1, 0, 0, []int{i}, []int64{lgsh.groupIds[i]}, [][]int{counts[i]}, totalCount)
-		}
-	}
-
-	// sort kmClusters by logCountTotal
-	kms.sortByLogCountTotal()
-	kms.filterTopN(topN)
-
-	sums := make([][]int64, len(kms.clusters))
-	for i, cluster := range kms.clusters {
-		sums[i] = make([]int64, len(lgsh.timeline))
-		for j, _ := range lgsh.timeline {
-			for _, k := range cluster.memberIds {
-				sums[i][j] += int64(counts[k][j])
-			}
-		}
-	}
-
-	return sums, kms
 }

@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -44,6 +43,12 @@ type analStatus struct {
 	LastFileEpoch int64 `json:"last_file_epoch"`
 	LastFileRow   int   `json:"last_file_row"`
 	RowID         int   `json:"row_id"`
+}
+
+type historyInfo struct {
+	Start    int64 `json:"start"`
+	End      int64 `json:"end"`
+	UnitSecs int64 `json:"unit_secs"`
 }
 
 type Analyzer struct {
@@ -765,7 +770,7 @@ func (a *Analyzer) _outputMetrics(title, outdir string, rows [][]string) error {
 	defer writer.Flush()
 
 	// Write header to CSV
-	//if err := writer.Write([]string{"time", "timestr", "metric", "value"}); err != nil {
+	//if err := writer.Write([]string{"time", "metric", "value"}); err != nil {
 	//	return fmt.Errorf("error writing header to CSV: %w", err)
 	//}
 
@@ -775,7 +780,7 @@ func (a *Analyzer) _outputMetrics(title, outdir string, rows [][]string) error {
 			return fmt.Errorf("error writing row to CSV: %w", err)
 		}
 	}
-	logrus.Infof("Data written to CSV in the format 'time,timestr,metric,value' at %s", file.Name())
+	logrus.Infof("Data written to CSV in the format 'time,metric,value' at %s", file.Name())
 
 	return nil
 
@@ -793,127 +798,35 @@ func (a *Analyzer) _outputLogGroupsHistoryToCsv(title string, outdir string,
 		return err
 	}
 
-	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
+	//format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
 	// Prepare CSV rows
-	rows := lgsh.buildRows(format, topN)
+	rows := lgsh.buildRows(topN)
 
 	// Write CSV file
 	if err := a._outputMetrics(title, outdir, rows); err != nil {
 		return err
 	}
 
-	// prepare CSV rows
-	rows, kms := lgsh.buildRowsByKmeans(groupIds, cKmeansMaxIter, topN, cKmeansTrial, format)
-
-	// Write CSV file
-	if err := a._outputMetrics(fmt.Sprintf("%s_kmeans", title), outdir, rows); err != nil {
-		return err
+	// Write start, end and unitSecs to JSON file
+	historyInfo := historyInfo{
+		Start:    lgsh.timeline[0],
+		End:      lgsh.timeline[len(lgsh.timeline)-1],
+		UnitSecs: a.UnitSecs,
 	}
-
-	kmsData, err := kms.toJSON()
+	data, err := json.MarshalIndent(historyInfo, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal kmeans data to JSON: %w", err)
+		return fmt.Errorf("failed to marshal history info to JSON: %w", err)
 	}
 
-	kmsFile, err := os.Create(fmt.Sprintf("%s/%s_kmeans.json", outdir, title))
-	if err != nil {
-		return fmt.Errorf("error creating kmeans JSON file: %w", err)
-	}
-	defer kmsFile.Close()
-
-	_, err = kmsFile.Write([]byte(kmsData))
-	if err != nil {
-		return fmt.Errorf("failed to write kmeans JSON to file: %w", err)
-	}
-
-	logrus.Infof("Kmeans data written to JSON at %s", kmsFile.Name())
-
-	return nil
-}
-
-func (a *Analyzer) OLD_outputLogGroupsHistoryToCsv(title string, outdir string, groupIds []int64) error {
-	lgsh, err := a.trans.getLogGroupsHistory(groupIds)
-	if err != nil {
-		return err
-	}
-
-	// output simple history
-	var writer *csv.Writer
-	if err := utils.EnsureDir(outdir); err != nil {
-		return err
-	}
-	file, err := os.Create(fmt.Sprintf("%s/%s.csv", outdir, title))
+	historyInfoFile, err := os.Create(fmt.Sprintf("%s/%s_info.json", outdir, title))
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
+	defer historyInfoFile.Close()
 
-	logrus.Infof("wrinting %s", file.Name())
-	defer file.Close()
-	writer = csv.NewWriter(file)
-	defer writer.Flush()
-
-	format := utils.GetDatetimeFormatFromUnitSecs(a.UnitSecs)
-	header := []string{"groupId"}
-	for _, ep := range lgsh.timeline {
-		header = append(header, time.Unix(ep, 0).Format(format))
+	if _, err := historyInfoFile.Write(data); err != nil {
+		return fmt.Errorf("error writing history info to JSON file: %w", err)
 	}
-	writer.Write(header)
-	for i, groupId := range lgsh.groupIds {
-		row := []string{fmt.Sprint(groupId)}
-		for _, cnt := range lgsh.counts[i] {
-			if cnt > 0 {
-				row = append(row, strconv.Itoa(cnt))
-			} else {
-				row = append(row, "")
-			}
-		}
-		writer.Write(row)
-	}
-	writer.Flush()
-	file.Close()
-
-	// output history grouped by apparance cicle
-	cicleGroups := make(map[string][]int)
-	cicleGroupIDs := make(map[string]int64)
-	cicleIDs := make(map[int64]string)
-
-	for i, groupId := range lgsh.groupIds {
-		row := lgsh.counts[i]
-		cicle := a._generateCiclePattern(row)
-		if _, exists := cicleGroups[cicle]; !exists {
-			cicleGroups[cicle] = make([]int, len(lgsh.timeline))
-			if _, ok := cicleGroupIDs[cicle]; !ok {
-				cicleGroupIDs[cicle] = groupId
-				cicleIDs[groupId] = cicle
-			}
-		}
-		for j, cnt := range lgsh.counts[i] {
-			cicleGroups[cicle][j] += cnt
-		}
-	}
-	file, err = os.Create(fmt.Sprintf("%s/history_sum.csv", outdir))
-	if err != nil {
-		return fmt.Errorf("error creating file: %w", err)
-	}
-	defer file.Close()
-	writer = csv.NewWriter(file)
-	defer writer.Flush()
-	writer.Write(header)
-	for _, groupId := range groupIds {
-		row := []string{fmt.Sprint(groupId)}
-		if cicle, ok := cicleIDs[groupId]; ok {
-			for _, sum := range cicleGroups[cicle] {
-				if sum > 0 {
-					row = append(row, strconv.Itoa(sum))
-				} else {
-					row = append(row, "")
-				}
-			}
-			writer.Write(row)
-		}
-	}
-	writer.Flush()
-	file.Close()
 
 	return nil
 }
