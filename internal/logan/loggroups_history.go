@@ -147,7 +147,12 @@ func (lgsh *logGroupsHistory) buildRows(topN int) (rows [][]string) {
 	if topN > len(groupTotals) {
 		topN = len(groupTotals)
 	}
-	topGroups := groupTotals[:topN]
+	var topGroups []groupTotal
+	if topN > 0 {
+		topGroups = groupTotals[:topN]
+	} else {
+		topGroups = groupTotals
+	}
 
 	for _, group := range topGroups {
 		i := lgsh.groupIdsMap[group.groupId]
