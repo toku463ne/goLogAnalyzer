@@ -706,9 +706,9 @@ func (a *Analyzer) _outputMetrics(title, outdir string, rows [][]string) error {
 	defer writer.Flush()
 
 	// Write header to CSV
-	//if err := writer.Write([]string{"time", "metric", "value"}); err != nil {
-	//	return fmt.Errorf("error writing header to CSV: %w", err)
-	//}
+	if err := writer.Write([]string{"itemid", "clock", "value"}); err != nil {
+		return fmt.Errorf("error writing header to CSV: %w", err)
+	}
 
 	// Write rows to CSV
 	for _, row := range rows {
@@ -716,7 +716,7 @@ func (a *Analyzer) _outputMetrics(title, outdir string, rows [][]string) error {
 			return fmt.Errorf("error writing row to CSV: %w", err)
 		}
 	}
-	logrus.Infof("Data written to CSV in the format 'time,metric,value' at %s", file.Name())
+	logrus.Infof("Data written to CSV at %s", file.Name())
 
 	return nil
 
