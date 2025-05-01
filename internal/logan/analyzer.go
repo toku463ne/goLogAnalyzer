@@ -73,6 +73,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	msgFormats []string,
 	customLogGroups []string,
 	separators string,
+	LastFileEpoch int64,
 	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
 	debug = _debug
 	a := new(Analyzer)
@@ -104,7 +105,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	a.MinMatchRate = CDefaultMinMatchRate
 	a.Separators = CDefaultSeparators
 
-	a.LastFileEpoch = 0
+	a.LastFileEpoch = LastFileEpoch
 	a.LastFileRow = 0
 	a.RowID = 0
 

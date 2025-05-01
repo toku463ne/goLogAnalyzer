@@ -68,6 +68,7 @@ var (
 	maxLogCount         int
 	stdThreshold        float64
 	minOccurrences      float64
+	lastFileEpoch       int64
 )
 
 type config struct {
@@ -123,6 +124,7 @@ func setCommonFlag(fs *flag.FlagSet) {
 	fs.BoolVar(&ascOrder, "asc", false, "list up logGroups in ascending order or not")
 	fs.BoolVar(&ignoreNumbers, "ignoreNumbers", false, "ignore all numbers")
 	fs.StringVar(&analLogPath, "anallog", "", "File to output logs of this application")
+	fs.Int64Var(&lastFileEpoch, "lastEpoch", 0, "last epoch of the log file")
 
 }
 
@@ -417,6 +419,7 @@ func run() error {
 			msgFormats,
 			customLogGroups,
 			separators,
+			lastFileEpoch,
 			readOnly, debug, testMode, ignoreNumbers)
 	}
 	if err != nil {

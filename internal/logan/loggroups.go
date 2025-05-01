@@ -62,8 +62,8 @@ func newLogGroups(dataDir string,
 func (lgs *logGroups) _genGroupId(created int64) int64 {
 	lgs.maxLgId++
 	lgid := lgs.maxLgId
-	lgid = lgid % 1e9
-	return created*1e9 + lgid
+	lgid = lgid % 1e5
+	return created*1e5 + lgid
 }
 
 // Register logGroup info

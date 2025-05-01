@@ -42,7 +42,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, nil, nil, separator, false, false, false, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, nil, nil, separator, 0, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -193,14 +193,14 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 
 	// block0 consists of 10+10+4=24
 	// groupIdstr=d4kqiqizi0w3 has 4
-	if err := utils.GetGotExpErr("group 1727812800000000003 count", bd0["1727812800000000003"].count, 4); err != nil {
+	if err := utils.GetGotExpErr("group 172781280000003 count", bd0["172781280000003"].count, 4); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
 	// block1 consists of 6+10=16
 	// groupIdstr=d4kqiqizi0w3 has 6
-	if err := utils.GetGotExpErr("group 1727812800000000003 count", bd1["1727812800000000003"].count, 6); err != nil {
+	if err := utils.GetGotExpErr("group 172781280000003 count", bd1["172781280000003"].count, 6); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -486,7 +486,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 13); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 14); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -528,7 +528,7 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-	if err := utils.GetGotExpErr("len(records)", len(records), 9); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 10); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -545,7 +545,7 @@ func _test_Trans_parse(line, logFormat, layout string,
 	expect_line string) error {
 	a, err := NewAnalyzer("", "", logFormat, layout, useUtcTime, nil, nil,
 		0, 0, 0,
-		unitSecs, 0, 0, 0, nil, nil, nil, nil, nil, nil, "", false, false, false, false)
+		unitSecs, 0, 0, 0, nil, nil, nil, nil, nil, nil, "", 0, false, false, false, false)
 	if err != nil {
 		return err
 	}
@@ -627,7 +627,7 @@ func Test_Analyzer_multisize(t *testing.T) {
 
 	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
 		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, nil, nil, separator, false, false, false, false)
+		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, nil, nil, separator, 0, false, false, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

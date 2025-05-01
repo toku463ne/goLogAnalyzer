@@ -58,7 +58,7 @@ func Test_main_config(t *testing.T) {
 	//	t.Errorf("%v", err)
 	//	return
 	//}
-	if err := utils.GetGotExpErr("len(records)", len(records), 4); err != nil {
+	if err := utils.GetGotExpErr("len(records)", len(records), 5); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
@@ -263,7 +263,7 @@ func Test_no_datadir(t *testing.T) {
 	var groupIDCount int
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "1730671576") {
+		if strings.HasPrefix(line, "173301083") {
 			groupIDCount++
 		}
 	}
