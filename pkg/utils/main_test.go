@@ -105,3 +105,24 @@ func Test_Str2date(t *testing.T) {
 		})
 	}
 }
+
+func Test_NextDivisibleByN(t *testing.T) {
+	tests := []struct {
+		i        int
+		n        int
+		expected int
+	}{
+		{0, 5, 0},
+		{10, 5, 10},
+		{11, 5, 15},
+		{23, 7, 28},
+		{9, 0, 9},
+	}
+
+	for _, tt := range tests {
+		got := NextDivisibleByN(tt.i, tt.n)
+		if got != tt.expected {
+			t.Errorf("NextDivisibleByN(%d, %d) = %d, want %d", tt.i, tt.n, got, tt.expected)
+		}
+	}
+}

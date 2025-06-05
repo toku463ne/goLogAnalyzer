@@ -364,10 +364,13 @@ func StringToInt64(s string) int64 {
 }
 
 func NextDivisibleByN(i, n int) int {
+	if n == 0 {
+		return i
+	}
 	if i%n == 0 {
 		return i
 	}
-	return ((i / n) + 1) * 10000
+	return ((i / n) + 1) * n
 }
 
 func GetUnitsecs(frequency int) int64 {
