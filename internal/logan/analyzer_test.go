@@ -40,9 +40,23 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 	ignoreNumbers := false
 	separator := " ,<>"
 
-	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
-		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, nil, nil, separator, 0, false, false, false, false)
+	conf := new(AnalConfig)
+	conf.LogFormat = logFormat
+	conf.TimestampLayout = layout
+	conf.DataDir = dataDir
+	conf.LogPath = logPath
+	conf.LogFormat = logFormat
+	conf.TimestampLayout = layout
+	conf.UseUtcTime = useUtcTime
+	conf.MaxBlocks = maxBlocks
+	conf.BlockSize = blockSize
+	conf.KeepPeriod = keepPeriod
+	conf.UnitSecs = unitSecs
+	conf.TermCountBorder = countBorder
+	conf.MinMatchRate = minMatchRate
+	conf.Separators = separator
+
+	a, err := NewAnalyzer(conf, 0, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
@@ -543,9 +557,14 @@ func Test_Analyzer_daily_Feed(t *testing.T) {
 func _test_Trans_parse(line, logFormat, layout string,
 	useUtcTime bool, unitSecs int64,
 	expect_line string) error {
-	a, err := NewAnalyzer("", "", logFormat, layout, useUtcTime, nil, nil,
-		0, 0, 0,
-		unitSecs, 0, 0, 0, nil, nil, nil, nil, nil, nil, "", 0, false, false, false, false)
+
+	conf := new(AnalConfig)
+	conf.LogFormat = logFormat
+	conf.TimestampLayout = layout
+	conf.UseUtcTime = useUtcTime
+	conf.UnitSecs = unitSecs
+
+	a, err := NewAnalyzer(conf, 0, false, false)
 	if err != nil {
 		return err
 	}
@@ -625,9 +644,21 @@ func Test_Analyzer_multisize(t *testing.T) {
 	useUtcTime := true
 	separator := " ,<>"
 
-	a, err := NewAnalyzer(dataDir, logPath, logFormat, layout, useUtcTime, nil, nil,
-		maxBlocks, blockSize, keepPeriod,
-		unitSecs, 0, countBorder, minMatchRate, nil, nil, nil, nil, nil, nil, separator, 0, false, false, false, false)
+	conf := new(AnalConfig)
+	conf.DataDir = dataDir
+	conf.LogPath = logPath
+	conf.LogFormat = logFormat
+	conf.TimestampLayout = layout
+	conf.UseUtcTime = useUtcTime
+	conf.MaxBlocks = maxBlocks
+	conf.BlockSize = blockSize
+	conf.KeepPeriod = keepPeriod
+	conf.UnitSecs = unitSecs
+	conf.TermCountBorder = countBorder
+	conf.MinMatchRate = minMatchRate
+	conf.Separators = separator
+
+	a, err := NewAnalyzer(conf, 0, false, false)
 	if err != nil {
 		t.Errorf("%v", err)
 		return

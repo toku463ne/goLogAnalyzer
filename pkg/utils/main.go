@@ -544,6 +544,23 @@ func ReadFile2Slice(filePath string) ([]string, error) {
 	return lines, nil
 }
 
+func WriteStringToFile(filePath string, lines []string) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	for _, line := range lines {
+		_, err := writer.WriteString(line + "\n")
+		if err != nil {
+			return err
+		}
+	}
+	return writer.Flush()
+}
+
 func Base36ToInt64(base36Str string) (int64, error) {
 	// Parse the base-36 string into an int64
 	result, err := strconv.ParseInt(base36Str, 36, 64)
@@ -765,4 +782,9 @@ func NormalizeInt(values []int) []float64 {
 	}
 
 	return normalized
+}
+
+func Int64ToStr(n int64) string {
+	// Convert int64 to string
+	return strconv.FormatInt(n, 10)
 }

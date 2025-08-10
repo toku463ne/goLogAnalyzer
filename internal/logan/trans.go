@@ -17,6 +17,7 @@ type trans struct {
 	te                  *terms
 	lt                  *logTree
 	lgs                 *logGroups
+	kg                  *keygroups
 	customLogGroups     []string
 	replacer            *strings.Replacer
 	logFormatRe         *regexp.Regexp
@@ -58,6 +59,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	_keywords, _ignorewords,
 	_keyRegexes, _ignoreRegexes,
 	_msgFormats []string,
+	_kgRegexes []string,
 	_customLogGroups []string,
 	separators string,
 	useGzip, readOnly, testMode, ignoreNumbers bool) (*trans, error) {
@@ -98,6 +100,13 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 		tr._parseMsgFormat(_msgFormats)
 	}
 
+	if len(_kgRegexes) > 0 {
+		tr.kg, err = newKeyGroups(dataDir, _kgRegexes, useGzip, tr.testMode)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	tr.lt = newLogTree(0)
 	// don't need blockSize for terms because the rotation follows trans.next()
 	lgs, err := newLogGroups(dataDir, maxBlocks, unitSecs, keepPeriod, useGzip, tr.testMode)
@@ -105,6 +114,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 		return nil, err
 	}
 	tr.lgs = lgs
+
 	tr.initCounters()
 	return tr, nil
 }
@@ -243,7 +253,44 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64, er
 	}
 
 	if tr.timestampPos >= 0 || tr.messagePos >= 0 {
-		ma := tr.logFormatRe.FindStringSubmatch(line)
+		// Optimized: avoid allocating every submatch string when we only need timestamp/message.
+		// Original: ma := tr.logFormatRe.FindStringSubmatch(line)
+		var ma []string
+		if tr.logFormatRe != nil {
+			idxs := tr.logFormatRe.FindStringSubmatchIndex(line)
+			if len(idxs) > 0 {
+				totalGroups := len(idxs) / 2 // includes full match
+				needPos := tr.timestampPos
+				if tr.messagePos > needPos {
+					needPos = tr.messagePos
+				}
+				if needPos < 0 {
+					needPos = 0
+				}
+				if needPos+1 > totalGroups {
+					ma = nil // treat as no match
+				} else {
+					ma = make([]string, needPos+1) // only up to highest needed group
+					if tr.timestampPos >= 0 {
+						s, e := idxs[2*tr.timestampPos], idxs[2*tr.timestampPos+1]
+						if s >= 0 && e >= 0 {
+							ma[tr.timestampPos] = line[s:e]
+						}
+					}
+					if tr.messagePos >= 0 {
+						s, e := idxs[2*tr.messagePos], idxs[2*tr.messagePos+1]
+						if s >= 0 && e >= 0 {
+							if tr.messagePos >= len(ma) {
+								tmp := make([]string, tr.messagePos+1)
+								copy(tmp, ma)
+								ma = tmp
+							}
+							ma[tr.messagePos] = line[s:e]
+						}
+					}
+				}
+			}
+		}
 		if tr.timestampPos >= 0 && len(ma) == 0 {
 			return "", 0, 0, fmt.Errorf("line does not match format:\n%s", line)
 		}
@@ -294,7 +341,7 @@ func (tr *trans) parseMessage(line string) string {
 // returns tokens, displayString and error
 func (tr *trans) toTokens(line string, addCnt int,
 	useTermBorder, needDisplayString, onlyCurrTerms bool,
-) ([]int, string, error) {
+) ([]int, string, []string, error) {
 	displayString := line
 	line = tr.replacer.Replace(line)
 	//line = strings.TrimSpace(reMultiSpace.ReplaceAllString(line, " "))
@@ -415,7 +462,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 		displayString = ""
 	}
 
-	return tokens, displayString, nil
+	return tokens, displayString, words, nil
 }
 
 func (tr *trans) lineToTerms(line string, addCnt int) error {
@@ -460,6 +507,22 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	if err != nil {
 		return -1, err
 	}
+	// pick up classid from the line
+	keygroupId := ""
+	if tr.kg != nil {
+		for _, re := range tr.kg.regexRes {
+			ma := re.FindStringSubmatch(line)
+			if len(ma) > 0 {
+				if tr.kg.regexPoses[re] < len(ma) {
+					keygroupId = ma[tr.kg.regexPoses[re]]
+					if keygroupId != "" {
+						tr.kg.register(keygroupId)
+					}
+				}
+			}
+		}
+	}
+
 	line = tr.parseMessage(line)
 	if (tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos) || tr.countByBlock > tr.maxCountByBlock {
 		if err := tr.next(updated); err != nil {
@@ -467,7 +530,7 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 		}
 	}
 
-	tokens, displayString, err := tr.toTokens(line, addCnt, true, true, true)
+	tokens, displayString, words, err := tr.toTokens(line, addCnt, true, true, true)
 	if err != nil {
 		return -1, err
 	}
@@ -477,6 +540,15 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	if cnt > cMaxLogGroups {
 		logrus.Error(displayString)
 		return -1, fmt.Errorf("logTree size went over %d", cMaxLogGroups)
+	}
+
+	// register the logGroupId to the keyGroups
+	if tr.kg != nil {
+		for _, w := range words {
+			if ok := tr.kg.hasMatch([]byte(w)); ok {
+				tr.kg.appendLogGroup(keygroupId, updated, groupId)
+			}
+		}
 	}
 
 	lg := tr.lgs.alllg[groupId]
@@ -562,7 +634,7 @@ func (tr *trans) load() error {
 			return fmt.Errorf("error parsing %s to int64", groupIdstr)
 		}
 
-		tokens, displayString, err := tr.toTokens(ds[groupId], 0, true, true, false)
+		tokens, displayString, _, err := tr.toTokens(ds[groupId], 0, true, true, false)
 		if err != nil {
 			return err
 		}
@@ -606,7 +678,7 @@ func (tr *trans) load() error {
 		}
 
 		line := ds[groupId]
-		tokens, displayString, err := tr.toTokens(line, 0, true, true, false)
+		tokens, displayString, _, err := tr.toTokens(line, 0, true, true, false)
 		if err != nil {
 			return err
 		}
@@ -632,6 +704,12 @@ func (tr *trans) next(updated int64) error {
 	// write the current block
 	if err := lgs.next(updated); err != nil {
 		return err
+	}
+	// write the current keyGroups
+	if tr.kg != nil {
+		if err := tr.kg.next(updated); err != nil {
+			return err
+		}
 	}
 
 	// clear "current" logGroup
@@ -669,7 +747,7 @@ func (tr *trans) next(updated int64) error {
 		} else {
 			line := ds[groupId]
 			// will reach an existing logGrouup using termCountBorder
-			tokens, _, err := tr.toTokens(line, count, true, false, false)
+			tokens, _, _, err := tr.toTokens(line, count, true, false, false)
 			if err != nil {
 				return err
 			}
@@ -708,7 +786,7 @@ func (tr *trans) getLogGroupsHistory(groupIds []int64) (*logGroupsHistory, error
 
 // useful for testing
 func (tr *trans) searchLogGroup(displayString string) *logGroup {
-	tokens, _, _ := tr.toTokens(displayString, 0, true, false, false)
+	tokens, _, _, _ := tr.toTokens(displayString, 0, true, false, false)
 	groupId := tr.lgs.lt.search(tokens)
 	return tr.lgs.alllg[groupId]
 }

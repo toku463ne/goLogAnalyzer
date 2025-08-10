@@ -14,11 +14,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type analConfig struct {
+type AnalConfig struct {
 	DataDir             string   `json:"data_dir"`
 	LogPath             string   `json:"log_path"`
 	LogFormat           string   `json:"log_format"`
 	MsgFormats          []string `json:"msg_formats"`
+	ClassRegexes        []string `json:"class_regex"`
+	MaxPatternSize      int      `json:"max_pattern_size"`
 	TimestampLayout     string   `json:"timestamp_layout"`
 	UseUtcTime          bool     `json:"use_utc_time"`
 	BlockSize           int      `json:"block_size"`
@@ -31,9 +33,9 @@ type analConfig struct {
 	TermCountBorder     int      `json:"term_count_border"`
 	MinMatchRate        float64  `json:"min_match_rate"`
 	Keywords            []string `json:"keywords"`
-	KeyRegexes          []string `json:"keywords"`
+	KeyRegexes          []string `json:"key_regexes"`
 	Ignorewords         []string `json:"ignorewords"`
-	IgnoreRegexes       []string `json:"ignorewords"`
+	IgnoreRegexes       []string `json:"ignore_regexes"`
 	CustomLogGroups     []string `json:"custom_log_groups"`
 	Separators          string   `json:"separators"`
 	IgnoreNumbers       bool     `json:"ignore_numbers"`
@@ -52,7 +54,7 @@ type historyInfo struct {
 }
 
 type Analyzer struct {
-	*analConfig
+	*AnalConfig
 	*analStatus
 	trans          *trans
 	fp             *filepointer.FilePointer
@@ -61,7 +63,7 @@ type Analyzer struct {
 	linesProcessed int
 }
 
-func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime bool,
+func bk_NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime bool,
 	searchRegex, exludeRegex []string,
 	maxBlocks, blockSize int,
 	keepPeriod int64, unitSecs int64,
@@ -77,7 +79,7 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
 	debug = _debug
 	a := new(Analyzer)
-	a.analConfig = new(analConfig)
+	a.AnalConfig = new(AnalConfig)
 	a.analStatus = new(analStatus)
 	a.DataDir = dataDir
 	a.LogPath = logPath
@@ -147,6 +149,78 @@ func NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime
 	return a, nil
 }
 
+func NewAnalyzer(conf *AnalConfig, lastFileEpoch int64, readOnly, testMode bool) (*Analyzer, error) {
+	a := new(Analyzer)
+	a.AnalConfig = new(AnalConfig)
+	a.analStatus = new(analStatus)
+	a.DataDir = conf.DataDir
+	a.LogPath = conf.LogPath
+	a.LogFormat = conf.LogFormat
+	a.MsgFormats = conf.MsgFormats
+	a.UseUtcTime = conf.UseUtcTime
+	a.Keywords = conf.Keywords
+	a.Ignorewords = conf.Ignorewords
+	a.KeyRegexes = conf.KeyRegexes
+	a.IgnoreRegexes = conf.IgnoreRegexes
+	a.TimestampLayout = conf.TimestampLayout
+	a.MaxBlocks = conf.MaxBlocks
+	a.BlockSize = conf.BlockSize
+	a.readOnly = readOnly
+	a.SearchRegex = conf.SearchRegex
+	a.ExludeRegex = conf.ExludeRegex
+	a.testMode = testMode
+	a.IgnoreNumbers = conf.IgnoreNumbers
+
+	// set defaults
+	a.UnitSecs = utils.CFreqDay
+	a.KeepPeriod = CDefaultKeepPeriod
+	a.TermCountBorder = CDefaultTermCountBorder
+	a.TermCountBorderRate = CDefaultTermCountBorderRate
+	a.MinMatchRate = CDefaultMinMatchRate
+	a.Separators = CDefaultSeparators
+
+	a.LastFileEpoch = lastFileEpoch
+	a.LastFileRow = 0
+	a.RowID = 0
+
+	// override passed params
+	if conf.UnitSecs > 0 {
+		a.UnitSecs = conf.UnitSecs
+	}
+	if conf.KeepPeriod > 0 {
+		a.KeepPeriod = conf.KeepPeriod
+	}
+
+	if conf.TermCountBorder > 0 {
+		a.TermCountBorder = conf.TermCountBorder
+	}
+	if conf.TermCountBorderRate > 0 {
+		a.TermCountBorderRate = conf.TermCountBorderRate
+	}
+	if conf.MinMatchRate > 0 {
+		a.MinMatchRate = conf.MinMatchRate
+	}
+
+	if conf.Separators != "" {
+		a.Separators = conf.Separators
+	}
+
+	// load or init data.
+	// Some params will be replaced by params in the DB
+	if err := a.open(); err != nil {
+		return nil, err
+	}
+
+	// for some parameters, the args takes place
+	if conf.LogPath != "" {
+		a.LogPath = conf.LogPath
+	}
+
+	a.CustomLogGroups = conf.CustomLogGroups
+
+	return a, nil
+}
+
 func LoadAnalyzer(dataDir, logPath string,
 	termCountBorderRate float64,
 	termCountBorder int,
@@ -154,7 +228,7 @@ func LoadAnalyzer(dataDir, logPath string,
 	customLogGroups []string,
 	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
 	a := new(Analyzer)
-	a.analConfig = new(analConfig)
+	a.AnalConfig = new(AnalConfig)
 	a.analStatus = new(analStatus)
 
 	a.testMode = testMode
@@ -314,6 +388,7 @@ func (a *Analyzer) init() error {
 		a.Keywords, a.Ignorewords,
 		a.KeyRegexes, a.IgnoreRegexes,
 		a.MsgFormats,
+		a.ClassRegexes,
 		a.CustomLogGroups, a.Separators, true,
 		a.readOnly, a.testMode, a.IgnoreNumbers)
 	if err != nil {
@@ -390,7 +465,7 @@ func (a *Analyzer) saveConfig() error {
 	if a.testMode {
 		return nil
 	}
-	data, err := json.MarshalIndent(a.analConfig, "", "  ")
+	data, err := json.MarshalIndent(a.AnalConfig, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config to JSON: %w", err)
 	}
@@ -412,7 +487,7 @@ func (a *Analyzer) loadConfig() error {
 		return fmt.Errorf("failed to read JSON file: %w", err)
 	}
 
-	err = json.Unmarshal(data, a.analConfig)
+	err = json.Unmarshal(data, a.AnalConfig)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
@@ -679,19 +754,6 @@ func (a *Analyzer) _printLogGroups(groupIds []int64) error {
 	return nil
 }
 
-// Function to generate cicle pattern as a string of "1" and "0" for each row
-func (a *Analyzer) _generateCiclePattern(row []int) string {
-	pattern := ""
-	for _, value := range row {
-		if value != 0 {
-			pattern += "1"
-		} else {
-			pattern += "0"
-		}
-	}
-	return pattern
-}
-
 func (a *Analyzer) _outputMetrics(title, outdir string, rows [][]string) error {
 	if err := utils.EnsureDir(outdir); err != nil {
 		return err
@@ -777,7 +839,7 @@ func (a *Analyzer) rebuildTrans() error {
 		0, a.TermCountBorder, a.MinMatchRate, a.SearchRegex, a.ExludeRegex,
 		a.Keywords, a.Ignorewords,
 		a.KeyRegexes, a.IgnoreRegexes,
-		a.MsgFormats,
+		a.MsgFormats, a.ClassRegexes,
 		a.CustomLogGroups, a.Separators,
 		true, true, a.testMode, a.IgnoreNumbers)
 	if err != nil {

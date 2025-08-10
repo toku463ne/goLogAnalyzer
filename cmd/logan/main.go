@@ -407,20 +407,33 @@ func run() error {
 			customLogGroups,
 			readOnly, debug, testMode, ignoreNumbers)
 	} else {
-		a, err = logan.NewAnalyzer(dataDir, logPath, logFormat, timestampLayout, useUtcTime,
-			searchRegex, excludeRegex,
-			maxBlocks, blockSize,
-			keepPeriod, unitSecs,
-			termCountBorderRate,
-			termCountBorder,
-			minMatchRate,
-			keywords, ignorewords,
-			keyRegexes, ignoRegexes,
-			msgFormats,
-			customLogGroups,
-			separators,
+		conf := new(logan.AnalConfig)
+		conf.DataDir = dataDir
+		conf.LogPath = logPath
+		conf.SearchRegex = searchRegex
+		conf.ExludeRegex = excludeRegex
+		conf.LogFormat = logFormat
+		conf.MsgFormats = msgFormats
+		conf.TimestampLayout = timestampLayout
+		conf.KeepPeriod = keepPeriod
+		conf.UnitSecs = unitSecs
+		conf.MaxBlocks = maxBlocks
+		conf.BlockSize = blockSize
+		conf.TermCountBorderRate = termCountBorderRate
+		conf.TermCountBorder = termCountBorder
+		conf.MinMatchRate = minMatchRate
+		conf.Keywords = keywords
+		conf.Ignorewords = ignorewords
+		conf.KeyRegexes = keyRegexes
+		conf.IgnoreRegexes = ignoRegexes
+		conf.CustomLogGroups = customLogGroups
+		conf.UseUtcTime = useUtcTime
+		conf.Separators = separators
+		conf.IgnoreNumbers = ignoreNumbers
+
+		a, err = logan.NewAnalyzer(conf,
 			lastFileEpoch,
-			readOnly, debug, testMode, ignoreNumbers)
+			readOnly, testMode)
 	}
 	if err != nil {
 		return err
