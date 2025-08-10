@@ -29,4 +29,6 @@ const (
 	cKmeansMaxIter           = 10
 	cKmeansTrial             = 10
 	cKmeansKRate             = 0.1
+
+	cKeyGroupId = "keyId"
 )

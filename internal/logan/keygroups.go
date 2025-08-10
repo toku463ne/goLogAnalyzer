@@ -1,8 +1,10 @@
 package logan
 
 import (
+	"bufio"
 	"goLogAnalyzer/pkg/csvdb"
 	"goLogAnalyzer/pkg/utils"
+	"os"
 	"regexp"
 )
 
@@ -43,7 +45,7 @@ func newKeyGroups(dataDir string, regexes []string, useGzip bool, testMode bool)
 		kg.regexRes = append(kg.regexRes, re)
 		names := re.SubexpNames()
 		for i, name := range names {
-			if name == "classid" {
+			if name == cKeyGroupId {
 				kg.regexPoses[re] = i
 			}
 		}
@@ -66,6 +68,26 @@ func newKeyGroups(dataDir string, regexes []string, useGzip bool, testMode bool)
 func (kg *keygroups) register(kgId string) {
 	// Register the kgId in the Aho-Corasick automaton
 	kg.ac.Register(kgId)
+	if _, exists := kg.records[kgId]; !exists {
+		kg.records[kgId] = make([]keygroup, 0, 10)
+	}
+}
+
+func (kg *keygroups) findAndRegister(line string) (string, error) {
+	keygroupId := ""
+	// Find the first matching regex and register the kgId
+	for _, re := range kg.regexRes {
+		ma := re.FindStringSubmatch(line)
+		if len(ma) > 0 {
+			if kg.regexPoses[re] >= 0 && kg.regexPoses[re] < len(ma) {
+				keygroupId = ma[kg.regexPoses[re]]
+				if keygroupId != "" {
+					kg.register(keygroupId)
+				}
+			}
+		}
+	}
+	return keygroupId, nil
 }
 
 func (kg *keygroups) hasMatch(term []byte) bool {
@@ -75,9 +97,7 @@ func (kg *keygroups) hasMatch(term []byte) bool {
 
 func (kg *keygroups) appendLogGroup(kgId string, epoch, logGroupId int64) {
 	// append a log group ID to the list for the given kgId
-	if _, exists := kg.records[kgId]; !exists {
-		kg.records[kgId] = make([]keygroup, 0, 10)
-	}
+	// Do not check the existance of kgId in the records map. It indicates a bug if it is not registered
 	kg.records[kgId] = append(kg.records[kgId], keygroup{epoch: epoch, groupId: logGroupId})
 }
 
@@ -122,6 +142,53 @@ func (kg *keygroups) next(updated int64) error {
 
 	// clear the logGroupIds map for the next block
 	kg.records = make(map[string][]keygroup, 10000)
+
+	return nil
+}
+
+func (kg *keygroups) load() error {
+	cnt := kg.CountFromStatusTable(nil)
+	if cnt <= 0 {
+		return nil
+	}
+
+	if err := kg.LoadCircuitDBStatus(); err != nil {
+		return err
+	}
+
+	// read the keygroup IDs from the file
+	file, err := os.Open(kg.idFilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		kg.register(scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	// load from the last block table
+	trows, err := kg.SelectFromCurrentTable(nil, tableDefs["keygroups"])
+	if err != nil {
+		return err
+	}
+	if trows == nil {
+		return nil
+	}
+	for trows.Next() {
+		var kgId string
+		var epoch int64
+		var logGroupId int64
+		if err := trows.Scan(&kgId, &epoch, &logGroupId); err != nil {
+			return err
+		}
+		kg.appendLogGroup(kgId, epoch, logGroupId)
+	}
 
 	return nil
 }

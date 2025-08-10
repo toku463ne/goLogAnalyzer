@@ -510,16 +510,9 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	// pick up classid from the line
 	keygroupId := ""
 	if tr.kg != nil {
-		for _, re := range tr.kg.regexRes {
-			ma := re.FindStringSubmatch(line)
-			if len(ma) > 0 {
-				if tr.kg.regexPoses[re] < len(ma) {
-					keygroupId = ma[tr.kg.regexPoses[re]]
-					if keygroupId != "" {
-						tr.kg.register(keygroupId)
-					}
-				}
-			}
+		keygroupId, err = tr.kg.findAndRegister(line)
+		if err != nil {
+			return -1, err
 		}
 	}
 
