@@ -34,6 +34,7 @@ var (
 	excludeRegex        []string
 	logFormat           string
 	msgFormats          []string
+	patternKeyRegexes   []string
 	timestampLayout     string
 	maxBlocks           int
 	blockSize           int
@@ -78,6 +79,7 @@ type config struct {
 	ExcludeRegex        []string `yaml:"excludeRegex"`
 	LogFormat           string   `yaml:"logFormat"`
 	MsgFormats          []string `yaml:"msgFormats"`
+	PatternKeyRegexes   []string `yaml:"patternKeyRegexes"`
 	TimestampLayout     string   `yaml:"timestampLayout"`
 	KeepPeriod          int64    `yaml:"keepPeriod"`
 	UnitSecs            int64    `yaml:"unitSecs"`
@@ -232,6 +234,9 @@ func applyConfigValues(c *config) {
 	}
 	if len(msgFormats) == 0 {
 		msgFormats = c.MsgFormats
+	}
+	if len(patternKeyRegexes) == 0 {
+		patternKeyRegexes = c.PatternKeyRegexes
 	}
 	if timestampLayout == "" {
 		timestampLayout = c.TimestampLayout
@@ -414,6 +419,7 @@ func run() error {
 		conf.ExludeRegex = excludeRegex
 		conf.LogFormat = logFormat
 		conf.MsgFormats = msgFormats
+		conf.PatternKeyRegexes = patternKeyRegexes
 		conf.TimestampLayout = timestampLayout
 		conf.KeepPeriod = keepPeriod
 		conf.UnitSecs = unitSecs
@@ -446,6 +452,8 @@ func run() error {
 		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, true, ascOrder)
 	case "groups":
 		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, false, ascOrder)
+	case "patterns":
+		err = a.DetectPatterns(N)
 	case "test":
 		a.ParseLogLine(line)
 	default:
@@ -477,6 +485,8 @@ func main() {
 		case "history":
 			setOutFlag(_flagSet)
 		case "groups":
+			setOutFlag(_flagSet)
+		case "patterns":
 			setOutFlag(_flagSet)
 		case "test":
 			setParseLineFlag(_flagSet)

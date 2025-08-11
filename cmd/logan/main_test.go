@@ -216,6 +216,28 @@ func Test_netscreen(t *testing.T) {
 	}
 }
 
+func Test_sbc_gateway(t *testing.T) {
+	dataDir := os.Getenv("HOME") + "/logantests/Test_sbc_gateway/data"
+	utils.RemoveDirectory(dataDir)
+
+	config := "../../testdata/loganal/sbc_gateway.yml.j2"
+
+	//os.Args = []string{"logan", "test", "-c", config, "-line", `06th, 22:40:14.880+0900 TBLV1 CALL: CTBCMCLeg::Construct( LegId=0xbf97484b Type CALL, NAP NAPS_BR_PRO_FE, calling/called 05088882360/0199997017 )`}
+	//main()
+
+	os.Args = []string{"logan", "groups", "-c", config, "-minCount", "10"}
+	main()
+}
+
+func Test_detectPatterns(t *testing.T) {
+	dataDir := os.Getenv("HOME") + "/logantests/Test_sbc_gateway/data"
+	utils.RemoveDirectory(dataDir)
+
+	config := "../../testdata/loganal/sbc_gateway.yml.j2"
+	os.Args = []string{"logan", "patterns", "-c", config}
+	main()
+}
+
 func Test_no_datadir(t *testing.T) {
 	testDir, err := utils.InitTestDir("Test_no_datadir")
 	if err != nil {

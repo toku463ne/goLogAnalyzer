@@ -19,8 +19,7 @@ type AnalConfig struct {
 	LogPath             string   `json:"log_path"`
 	LogFormat           string   `json:"log_format"`
 	MsgFormats          []string `json:"msg_formats"`
-	ClassRegexes        []string `json:"class_regex"`
-	MaxPatternSize      int      `json:"max_pattern_size"`
+	PatternKeyRegexes   []string `json:"pattern_key_regexes"`
 	TimestampLayout     string   `json:"timestamp_layout"`
 	UseUtcTime          bool     `json:"use_utc_time"`
 	BlockSize           int      `json:"block_size"`
@@ -63,92 +62,7 @@ type Analyzer struct {
 	linesProcessed int
 }
 
-func bk_NewAnalyzer(dataDir, logPath, logFormat, timestampLayout string, useUtcTime bool,
-	searchRegex, exludeRegex []string,
-	maxBlocks, blockSize int,
-	keepPeriod int64, unitSecs int64,
-	termCountBorderRate float64,
-	termCountBorder int,
-	minMatchRate float64,
-	keywords, ignorewords,
-	keyreRexes, ignoreRegexes,
-	msgFormats []string,
-	customLogGroups []string,
-	separators string,
-	LastFileEpoch int64,
-	readOnly, _debug, testMode, ignoreNumbers bool) (*Analyzer, error) {
-	debug = _debug
-	a := new(Analyzer)
-	a.AnalConfig = new(AnalConfig)
-	a.analStatus = new(analStatus)
-	a.DataDir = dataDir
-	a.LogPath = logPath
-	a.LogFormat = logFormat
-	a.MsgFormats = msgFormats
-	a.UseUtcTime = useUtcTime
-	a.Keywords = keywords
-	a.Ignorewords = ignorewords
-	a.KeyRegexes = keyreRexes
-	a.IgnoreRegexes = ignoreRegexes
-	a.TimestampLayout = timestampLayout
-	a.MaxBlocks = maxBlocks
-	a.BlockSize = blockSize
-	a.readOnly = readOnly
-	a.SearchRegex = searchRegex
-	a.ExludeRegex = exludeRegex
-	a.testMode = testMode
-	a.IgnoreNumbers = ignoreNumbers
-
-	// set defaults
-	a.UnitSecs = utils.CFreqDay
-	a.KeepPeriod = CDefaultKeepPeriod
-	a.TermCountBorder = CDefaultTermCountBorder
-	a.TermCountBorderRate = CDefaultTermCountBorderRate
-	a.MinMatchRate = CDefaultMinMatchRate
-	a.Separators = CDefaultSeparators
-
-	a.LastFileEpoch = LastFileEpoch
-	a.LastFileRow = 0
-	a.RowID = 0
-
-	// override passed params
-	if unitSecs > 0 {
-		a.UnitSecs = unitSecs
-	}
-	if keepPeriod > 0 {
-		a.KeepPeriod = keepPeriod
-	}
-
-	if termCountBorder > 0 {
-		a.TermCountBorder = termCountBorder
-	}
-	if termCountBorderRate > 0 {
-		a.TermCountBorderRate = termCountBorderRate
-	}
-	if minMatchRate > 0 {
-		a.MinMatchRate = minMatchRate
-	}
-
-	if separators != "" {
-		a.Separators = separators
-	}
-
-	// load or init data.
-	// Some params will be replaced by params in the DB
-	if err := a.open(); err != nil {
-		return nil, err
-	}
-
-	// for some parameters, the args takes place
-	if logPath != "" {
-		a.LogPath = logPath
-	}
-
-	a.CustomLogGroups = customLogGroups
-
-	return a, nil
-}
-
+// NewAnalyzer creates a new Analyzer instance with the provided configuration
 func NewAnalyzer(conf *AnalConfig, lastFileEpoch int64, readOnly, testMode bool) (*Analyzer, error) {
 	a := new(Analyzer)
 	a.AnalConfig = new(AnalConfig)
@@ -161,6 +75,7 @@ func NewAnalyzer(conf *AnalConfig, lastFileEpoch int64, readOnly, testMode bool)
 	a.Keywords = conf.Keywords
 	a.Ignorewords = conf.Ignorewords
 	a.KeyRegexes = conf.KeyRegexes
+	a.PatternKeyRegexes = conf.PatternKeyRegexes
 	a.IgnoreRegexes = conf.IgnoreRegexes
 	a.TimestampLayout = conf.TimestampLayout
 	a.MaxBlocks = conf.MaxBlocks
@@ -388,7 +303,7 @@ func (a *Analyzer) init() error {
 		a.Keywords, a.Ignorewords,
 		a.KeyRegexes, a.IgnoreRegexes,
 		a.MsgFormats,
-		a.ClassRegexes,
+		a.PatternKeyRegexes,
 		a.CustomLogGroups, a.Separators, true,
 		a.readOnly, a.testMode, a.IgnoreNumbers)
 	if err != nil {
@@ -839,7 +754,7 @@ func (a *Analyzer) rebuildTrans() error {
 		0, a.TermCountBorder, a.MinMatchRate, a.SearchRegex, a.ExludeRegex,
 		a.Keywords, a.Ignorewords,
 		a.KeyRegexes, a.IgnoreRegexes,
-		a.MsgFormats, a.ClassRegexes,
+		a.MsgFormats, a.PatternKeyRegexes,
 		a.CustomLogGroups, a.Separators,
 		true, true, a.testMode, a.IgnoreNumbers)
 	if err != nil {
@@ -868,6 +783,21 @@ func (a *Analyzer) rebuildTrans() error {
 	return nil
 }
 
+func (a *Analyzer) DetectPatterns(minCnt int) error {
+	if err := a.Feed(0); err != nil {
+		return err
+	}
+
+	if len(a.PatternKeyRegexes) == 0 {
+		logrus.Warn("no pattern key regexes defined")
+		return nil
+	}
+
+	a.trans.pk.ShowPatternsByFirstMatch(minCnt)
+
+	return nil
+}
+
 func (a *Analyzer) ParseLogLine(line string) {
 	if _, err := a.trans.lineToLogGroup(line, 1, 0); err != nil {
 		logrus.Errorf("%+v", err)
@@ -888,5 +818,18 @@ func (a *Analyzer) ParseLogLine(line string) {
 	println("the line parsed as:")
 	println("timestamp: ", dt)
 	println("message: ", line)
+
+	if len(a.PatternKeyRegexes) > 0 {
+		PatternKeyId, matched, err := a.trans.pk.findAndRegister(line)
+		if err != nil {
+			print(err)
+			return
+		}
+		if matched {
+			println("key group matched: ", PatternKeyId)
+		} else {
+			println("no key group matched")
+		}
+	}
 
 }

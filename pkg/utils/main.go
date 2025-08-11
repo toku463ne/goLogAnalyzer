@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
@@ -787,4 +788,31 @@ func NormalizeInt(values []int) []float64 {
 func Int64ToStr(n int64) string {
 	// Convert int64 to string
 	return strconv.FormatInt(n, 10)
+}
+
+func CaptureStdoutStderr(f func()) (string, string) {
+	origOut := os.Stdout
+	origErr := os.Stderr
+
+	rOut, wOut, _ := os.Pipe()
+	rErr, wErr, _ := os.Pipe()
+
+	os.Stdout = wOut
+	os.Stderr = wErr
+
+	f() // run the code that writes to stdout / stderr
+
+	wOut.Close()
+	wErr.Close()
+	os.Stdout = origOut
+	os.Stderr = origErr
+
+	var bufOut, bufErr bytes.Buffer
+	_, _ = io.Copy(&bufOut, rOut)
+	_, _ = io.Copy(&bufErr, rErr)
+
+	rOut.Close()
+	rErr.Close()
+
+	return bufOut.String(), bufErr.String()
 }

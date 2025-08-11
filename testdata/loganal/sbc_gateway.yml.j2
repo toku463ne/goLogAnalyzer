@@ -1,0 +1,13 @@
+---
+dataDir: "{{ HOME }}/logantests/Test_sbc_gateway/data"
+logPath: "../../testdata/loganal/sbc_gateway.log"
+logFormat: '^(?P<timestamp>\d{1,2}th, \d{2}:\d{2}:\d{2}\.\d{3}\+\d{4}) (?P<message>.*)$'
+timestampLayout: "02th, 15:04:05.000-0700"
+termCountBorder: 100
+countBorder: 100
+blockSize: 1000
+unitSecs: 3600
+patternKeyRegexes:
+  - 'TBLV1 CALL: CTBCMCLeg::Construct.*, calling/called .*/(?P<patternKey>\w+) .*'
+ignoreRegexes:
+  - '^0x.*'

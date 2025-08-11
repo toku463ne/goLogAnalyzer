@@ -17,7 +17,7 @@ type trans struct {
 	te                  *terms
 	lt                  *logTree
 	lgs                 *logGroups
-	kg                  *keygroups
+	pk                  *patternkeys
 	customLogGroups     []string
 	replacer            *strings.Replacer
 	logFormatRe         *regexp.Regexp
@@ -101,7 +101,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	}
 
 	if len(_kgRegexes) > 0 {
-		tr.kg, err = newKeyGroups(dataDir, _kgRegexes, useGzip, tr.testMode)
+		tr.pk, err = newpatternkeys(dataDir, _kgRegexes, useGzip, tr.testMode)
 		if err != nil {
 			return nil, err
 		}
@@ -292,7 +292,8 @@ func (tr *trans) parseLine(line string, updated int64) (string, int64, int64, er
 			}
 		}
 		if tr.timestampPos >= 0 && len(ma) == 0 {
-			return "", 0, 0, fmt.Errorf("line does not match format:\n%s", line)
+			//return "", 0, 0, fmt.Errorf("line does not match format:\n%s", line)
+			return "", 0, 0, nil // treat as no match
 		}
 		if len(ma) > 0 {
 			if tr.timestampPos >= 0 && tr.timestampLayout != "" && len(ma) > tr.timestampPos {
@@ -508,10 +509,9 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 		return -1, err
 	}
 	// pick up classid from the line
-	keygroupId := ""
 	matched := false
-	if tr.kg != nil {
-		keygroupId, matched, err = tr.kg.findAndRegister(line)
+	if tr.pk != nil {
+		_, matched, err = tr.pk.findAndRegister(line)
 		if err != nil {
 			return -1, err
 		}
@@ -536,11 +536,11 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 		return -1, fmt.Errorf("logTree size went over %d", cMaxLogGroups)
 	}
 
-	// register the logGroupId to the keyGroups
-	if tr.kg != nil {
+	// register the logGroupId to the patternkeys
+	if tr.pk != nil {
 		for _, w := range words {
-			if ok := tr.kg.hasMatch([]byte(w)); ok {
-				tr.kg.appendLogGroup(keygroupId, updated, matched, groupId)
+			if ok := tr.pk.hasMatch([]byte(w)); ok {
+				tr.pk.appendLogGroup(w, updated, matched, groupId)
 			}
 		}
 	}
@@ -563,6 +563,11 @@ func (tr *trans) commit(completed bool) error {
 	}
 	if err := tr.lgs.commit(completed); err != nil {
 		return err
+	}
+	if tr.pk != nil {
+		if err := tr.pk.commit(completed); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -699,9 +704,9 @@ func (tr *trans) next(updated int64) error {
 	if err := lgs.next(updated); err != nil {
 		return err
 	}
-	// write the current keyGroups
-	if tr.kg != nil {
-		if err := tr.kg.next(updated); err != nil {
+	// write the current patternkeys
+	if tr.pk != nil {
+		if err := tr.pk.next(updated); err != nil {
 			return err
 		}
 	}

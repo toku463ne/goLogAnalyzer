@@ -30,5 +30,5 @@ const (
 	cKmeansTrial             = 10
 	cKmeansKRate             = 0.1
 
-	cKeyGroupId = "keyId"
+	cPatternKey = "patternKey"
 )

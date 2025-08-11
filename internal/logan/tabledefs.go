@@ -10,6 +10,6 @@ var (
 		"logGroups":        {"groupId", "retentionPos", "count", "created", "updated"},
 		"logGroupsDetails": {"groupId", "line"},
 		"terms":            {"term", "count"},
-		"keygroups":        {"kgId", "epoch", "matched", "groupId"},
+		"patternKeys":      {"patternKey", "epoch", "matched", "groupId"},
 	}
 )

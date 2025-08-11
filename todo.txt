@@ -10,3 +10,9 @@ test options
 test topN frequency
 test without data path
 
+
+pattern detection
+same line with multiple keygroups
+
+bugs
+sbc_gateway.yml.j2 scenario without ignoreRegexes does not properly convert terms starting with 0x to *
