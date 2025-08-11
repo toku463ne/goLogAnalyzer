@@ -26,13 +26,17 @@ func Test_keygroups(t *testing.T) {
 	}
 
 	for _, line := range matched_lines {
-		keygroupId, err := kg.findAndRegister(line)
+		keygroupId, matched, err := kg.findAndRegister(line)
 		if err != nil {
 			t.Errorf("Error finding and registering keygroup: %v", err)
 			return
 		}
 		if keygroupId == "" {
 			t.Errorf("Expected keygroup ID, got empty string for line: %s", line)
+			return
+		}
+		if matched == false {
+			t.Errorf("Expected line to match, but it did not: %s", line)
 			return
 		}
 	}
@@ -42,13 +46,17 @@ func Test_keygroups(t *testing.T) {
 		"key= not a valid key",
 	}
 	for _, line := range unmatched_lines {
-		keygroupId, err := kg.findAndRegister(line)
+		keygroupId, matched, err := kg.findAndRegister(line)
 		if err != nil {
 			t.Errorf("Error finding and registering keygroup: %v", err)
 			return
 		}
 		if keygroupId != "" {
 			t.Errorf("Expected no keygroup ID, got %s for line: %s", keygroupId, line)
+			return
+		}
+		if matched {
+			t.Errorf("Expected line to not match, but it did: %s", line)
 			return
 		}
 	}
@@ -76,8 +84,8 @@ func Test_keygroups(t *testing.T) {
 	}
 
 	// Test appending log groups
-	kg.appendLogGroup("1234", 1, 1001)
-	kg.appendLogGroup("1234", 2, 1002)
+	kg.appendLogGroup("1234", 1, true, 1001)
+	kg.appendLogGroup("1234", 2, false, 1002)
 
 	if len(kg.records["1234"]) != 2 {
 		t.Errorf("Expected 2 log groups for keygroup ID '1234', got %d", len(kg.records["1234"]))
@@ -100,7 +108,7 @@ func Test_keygroups(t *testing.T) {
 
 	// register more keys
 	kg.findAndRegister("key=8000 new keygroup")
-	kg.appendLogGroup("8000", 4, 2001)
+	kg.appendLogGroup("8000", 4, true, 2001)
 	if kg.hasMatch([]byte("8000")) == false {
 		t.Errorf("Expected keygroup ID '8000' to be registered, but it was not found")
 		return
@@ -155,4 +163,146 @@ func Test_keygroups(t *testing.T) {
 		return
 	}
 
+	// flush the last block
+	if err := kg.commit(true); err != nil {
+		t.Errorf("Error committing keygroups: %v", err)
+		return
+	}
+
+	kg = nil // Clean up
+	kg, err = newKeyGroups(testDir, []string{reStr}, false, false)
+	if err != nil {
+		t.Errorf("Error creating keygroups: %v", err)
+		return
+	}
+
+	// load all keygroup IDs from the DB
+	err = kg.loadKeyGroupsFromDb(nil)
+	if err != nil {
+		t.Errorf("Error loading keygroup IDs from DB: %v", err)
+		return
+	}
+
+	if len(kg.records) != 3 {
+		t.Errorf("Expected 3 unique keygroup IDs after loading, got %d", len(kg.records))
+		return
+	}
+
+	// now 1234 has 2 log group IDs
+	if len(kg.records["1234"]) != 2 {
+		t.Errorf("Expected keygroup ID '1234' to have 2 log group IDs after loading from DB, but it had %d", len(kg.records["1234"]))
+		return
+	}
+	// 8000 should have 1 log group ID
+	if len(kg.records["8000"]) != 1 {
+		t.Errorf("Expected keygroup ID '8000' to have 1 log group ID after loading from DB, but it had %d", len(kg.records["8000"]))
+		return
+	}
+
+	kg = nil // Clean up
+	kg, err = newKeyGroups(testDir, []string{reStr}, false, false)
+	if err != nil {
+		t.Errorf("Error creating keygroups in test mode: %v", err)
+		return
+	}
+	// load only 1234 from the DB
+	err = kg.loadKeyGroupsFromDb([]string{"1234"})
+	if err != nil {
+		t.Errorf("Error loading keygroup IDs from DB: %v", err)
+		return
+	}
+	if len(kg.records) != 3 {
+		t.Errorf("Expected 3 unique keygroup IDs after loading, got %d", len(kg.records))
+		return
+	}
+	// 1234 should have 2 log group IDs
+	if len(kg.records["1234"]) != 2 {
+		t.Errorf("Expected keygroup ID '1234' to have 2 log group IDs after loading from DB, but it had %d", len(kg.records["1234"]))
+		return
+	}
+	// 5678 should have 0 log group IDs
+	if len(kg.records["5678"]) != 0 {
+		t.Errorf("Expected keygroup ID '5678' to have 0 log group IDs after loading from DB, but it had %d", len(kg.records["5678"]))
+		return
+	}
+	// 8000 should have 1 log group ID
+	if len(kg.records["8000"]) != 0 {
+		t.Errorf("Expected keygroup ID '8000' doesn't have log group")
+		return
+	}
+
+}
+
+func Test_keygroups_detectPatternsByFirstMatch(t *testing.T) {
+	testDir, err := utils.InitTestDir("Test_keygroups_detectPatternsByFirstMatch")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	reStr := `key=(?P<keyId>\w+) .*`
+	kg, err := newKeyGroups(testDir, []string{reStr}, false, false)
+	if err != nil {
+		t.Errorf("Error creating keygroups: %v", err)
+		return
+	}
+
+	kgId := "1234"
+	lgs := []int64{5, 6, 7, 5, 6, 7, 7, 5, 6, 7, 5}
+	matches := []int{1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1}
+	epochs := []int64{1, 1, 2, 11, 11, 12, 12, 21, 21, 23, 30}
+	for i, groupId := range lgs {
+		matched := matches[i] == 1
+		epoch := epochs[i]
+		kg.appendLogGroup(kgId, epoch, matched, groupId)
+	}
+
+	kgId = "5678"
+	lgs = []int64{5, 6, 7, 7, 5, 6, 7, 9}
+	matches = []int{1, 0, 0, 0, 1, 0, 0, 1}
+	epochs = []int64{15, 15, 16, 16, 25, 25, 26, 35}
+	for i, groupId := range lgs {
+		matched := matches[i] == 1
+		epoch := epochs[i]
+		kg.appendLogGroup(kgId, epoch, matched, groupId)
+	}
+
+	patterns := kg.detectPatternsByFirstMatch()
+	if len(patterns) != 4 {
+		t.Errorf("Expected 4 patterns, got %d", len(patterns))
+		return
+	}
+	expectedPatterns := map[string]map[string]*pattern{
+		"5 6 7": {
+			"1234": {startEpoch: 1, count: 2},
+			"5678": {startEpoch: 25, count: 1},
+		},
+		"5 6 7 7": {
+			"1234": {startEpoch: 11, count: 1},
+			"5678": {startEpoch: 15, count: 1},
+		},
+		"5": {
+			"1234": {startEpoch: 30, count: 1},
+		},
+		"9": {
+			"5678": {startEpoch: 35, count: 1},
+		},
+	}
+	for patternId, subPatterns := range expectedPatterns {
+		if _, ok := patterns[patternId]; !ok {
+			t.Errorf("Expected pattern %s not found", patternId)
+			continue
+		}
+		for kgId, pat := range subPatterns {
+			if _, ok := patterns[patternId][kgId]; !ok {
+				t.Errorf("Expected keygroup ID %s for pattern %s not found", kgId, patternId)
+				continue
+			}
+			if patterns[patternId][kgId].startEpoch != pat.startEpoch || patterns[patternId][kgId].count != pat.count {
+				t.Errorf("Pattern %s for keygroup ID %s has unexpected values: got (%d, %d), want (%d, %d)",
+					patternId, kgId, patterns[patternId][kgId].startEpoch, patterns[patternId][kgId].count,
+					pat.startEpoch, pat.count)
+			}
+		}
+	}
 }

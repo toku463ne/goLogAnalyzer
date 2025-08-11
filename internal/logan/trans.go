@@ -509,8 +509,9 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	}
 	// pick up classid from the line
 	keygroupId := ""
+	matched := false
 	if tr.kg != nil {
-		keygroupId, err = tr.kg.findAndRegister(line)
+		keygroupId, matched, err = tr.kg.findAndRegister(line)
 		if err != nil {
 			return -1, err
 		}
@@ -539,7 +540,7 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	if tr.kg != nil {
 		for _, w := range words {
 			if ok := tr.kg.hasMatch([]byte(w)); ok {
-				tr.kg.appendLogGroup(keygroupId, updated, groupId)
+				tr.kg.appendLogGroup(keygroupId, updated, matched, groupId)
 			}
 		}
 	}
