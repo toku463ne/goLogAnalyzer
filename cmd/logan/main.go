@@ -22,86 +22,88 @@ const (
 )
 
 var (
-	configPath          string
-	debug               bool
-	silent              bool
-	readOnly            bool
-	dataDir             string
-	logPath             string
-	searchString        string
-	excludeString       string
-	searchRegex         []string
-	excludeRegex        []string
-	logFormat           string
-	msgFormats          []string
-	patternKeyRegexes   []string
-	timestampLayout     string
-	maxBlocks           int
-	blockSize           int
-	keepPeriod          int64
-	unitSecs            int64
-	minMatchRate        float64
-	termCountBorderRate float64
-	termCountBorder     int
-	line                string
-	outDir              string
-	_keywords           string
-	keywords            []string
-	_ignorewords        string
-	ignorewords         []string
-	_keyRegexes         string
-	keyRegexes          []string
-	_ignoreRegexes      string
-	ignoRegexes         []string
-	customLogGroups     []string
-	N                   int
-	B                   int
-	cmd                 string
-	useUtcTime          bool
-	separators          string
-	_flagSet            *flag.FlagSet
-	loaded              bool
-	ascOrder            bool
-	analLogPath         string
-	ignoreNumbers       bool
-	minLastUpdate       int64
-	minLogCount         int
-	maxLogCount         int
-	stdThreshold        float64
-	minOccurrences      float64
-	lastFileEpoch       int64
+	configPath           string
+	debug                bool
+	silent               bool
+	readOnly             bool
+	dataDir              string
+	logPath              string
+	searchString         string
+	excludeString        string
+	searchRegex          []string
+	excludeRegex         []string
+	logFormat            string
+	msgFormats           []string
+	patternKeyRegexes    []string
+	patternDetectionMode string
+	timestampLayout      string
+	maxBlocks            int
+	blockSize            int
+	keepPeriod           int64
+	unitSecs             int64
+	minMatchRate         float64
+	termCountBorderRate  float64
+	termCountBorder      int
+	line                 string
+	outDir               string
+	_keywords            string
+	keywords             []string
+	_ignorewords         string
+	ignorewords          []string
+	_keyRegexes          string
+	keyRegexes           []string
+	_ignoreRegexes       string
+	ignoRegexes          []string
+	customLogGroups      []string
+	N                    int
+	B                    int
+	cmd                  string
+	useUtcTime           bool
+	separators           string
+	_flagSet             *flag.FlagSet
+	loaded               bool
+	ascOrder             bool
+	analLogPath          string
+	ignoreNumbers        bool
+	minLastUpdate        int64
+	minLogCount          int
+	maxLogCount          int
+	stdThreshold         float64
+	minOccurrences       float64
+	lastFileEpoch        int64
 )
 
 type config struct {
-	DataDir             string   `yaml:"dataDir"`
-	LogPath             string   `yaml:"logPath"`
-	SearchRegex         []string `yaml:"searchRegex"`
-	ExcludeRegex        []string `yaml:"excludeRegex"`
-	LogFormat           string   `yaml:"logFormat"`
-	MsgFormats          []string `yaml:"msgFormats"`
-	PatternKeyRegexes   []string `yaml:"patternKeyRegexes"`
-	TimestampLayout     string   `yaml:"timestampLayout"`
-	KeepPeriod          int64    `yaml:"keepPeriod"`
-	UnitSecs            int64    `yaml:"unitSecs"`
-	MaxBlocks           int      `yaml:"maxBlocks"`
-	BlockSize           int      `yaml:"blockSize"`
-	MinMatchRate        float64  `yaml:"minMatchRate"`
-	TermCountBorderRate float64  `yaml:"termCountBorderRate"`
-	TermCountBorder     int      `yaml:"termCountBorder"`
-	Keywords            []string `yaml:"keywords"`
-	Ignorewords         []string `yaml:"ignorewords"`
-	KeyRegexes          []string `yaml:"keyRegexes"`
-	IgnoreRegexes       []string `yaml:"ignoreRegexes"`
-	CustomLogGroups     []string `yaml:"phrases"`
-	UseUtcTime          bool     `yaml:"useUtcTime"`
-	OutDir              string   `yaml:"outDir"`
-	Separators          string   `yaml:"separators"`
-	IgnoreNumbers       bool     `yaml:"ignoreNumbers"`
-	DaysToShow          int64    `yaml:"daysToShow"`
-	MinLogCount         int      `yaml:"minLogCount"`
-	MaxLogCount         int      `yaml:"maxLogCount"`
-	StdThreshold        float64  `yaml:"stdThreshold"`
-	MinOccurrences      float64  `yaml:"minOccurrences"`
+	DataDir              string   `yaml:"dataDir"`
+	LogPath              string   `yaml:"logPath"`
+	SearchRegex          []string `yaml:"searchRegex"`
+	ExcludeRegex         []string `yaml:"excludeRegex"`
+	LogFormat            string   `yaml:"logFormat"`
+	MsgFormats           []string `yaml:"msgFormats"`
+	PatternKeyRegexes    []string `yaml:"patternKeyRegexes"`
+	PatternDetectionMode string   `yaml:"patternDetectionMode"`
+	TimestampLayout      string   `yaml:"timestampLayout"`
+	KeepPeriod           int64    `yaml:"keepPeriod"`
+	UnitSecs             int64    `yaml:"unitSecs"`
+	MaxBlocks            int      `yaml:"maxBlocks"`
+	BlockSize            int      `yaml:"blockSize"`
+	MinMatchRate         float64  `yaml:"minMatchRate"`
+	TermCountBorderRate  float64  `yaml:"termCountBorderRate"`
+	TermCountBorder      int      `yaml:"termCountBorder"`
+	Keywords             []string `yaml:"keywords"`
+	Ignorewords          []string `yaml:"ignorewords"`
+	KeyRegexes           []string `yaml:"keyRegexes"`
+	IgnoreRegexes        []string `yaml:"ignoreRegexes"`
+	CustomLogGroups      []string `yaml:"phrases"`
+	UseUtcTime           bool     `yaml:"useUtcTime"`
+	OutDir               string   `yaml:"outDir"`
+	Separators           string   `yaml:"separators"`
+	IgnoreNumbers        bool     `yaml:"ignoreNumbers"`
+	DaysToShow           int64    `yaml:"daysToShow"`
+	MinLogCount          int      `yaml:"minLogCount"`
+	MaxLogCount          int      `yaml:"maxLogCount"`
+	StdThreshold         float64  `yaml:"stdThreshold"`
+	MinOccurrences       float64  `yaml:"minOccurrences"`
 }
 
 func setCommonFlag(fs *flag.FlagSet) {
@@ -238,6 +240,10 @@ func applyConfigValues(c *config) {
 	if len(patternKeyRegexes) == 0 {
 		patternKeyRegexes = c.PatternKeyRegexes
 	}
+	if patternDetectionMode == "" {
+		patternDetectionMode = c.PatternDetectionMode
+	}
+
 	if timestampLayout == "" {
 		timestampLayout = c.TimestampLayout
 	}
@@ -453,7 +459,7 @@ func run() error {
 	case "groups":
 		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, false, ascOrder)
 	case "patterns":
-		err = a.DetectPatterns(N)
+		err = a.DetectPatterns(N, patternDetectionMode)
 	case "test":
 		a.ParseLogLine(line)
 	default:

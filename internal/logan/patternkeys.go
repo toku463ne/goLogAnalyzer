@@ -25,29 +25,33 @@ type pattern struct {
 
 type patternkeys struct {
 	*csvdb.CircuitDB
-	ac           *utils.AC
-	regexRes     []*regexp.Regexp
-	regexPoses   map[*regexp.Regexp]int
-	regexes      []string
-	records      map[string][]patternkey
-	testMode     bool
-	idFilePath   string   // path to the keygroup IDs file
-	searchKeyIds []string // keys to search for in the patternkeys
+	ac                    *utils.AC
+	regexRes              []*regexp.Regexp
+	regexPatternKeyPoses  map[*regexp.Regexp]int
+	regexRelationKeyPoses map[*regexp.Regexp]int
+	regexes               []string
+	records               map[string][]patternkey
+	testMode              bool
+	idFilePath            string            // path to the keygroup IDs file
+	searchKeyIds          []string          // keys to search for in the patternkeys
+	relations             *patternRelations // relations for patternKeyId -> relationKey
 }
 
 // Newpatternkeys creates a new patternkeys instance
-func newpatternkeys(dataDir string, regexes []string, useGzip bool, testMode bool) (*patternkeys, error) {
+func newPatternKeys(dataDir string, regexes []string, useGzip bool, testMode bool) (*patternkeys, error) {
 
 	pk := &patternkeys{
-		ac:         utils.NewAC(),
-		regexRes:   make([]*regexp.Regexp, 0),
-		regexPoses: make(map[*regexp.Regexp]int),
-		regexes:    regexes,
-		records:    make(map[string][]patternkey, 10000),
-		idFilePath: dataDir + "/patternKeyIds.txt",
+		ac:                    utils.NewAC(),
+		regexRes:              make([]*regexp.Regexp, 0),
+		regexPatternKeyPoses:  make(map[*regexp.Regexp]int),
+		regexRelationKeyPoses: make(map[*regexp.Regexp]int),
+		regexes:               regexes,
+		records:               make(map[string][]patternkey, 10000),
+		idFilePath:            dataDir + "/patternKeyIds.txt",
 	}
 	pk.regexRes = make([]*regexp.Regexp, 0)
-	pk.regexPoses = make(map[*regexp.Regexp]int)
+	pk.regexPatternKeyPoses = make(map[*regexp.Regexp]int)
+	pk.regexRelationKeyPoses = make(map[*regexp.Regexp]int)
 	pk.testMode = testMode
 
 	// Compile regexes and store them in the patternkeys
@@ -57,7 +61,10 @@ func newpatternkeys(dataDir string, regexes []string, useGzip bool, testMode boo
 		names := re.SubexpNames()
 		for i, name := range names {
 			if name == cPatternKey {
-				pk.regexPoses[re] = i
+				pk.regexPatternKeyPoses[re] = i
+			}
+			if name == cRelationKey {
+				pk.regexRelationKeyPoses[re] = i
 			}
 		}
 	}
@@ -73,6 +80,12 @@ func newpatternkeys(dataDir string, regexes []string, useGzip bool, testMode boo
 	}
 	pk.CircuitDB = kgdb
 
+	relations, err := newPatternRelations(dataDir, useGzip, testMode)
+	if err != nil {
+		return nil, fmt.Errorf("error creating pattern relations: %v", err)
+	}
+	pk.relations = relations
+
 	return pk, nil
 }
 
@@ -84,23 +97,30 @@ func (pk *patternkeys) register(patternKeyId string) {
 	}
 }
 
-func (pk *patternkeys) findAndRegister(line string) (string, bool, error) {
+func (pk *patternkeys) findAndRegister(line string) (string, string, bool, error) {
 	patternKeyId := ""
+	relationKey := ""
 	matched := false
 	// Find the first matching regex and register the patternKeyId
 	for _, re := range pk.regexRes {
 		ma := re.FindStringSubmatch(line)
 		if len(ma) > 0 {
-			if pk.regexPoses[re] >= 0 && pk.regexPoses[re] < len(ma) {
-				patternKeyId = ma[pk.regexPoses[re]]
+			if pk.regexPatternKeyPoses[re] >= 0 && pk.regexPatternKeyPoses[re] < len(ma) {
+				patternKeyId = ma[pk.regexPatternKeyPoses[re]]
 				if patternKeyId != "" {
 					matched = true
 					pk.register(patternKeyId)
 				}
+				if pk.regexRelationKeyPoses[re] >= 0 && pk.regexRelationKeyPoses[re] < len(ma) {
+					relationKey = ma[pk.regexRelationKeyPoses[re]]
+					if relationKey != "" {
+						pk.relations.set(patternKeyId, relationKey)
+					}
+				}
 			}
 		}
 	}
-	return patternKeyId, matched, nil
+	return patternKeyId, relationKey, matched, nil
 }
 
 func (pk *patternkeys) hasMatch(term []byte) bool {
@@ -154,6 +174,10 @@ func (pk *patternkeys) commit(completed bool) error {
 	if err := pk.UpdateBlockStatus(completed); err != nil {
 		return err
 	}
+
+	if err := pk.relations.commit(completed); err != nil {
+		return fmt.Errorf("error committing pattern relations: %v", err)
+	}
 	return nil
 }
 
@@ -164,6 +188,9 @@ func (pk *patternkeys) next(updated int64) error {
 		return err
 	}
 	if err := pk.NextBlock(updated); err != nil {
+		return err
+	}
+	if err := pk.relations.next(updated); err != nil {
 		return err
 	}
 
@@ -241,7 +268,10 @@ func (pk *patternkeys) filterKeys(values []string) bool {
 	return false
 }
 
-func (pk *patternkeys) loadpatternkeysFromDb(searchKeyIds []string) error {
+func (pk *patternkeys) loadAll(searchKeyIds []string) error {
+	// init pk
+	pk.records = make(map[string][]patternkey, 10000)
+
 	// load keyIds from the file
 	if err := pk.loadKeyIdsFromFile(); err != nil {
 		return err
@@ -274,6 +304,11 @@ func (pk *patternkeys) loadpatternkeysFromDb(searchKeyIds []string) error {
 		}
 		pk.appendLogGroup(patternKeyId, epoch, matched, logGroupId)
 	}
+
+	if err := pk.relations.loadAll(); err != nil {
+		return fmt.Errorf("error loading pattern relations: %v", err)
+	}
+
 	return nil
 }
 
@@ -290,6 +325,15 @@ the the patterns below will be detected:
 5 => 1 time
 */
 func (pk *patternkeys) detectPatternsByFirstMatch() map[string](map[string]*pattern) {
+	// commit first
+	if err := pk.commit(true); err != nil {
+		return nil
+	}
+
+	if err := pk.loadAll(nil); err != nil {
+		return nil
+	}
+
 	patterns := make(map[string](map[string]*pattern)) // patternStr -> patternKeyId -> pattern
 
 	patternStr := ""
@@ -436,6 +480,203 @@ func (pk *patternkeys) ShowPatternsByFirstMatch(minCount int,
 			}
 			displayString, ok := lgs.displayStrings[groupId]
 			if ok {
+				fmt.Printf("%s\n", displayString)
+			} else {
+				fmt.Printf("(not found for groupId %d)\n", groupId)
+			}
+		}
+		fmt.Println()
+		fmt.Println("--------------------------------------------------")
+	}
+
+	return patterns, nil
+}
+
+/*
+Count patternKeys in the patterns which are group of ordered logGroupIds
+example)
+input
+patternKey: p1
+logGroupIds: 5 6 7
+relationKey: 1234
+
+patternKey: p2
+logGroupIds: 5 6 7
+relationKey: 1234
+
+patternKey: p3
+logGroupIds: 5 6 7
+relationKey: 5678
+
+patternKey: p4
+logGroupIds: 5 6 7 7
+relationKey: 5678
+
+then the patterns will be:
+5 6 7 => 3 times
+
+	1234: {startEpoch: 0, count: 2}
+	5678: {startEpoch: 0, count: 1}
+
+5 6 7 7 => 1 time
+
+	5678: {startEpoch: 0, count: 1}
+*/
+func (pk *patternkeys) detectPatternsByPatternKeys() map[string](map[string]*pattern) {
+	// commit first
+	if err := pk.commit(true); err != nil {
+		return nil
+	}
+
+	if err := pk.loadAll(nil); err != nil {
+		return nil
+	}
+
+	patterns := make(map[string](map[string]*pattern)) // patternStr -> relationKey -> pattern
+	// => case no relationKey, relationKey="all" and save the summary in pattern struct
+	// Build one ordered pattern (space-separated groupIds) per patternKeyId,
+	// then aggregate counts by relationKey (or "all" if none).
+	for patternKeyId, records := range pk.records {
+		if len(records) == 0 {
+			continue
+		}
+
+		var b strings.Builder
+		for i, rec := range records {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(strconv.FormatInt(rec.groupId, 10))
+		}
+		patternStr := b.String()
+		startEpoch := records[0].epoch
+
+		// Collect unique relation keys; fallback to "all" when none exist.
+		relSet := make(map[string]struct{})
+		if pk.relations != nil {
+			for _, rk := range pk.relations.get(patternKeyId) {
+				if rk != "" {
+					relSet[rk] = struct{}{}
+				}
+			}
+		}
+		if len(relSet) == 0 {
+			relSet["all"] = struct{}{}
+		}
+
+		sub, ok := patterns[patternStr]
+		if !ok {
+			sub = make(map[string]*pattern)
+			patterns[patternStr] = sub
+		}
+		for rk := range relSet {
+			if pat, ok := sub[rk]; ok {
+				pat.count++
+				if pat.startEpoch == 0 || startEpoch < pat.startEpoch {
+					pat.startEpoch = startEpoch
+				}
+			} else {
+				sub[rk] = &pattern{startEpoch: startEpoch, count: 1}
+			}
+		}
+	}
+
+	return patterns
+
+}
+
+/*
+Show patterns by relations ordered by count descending
+If there are no relations, it will show "all" relation.
+example1)
+5 6 7 => total 3
+
+	1234: {startEpoch: 1, count: 2}
+	5678: {startEpoch: 25, count: 1}
+
+5 6 7 7 => total 1
+
+	1234: {startEpoch: 11, count: 1}
+
+7 8 9 => total 5
+
+	all: {startEpoch: 15, count: 5}
+*/
+func (pk *patternkeys) ShowPatternsByRelations(minCount int, lgs *logGroups) (map[string](map[string]*pattern), error) {
+	patterns := pk.detectPatternsByPatternKeys()
+	if patterns == nil {
+		return nil, nil
+	}
+
+	// summarize totals and filter by minCount
+	type patSum struct {
+		patternStr string
+		total      int
+	}
+	sums := make([]patSum, 0, len(patterns))
+	for pstr, sub := range patterns {
+		total := 0
+		for _, pat := range sub {
+			total += pat.count
+		}
+		if total < minCount {
+			delete(patterns, pstr)
+			continue
+		}
+		sums = append(sums, patSum{patternStr: pstr, total: total})
+	}
+
+	// selection sort by total desc
+	for i := 0; i < len(sums)-1; i++ {
+		maxIdx := i
+		for j := i + 1; j < len(sums); j++ {
+			if sums[j].total > sums[maxIdx].total {
+				maxIdx = j
+			}
+		}
+		if maxIdx != i {
+			sums[i], sums[maxIdx] = sums[maxIdx], sums[i]
+		}
+	}
+
+	for _, ps := range sums {
+		fmt.Printf("%s => total %d\n", ps.patternStr, ps.total)
+
+		// collect relations for ordering
+		type relInfo struct {
+			relationKey string
+			startEpoch  int64
+			count       int
+		}
+		relInfos := make([]relInfo, 0, len(patterns[ps.patternStr]))
+		for rk, pat := range patterns[ps.patternStr] {
+			relInfos = append(relInfos, relInfo{relationKey: rk, startEpoch: pat.startEpoch, count: pat.count})
+		}
+		// sort by count desc
+		for i := 0; i < len(relInfos)-1; i++ {
+			maxIdx := i
+			for j := i + 1; j < len(relInfos); j++ {
+				if relInfos[j].count > relInfos[maxIdx].count {
+					maxIdx = j
+				}
+			}
+			if maxIdx != i {
+				relInfos[i], relInfos[maxIdx] = relInfos[maxIdx], relInfos[i]
+			}
+		}
+		for _, ri := range relInfos {
+			ts := time.Unix(ri.startEpoch, 0).Local().Format("2006/01/02 15:04:05")
+			fmt.Printf("%s: {startEpoch: %s, count: %d}\n", ri.relationKey, ts, ri.count)
+		}
+		fmt.Println("---")
+
+		// print display strings for the pattern
+		for _, groupIdStr := range strings.Split(ps.patternStr, " ") {
+			groupId, err := strconv.ParseInt(groupIdStr, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing groupId %s: %v", groupIdStr, err)
+			}
+			if displayString, ok := lgs.displayStrings[groupId]; ok {
 				fmt.Printf("%s\n", displayString)
 			} else {
 				fmt.Printf("(not found for groupId %d)\n", groupId)

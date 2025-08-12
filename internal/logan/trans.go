@@ -101,7 +101,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	}
 
 	if len(_kgRegexes) > 0 {
-		tr.pk, err = newpatternkeys(dataDir, _kgRegexes, useGzip, tr.testMode)
+		tr.pk, err = newPatternKeys(dataDir, _kgRegexes, useGzip, tr.testMode)
 		if err != nil {
 			return nil, err
 		}
@@ -341,8 +341,8 @@ func (tr *trans) parseMessage(line string) string {
 // convert line to list of tokens and register to tr.te.
 // returns tokens, displayString and error
 func (tr *trans) toTokens(line string, addCnt int,
-	useTermBorder, needDisplayString, onlyCurrTerms bool,
-) ([]int, string, []string, error) {
+	useTermBorder, needDisplayString, onlyCurrTerms, doPatternKeyMatching bool,
+) ([]int, string, string, error) {
 	displayString := line
 	line = tr.replacer.Replace(line)
 	//line = strings.TrimSpace(reMultiSpace.ReplaceAllString(line, " "))
@@ -354,17 +354,24 @@ func (tr *trans) toTokens(line string, addCnt int,
 
 	termId := -1
 
+	patternKey := ""
 	for _, w := range words {
 		if w == "" {
 			continue
 		}
 
-		if tr.ignorewords[w] || tr._matchKey(tr.ignoreRes, w) {
-			excludesMap[w] = true
+		word := strings.ToLower(w)
+		if doPatternKeyMatching && tr.pk != nil {
+			if ok := tr.pk.hasMatch([]byte(word)); ok {
+				patternKey = word
+			}
+		}
+
+		if tr.ignorewords[word] || tr._matchKey(tr.ignoreRes, word) {
+			excludesMap[word] = true
 			w = "*"
 		}
 
-		word := strings.ToLower(w)
 		lenw := len(word)
 		if lenw > 1 && string(word[lenw-1]) == "." {
 			word = word[:lenw-1]
@@ -463,7 +470,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 		displayString = ""
 	}
 
-	return tokens, displayString, words, nil
+	return tokens, displayString, patternKey, nil
 }
 
 func (tr *trans) lineToTerms(line string, addCnt int) error {
@@ -478,7 +485,7 @@ func (tr *trans) lineToTerms(line string, addCnt int) error {
 		return err
 	}
 
-	tr.toTokens(line, addCnt, false, false, false)
+	tr.toTokens(line, addCnt, false, false, false, false)
 	if tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos {
 		if tr.countByBlock > tr.maxCountByBlock {
 			tr.maxCountByBlock = tr.countByBlock
@@ -511,11 +518,15 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 	// pick up classid from the line
 	matched := false
 	if tr.pk != nil {
-		_, matched, err = tr.pk.findAndRegister(line)
+		_, _, matched, err = tr.pk.findAndRegister(line)
 		if err != nil {
 			return -1, err
 		}
 	}
+
+	//if matched {
+	//	println("matched pattern key:", line)
+	//}
 
 	line = tr.parseMessage(line)
 	if (tr.currRetentionPos > 0 && retentionPos > tr.currRetentionPos) || tr.countByBlock > tr.maxCountByBlock {
@@ -524,7 +535,7 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 		}
 	}
 
-	tokens, displayString, words, err := tr.toTokens(line, addCnt, true, true, true)
+	tokens, displayString, patternKey, err := tr.toTokens(line, addCnt, true, true, true, true)
 	if err != nil {
 		return -1, err
 	}
@@ -538,10 +549,8 @@ func (tr *trans) lineToLogGroup(orgLine string, addCnt int, updated int64) (int6
 
 	// register the logGroupId to the patternkeys
 	if tr.pk != nil {
-		for _, w := range words {
-			if ok := tr.pk.hasMatch([]byte(w)); ok {
-				tr.pk.appendLogGroup(w, updated, matched, groupId)
-			}
+		if patternKey != "" && groupId >= 0 {
+			tr.pk.appendLogGroup(patternKey, updated, matched, groupId)
 		}
 	}
 
@@ -633,7 +642,7 @@ func (tr *trans) load() error {
 			return fmt.Errorf("error parsing %s to int64", groupIdstr)
 		}
 
-		tokens, displayString, _, err := tr.toTokens(ds[groupId], 0, true, true, false)
+		tokens, displayString, _, err := tr.toTokens(ds[groupId], 0, true, true, false, false)
 		if err != nil {
 			return err
 		}
@@ -677,7 +686,7 @@ func (tr *trans) load() error {
 		}
 
 		line := ds[groupId]
-		tokens, displayString, _, err := tr.toTokens(line, 0, true, true, false)
+		tokens, displayString, _, err := tr.toTokens(line, 0, true, true, false, false)
 		if err != nil {
 			return err
 		}
@@ -746,7 +755,7 @@ func (tr *trans) next(updated int64) error {
 		} else {
 			line := ds[groupId]
 			// will reach an existing logGrouup using termCountBorder
-			tokens, _, _, err := tr.toTokens(line, count, true, false, false)
+			tokens, _, _, err := tr.toTokens(line, count, true, false, false, false)
 			if err != nil {
 				return err
 			}
@@ -785,7 +794,7 @@ func (tr *trans) getLogGroupsHistory(groupIds []int64) (*logGroupsHistory, error
 
 // useful for testing
 func (tr *trans) searchLogGroup(displayString string) *logGroup {
-	tokens, _, _, _ := tr.toTokens(displayString, 0, true, false, false)
+	tokens, _, _, _ := tr.toTokens(displayString, 0, true, false, false, false)
 	groupId := tr.lgs.lt.search(tokens)
 	return tr.lgs.alllg[groupId]
 }
@@ -936,15 +945,19 @@ func (tr *trans) loadLogGroupHistory() error {
 	return nil
 }
 
-func (tr *trans) detectPaterns(minCnt int) error {
+func (tr *trans) detectPaterns(minCnt int, mode string) error {
 	if tr.pk == nil {
 		return nil
 	}
-	if tr.readOnly {
-		return nil
-	}
 
-	tr.pk.ShowPatternsByFirstMatch(minCnt, tr.lgs)
+	switch mode {
+	case "firstMatch":
+		tr.pk.ShowPatternsByFirstMatch(minCnt, tr.lgs)
+	case "relations":
+		tr.pk.ShowPatternsByRelations(minCnt, tr.lgs)
+	default:
+		return fmt.Errorf("unknown mode %s for detectPaterns", mode)
+	}
 
 	return nil
 }

@@ -30,5 +30,6 @@ const (
 	cKmeansTrial             = 10
 	cKmeansKRate             = 0.1
 
-	cPatternKey = "patternKey"
+	cPatternKey  = "patternKey"
+	cRelationKey = "relationKey"
 )

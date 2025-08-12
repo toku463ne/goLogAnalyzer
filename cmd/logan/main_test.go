@@ -234,6 +234,10 @@ func Test_detectPatterns(t *testing.T) {
 	utils.RemoveDirectory(dataDir)
 
 	config := "../../testdata/loganal/sbc_gateway.yml.j2"
+
+	//os.Args = []string{"logan", "test", "-c", config, "-line", `06th, 22:40:14.880+0900 TBLV1 CALL: CTBCMCLeg::Construct( LegId=0xbf97484b Type CALL, NAP NAPS_BR_PRO_FE, calling/called 05088882360/0199997017 )`}
+	//main()
+
 	os.Args = []string{"logan", "patterns", "-c", config}
 	main()
 }
@@ -446,13 +450,4 @@ func Test_groups_004_outfilter(t *testing.T) {
 		t.Errorf("%v", err)
 		return
 	}
-}
-
-func Test_real(t *testing.T) {
-	config := "/home/ubuntu/tests/sophos/SOPHOS-01.yml"
-	//os.Args = []string{"logan", "clean", "-c", config, "-silent"}
-	//main()
-
-	os.Args = []string{"logan", "history", "-c", config, "-o", "/tmp/out2", "-asc", "-N", "10"}
-	main()
 }

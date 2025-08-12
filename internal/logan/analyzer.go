@@ -783,7 +783,7 @@ func (a *Analyzer) rebuildTrans() error {
 	return nil
 }
 
-func (a *Analyzer) DetectPatterns(minCnt int) error {
+func (a *Analyzer) DetectPatterns(minCnt int, mode string) error {
 	if err := a.Feed(0); err != nil {
 		return err
 	}
@@ -793,7 +793,9 @@ func (a *Analyzer) DetectPatterns(minCnt int) error {
 		return nil
 	}
 
-	a.trans.detectPaterns(minCnt)
+	if err := a.trans.detectPaterns(minCnt, mode); err != nil {
+		return fmt.Errorf("error detecting patterns: %w", err)
+	}
 
 	return nil
 }
@@ -820,15 +822,18 @@ func (a *Analyzer) ParseLogLine(line string) {
 	println("message: ", line)
 
 	if len(a.PatternKeyRegexes) > 0 {
-		PatternKeyId, matched, err := a.trans.pk.findAndRegister(line)
+		PatternKeyId, relationKey, matched, err := a.trans.pk.findAndRegister(line)
 		if err != nil {
 			print(err)
 			return
 		}
 		if matched {
-			println("key group matched: ", PatternKeyId)
+			println("pattern matched: ", PatternKeyId)
+			if relationKey != "" {
+				println("relation key: ", relationKey)
+			}
 		} else {
-			println("no key group matched")
+			println("no pattern key matched")
 		}
 	}
 
