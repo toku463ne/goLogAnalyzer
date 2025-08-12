@@ -7,6 +7,8 @@ import (
 	"goLogAnalyzer/pkg/utils"
 	"os"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
 type patternkey struct {
@@ -355,7 +357,8 @@ example1)
 
 	5678: {startEpoch: 35, count: 1}
 */
-func (pk *patternkeys) ShowPatternsByFirstMatch(minCount int) (map[string](map[string]*pattern), error) {
+func (pk *patternkeys) ShowPatternsByFirstMatch(minCount int,
+	lgs *logGroups) (map[string](map[string]*pattern), error) {
 	patterns := pk.detectPatternsByFirstMatch()
 	if patterns == nil {
 		return nil, nil
@@ -419,9 +422,25 @@ func (pk *patternkeys) ShowPatternsByFirstMatch(minCount int) (map[string](map[s
 			}
 		}
 		for _, si := range subInfos {
-			fmt.Printf("\t%s: {startEpoch: %d, count: %d}\n", si.keyId, si.startEpoch, si.count)
+			fmt.Printf("%s: {startEpoch: %d, count: %d}\n", si.keyId, si.startEpoch, si.count)
+		}
+		fmt.Println("---")
+
+		// print display strings for the pattern
+		for _, groupIdStr := range strings.Split(ps.patternStr, " ") {
+			groupId, err := strconv.ParseInt(groupIdStr, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing groupId %s: %v", groupIdStr, err)
+			}
+			displayString, ok := lgs.displayStrings[groupId]
+			if ok {
+				fmt.Printf("%s\n", displayString)
+			} else {
+				fmt.Printf("(not found for groupId %d)\n", groupId)
+			}
 		}
 		fmt.Println()
+		fmt.Println("--------------------------------------------------")
 	}
 
 	return patterns, nil

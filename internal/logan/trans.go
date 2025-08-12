@@ -935,3 +935,16 @@ func (tr *trans) loadLogGroupHistory() error {
 
 	return nil
 }
+
+func (tr *trans) detectPaterns(minCnt int) error {
+	if tr.pk == nil {
+		return nil
+	}
+	if tr.readOnly {
+		return nil
+	}
+
+	tr.pk.ShowPatternsByFirstMatch(minCnt, tr.lgs)
+
+	return nil
+}

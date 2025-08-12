@@ -793,7 +793,7 @@ func (a *Analyzer) DetectPatterns(minCnt int) error {
 		return nil
 	}
 
-	a.trans.pk.ShowPatternsByFirstMatch(minCnt)
+	a.trans.detectPaterns(minCnt)
 
 	return nil
 }
