@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type patternkey struct {
@@ -422,7 +423,8 @@ func (pk *patternkeys) ShowPatternsByFirstMatch(minCount int,
 			}
 		}
 		for _, si := range subInfos {
-			fmt.Printf("%s: {startEpoch: %d, count: %d}\n", si.keyId, si.startEpoch, si.count)
+			ts := time.Unix(si.startEpoch, 0).Local().Format("2006/01/02 15:04:05")
+			fmt.Printf("%s: {startEpoch: %s, count: %d}\n", si.keyId, ts, si.count)
 		}
 		fmt.Println("---")
 
