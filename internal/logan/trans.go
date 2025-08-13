@@ -369,7 +369,7 @@ func (tr *trans) toTokens(line string, addCnt int,
 
 		if tr.ignorewords[word] || tr._matchKey(tr.ignoreRes, word) {
 			excludesMap[word] = true
-			w = "*"
+			word = "*"
 		}
 
 		lenw := len(word)
