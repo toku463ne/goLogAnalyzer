@@ -413,38 +413,43 @@ func (tr *trans) toTokens(line string, addCnt int,
 	}
 
 	if useTermBorder {
-		minMatchLen := int(float64(len(tokens)) * tr.minMatchRate)
 		//if len(tokens) != len(counts) {
 		//	return nil, "", fmt.Errorf("length of tokens and counts does not match: tokens:%d counts:%d", len(tokens), len(counts))
 		//}
-		counts := make([]int, 0)
-		for _, termId := range tokens {
-			cnt := tr.te.counts[termId]
-			counts = append(counts, cnt)
-		}
-		// sort in descending order
-		sort.Slice(counts, func(i, j int) bool {
-			return counts[i] > counts[j]
-		})
-
-		// replace words with "*" if they are not frequent words
-		// but put priority on match rate to avoid having groups with many "*"s
-		matchedCount := 0
-		matchBorderCount := tr.termCountBorder
-		for _, cnt := range counts {
-			if cnt == 0 {
-				break
-			}
-			matchedCount++
-			if matchedCount >= minMatchLen {
-				matchBorderCount = cnt
-				break
-			}
-		}
 		border := tr.termCountBorder
-		if matchBorderCount < border {
-			border = matchBorderCount
+
+		if (tr.minMatchRate > 0.0 && tr.minMatchRate < 1.0) || tr.termCountBorderRate > 0.0 {
+			minMatchLen := int(float64(len(tokens)) * tr.minMatchRate)
+			counts := make([]int, 0)
+			for _, termId := range tokens {
+				cnt := tr.te.counts[termId]
+				counts = append(counts, cnt)
+			}
+			// sort in descending order
+			sort.Slice(counts, func(i, j int) bool {
+				return counts[i] > counts[j]
+			})
+
+			// replace words with "*" if they are not frequent words
+			// but put priority on match rate to avoid having groups with many "*"s
+			matchedCount := 0
+			matchBorderCount := tr.termCountBorder
+			for _, cnt := range counts {
+				if cnt == 0 {
+					break
+				}
+				matchedCount++
+				if matchedCount >= minMatchLen {
+					matchBorderCount = cnt
+					break
+				}
+			}
+
+			if matchBorderCount < border {
+				border = matchBorderCount
+			}
 		}
+
 		for i, termId := range tokens {
 			if termId == cAsteriskItemID {
 				continue
