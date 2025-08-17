@@ -822,15 +822,18 @@ func (a *Analyzer) ParseLogLine(line string) {
 	println("message: ", line)
 
 	if len(a.PatternKeyRegexes) > 0 {
-		PatternKeyId, relationKey, matched, err := a.trans.pk.findAndRegister(line)
+		PatternKeyId, tags, matched, err := a.trans.pk.findAndRegister(line)
 		if err != nil {
 			print(err)
 			return
 		}
 		if matched {
 			println("pattern matched: ", PatternKeyId)
-			if relationKey != "" {
-				println("relation key: ", relationKey)
+			if len(tags) > 0 {
+				println("tags:")
+				for k, v := range tags {
+					println(fmt.Sprintf("  %s: %s", k, v))
+				}
 			}
 		} else {
 			println("no pattern key matched")

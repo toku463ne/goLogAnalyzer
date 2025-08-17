@@ -25,33 +25,33 @@ type pattern struct {
 
 type patternkeys struct {
 	*csvdb.CircuitDB
-	ac                    *utils.AC
-	regexRes              []*regexp.Regexp
-	regexPatternKeyPoses  map[*regexp.Regexp]int
-	regexRelationKeyPoses map[*regexp.Regexp]int
-	regexes               []string
-	records               map[string][]patternkey
-	testMode              bool
-	idFilePath            string            // path to the keygroup IDs file
-	searchKeyIds          []string          // keys to search for in the patternkeys
-	relations             *patternRelations // relations for patternKeyId -> relationKey
+	ac                   *utils.AC
+	regexRes             []*regexp.Regexp
+	regexPatternKeyPoses map[*regexp.Regexp]int
+	regexTagPoses        map[*regexp.Regexp](map[string]int)
+	regexes              []string
+	records              map[string][]patternkey
+	testMode             bool
+	idFilePath           string       // path to the keygroup IDs file
+	searchKeyIds         []string     // keys to search for in the patternkeys
+	pt                   *patternTags // pt for patternKeyId -> relationKey
 }
 
 // Newpatternkeys creates a new patternkeys instance
 func newPatternKeys(dataDir string, regexes []string, useGzip bool, testMode bool) (*patternkeys, error) {
 
 	pk := &patternkeys{
-		ac:                    utils.NewAC(),
-		regexRes:              make([]*regexp.Regexp, 0),
-		regexPatternKeyPoses:  make(map[*regexp.Regexp]int),
-		regexRelationKeyPoses: make(map[*regexp.Regexp]int),
-		regexes:               regexes,
-		records:               make(map[string][]patternkey, 10000),
-		idFilePath:            dataDir + "/patternKeyIds.txt",
+		ac:                   utils.NewAC(),
+		regexRes:             make([]*regexp.Regexp, 0),
+		regexPatternKeyPoses: make(map[*regexp.Regexp]int),
+		regexTagPoses:        make(map[*regexp.Regexp](map[string]int)),
+		regexes:              regexes,
+		records:              make(map[string][]patternkey, 10000),
+		idFilePath:           dataDir + "/patternKeyIds.txt",
 	}
 	pk.regexRes = make([]*regexp.Regexp, 0)
 	pk.regexPatternKeyPoses = make(map[*regexp.Regexp]int)
-	pk.regexRelationKeyPoses = make(map[*regexp.Regexp]int)
+	pk.regexTagPoses = make(map[*regexp.Regexp]map[string]int)
 	pk.testMode = testMode
 
 	// Compile regexes and store them in the patternkeys
@@ -62,9 +62,11 @@ func newPatternKeys(dataDir string, regexes []string, useGzip bool, testMode boo
 		for i, name := range names {
 			if name == cPatternKey {
 				pk.regexPatternKeyPoses[re] = i
-			}
-			if name == cRelationKey {
-				pk.regexRelationKeyPoses[re] = i
+			} else if name != "" {
+				if _, ok := pk.regexTagPoses[re]; !ok {
+					pk.regexTagPoses[re] = make(map[string]int)
+				}
+				pk.regexTagPoses[re][name] = i
 			}
 		}
 	}
@@ -80,11 +82,11 @@ func newPatternKeys(dataDir string, regexes []string, useGzip bool, testMode boo
 	}
 	pk.CircuitDB = kgdb
 
-	relations, err := newPatternRelations(dataDir, useGzip, testMode)
+	pt, err := newPatternTags(dataDir, useGzip, testMode)
 	if err != nil {
-		return nil, fmt.Errorf("error creating pattern relations: %v", err)
+		return nil, fmt.Errorf("error creating pattern pt: %v", err)
 	}
-	pk.relations = relations
+	pk.pt = pt
 
 	return pk, nil
 }
@@ -97,9 +99,10 @@ func (pk *patternkeys) register(patternKeyId string) {
 	}
 }
 
-func (pk *patternkeys) findAndRegister(line string) (string, string, bool, error) {
+// return: patternKeyId, tags, matched, error
+func (pk *patternkeys) findAndRegister(line string) (string, map[string]string, bool, error) {
 	patternKeyId := ""
-	relationKey := ""
+	tags := make(map[string]string)
 	matched := false
 	// Find the first matching regex and register the patternKeyId
 	for _, re := range pk.regexRes {
@@ -111,16 +114,16 @@ func (pk *patternkeys) findAndRegister(line string) (string, string, bool, error
 					matched = true
 					pk.register(patternKeyId)
 				}
-				if pk.regexRelationKeyPoses[re] >= 0 && pk.regexRelationKeyPoses[re] < len(ma) {
-					relationKey = ma[pk.regexRelationKeyPoses[re]]
-					if relationKey != "" {
-						pk.relations.set(patternKeyId, relationKey)
+				for tagName, pos := range pk.regexTagPoses[re] {
+					if pos > 0 && pos < len(ma) {
+						pk.pt.set(patternKeyId, tagName, ma[pos])
+						tags[tagName] = ma[pos]
 					}
 				}
 			}
 		}
 	}
-	return patternKeyId, relationKey, matched, nil
+	return patternKeyId, tags, matched, nil
 }
 
 func (pk *patternkeys) hasMatch(term []byte) bool {
@@ -175,8 +178,8 @@ func (pk *patternkeys) commit(completed bool) error {
 		return err
 	}
 
-	if err := pk.relations.commit(completed); err != nil {
-		return fmt.Errorf("error committing pattern relations: %v", err)
+	if err := pk.pt.commit(completed); err != nil {
+		return fmt.Errorf("error committing pattern pt: %v", err)
 	}
 	return nil
 }
@@ -190,7 +193,7 @@ func (pk *patternkeys) next(updated int64) error {
 	if err := pk.NextBlock(updated); err != nil {
 		return err
 	}
-	if err := pk.relations.next(updated); err != nil {
+	if err := pk.pt.next(updated); err != nil {
 		return err
 	}
 
@@ -305,8 +308,8 @@ func (pk *patternkeys) loadAll(searchKeyIds []string) error {
 		pk.appendLogGroup(patternKeyId, epoch, matched, logGroupId)
 	}
 
-	if err := pk.relations.loadAll(); err != nil {
-		return fmt.Errorf("error loading pattern relations: %v", err)
+	if err := pk.pt.loadAll(); err != nil {
+		return fmt.Errorf("error loading pattern pt: %v", err)
 	}
 
 	return nil
@@ -532,7 +535,7 @@ func (pk *patternkeys) detectPatternsByPatternKeys() map[string](map[string]*pat
 		return nil
 	}
 
-	patterns := make(map[string](map[string]*pattern)) // patternStr -> relationKey -> pattern
+	patterns := make(map[string](map[string]*pattern)) // patternStr -> tagName1:tagValue1,tagName2:tagValue2,.. -> pattern
 	// => case no relationKey, relationKey="all" and save the summary in pattern struct
 	// Build one ordered pattern (space-separated groupIds) per patternKeyId,
 	// then aggregate counts by relationKey (or "all" if none).
@@ -553,12 +556,17 @@ func (pk *patternkeys) detectPatternsByPatternKeys() map[string](map[string]*pat
 
 		// Collect unique relation keys; fallback to "all" when none exist.
 		relSet := make(map[string]struct{})
-		if pk.relations != nil {
-			for _, rk := range pk.relations.get(patternKeyId) {
-				if rk != "" {
-					relSet[rk] = struct{}{}
+		if pk.pt != nil {
+			tagStr := ""
+			for tagName, tagValue := range pk.pt.get(patternKeyId) {
+				if tagValue != "" {
+					tagStr += fmt.Sprintf("%s:%s, ", tagName, tagValue)
 				}
 			}
+			if len(tagStr) > 0 {
+				tagStr = tagStr[:len(tagStr)-2] // remove trailing comma and space
+			}
+			relSet[tagStr] = struct{}{}
 		}
 		if len(relSet) == 0 {
 			relSet["all"] = struct{}{}
@@ -586,8 +594,8 @@ func (pk *patternkeys) detectPatternsByPatternKeys() map[string](map[string]*pat
 }
 
 /*
-Show patterns by relations ordered by count descending
-If there are no relations, it will show "all" relation.
+Show patterns by pt ordered by count descending
+If there are no pt, it will show "all" relation.
 example1)
 5 6 7 => total 3
 
@@ -602,7 +610,7 @@ example1)
 
 	all: {startEpoch: 15, count: 5}
 */
-func (pk *patternkeys) ShowPatternsByRelations(minCount int, lgs *logGroups) (map[string](map[string]*pattern), error) {
+func (pk *patternkeys) ShowPatternsByPatternsKeys(minCount int, lgs *logGroups) (map[string](map[string]*pattern), error) {
 	patterns := pk.detectPatternsByPatternKeys()
 	if patterns == nil {
 		return nil, nil
@@ -642,7 +650,7 @@ func (pk *patternkeys) ShowPatternsByRelations(minCount int, lgs *logGroups) (ma
 	for _, ps := range sums {
 		fmt.Printf("%s => total %d\n", ps.patternStr, ps.total)
 
-		// collect relations for ordering
+		// collect pt for ordering
 		type relInfo struct {
 			relationKey string
 			startEpoch  int64

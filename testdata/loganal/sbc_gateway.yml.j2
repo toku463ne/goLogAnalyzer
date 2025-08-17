@@ -11,7 +11,7 @@ unitSecs: 3600
 separators: ' "''\\,;[]<>{}=()|:&?/+!@-'
 patternDetectionMode: "relations"
 patternKeyRegexes:
-  - 'TBLV1 CALL: CTBCMCLeg::Construct.* LegId=(?P<patternKey>\w+) Type CALL, NAP .* calling/called .*/(?P<relationKey>\w+) .*'
+  - 'TBLV1 CALL: CTBCMCLeg::Construct.* LegId=(?P<patternKey>\w+) Type CALL, NAP .* calling/called (?P<from>\w+)/(?P<to>\w+) .*'
 #  - 'TBLV1 CALL: CTBCMCLeg::Construct.*, calling/called .*/(?P<patternKey>\w+) .*'
 ignoreRegexes:
   - '^0x.*'

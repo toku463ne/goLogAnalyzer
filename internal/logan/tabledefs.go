@@ -11,6 +11,6 @@ var (
 		"logGroupsDetails": {"groupId", "line"},
 		"terms":            {"term", "count"},
 		"patternKeys":      {"patternKey", "epoch", "matched", "groupId"},
-		"patternRelations": {"patternKey", "relationKey"},
+		"patternTags":      {"patternKey", "name", "value"},
 	}
 )

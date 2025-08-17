@@ -959,7 +959,7 @@ func (tr *trans) detectPaterns(minCnt int, mode string) error {
 	case "firstMatch":
 		tr.pk.ShowPatternsByFirstMatch(minCnt, tr.lgs)
 	case "relations":
-		tr.pk.ShowPatternsByRelations(minCnt, tr.lgs)
+		tr.pk.ShowPatternsByPatternsKeys(minCnt, tr.lgs)
 	default:
 		return fmt.Errorf("unknown mode %s for detectPaterns", mode)
 	}
