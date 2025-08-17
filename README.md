@@ -34,7 +34,17 @@ message:  br-004-091 systemd[1]: logrotate.service: Succeeded
 ```  
   
 ### Step3
-Feed logs  
+Analyze your log  
+# example 1  
+Group the log lines with default grouping rate
 ```sh
-logan feed -c myConfig.yaml 
+logan groups -f 'testdata/loganal/sample50*' -N 5
+Log Groups
+==========
+Group ID   Count      Text
+1730671576000000005 10         *:00:00] Com1, grpe10 Com2 (uniq)* grpa50 (uniq)* <coM3> (uniq)* grpc20 (uniq)*
+1730671576000000001 10         *:00:00] Com1, grpa10 Com2 (uniq)* grpa50 (uniq)* <coM3> (uniq)* grpa20 (uniq)*
+1730671576000000002 10         *:00:00] Com1, grpb10 Com2 (uniq)* grpa50 (uniq)* <coM3> (uniq)* grpa20 (uniq)*
+1730671576000000003 10         *:00:00] Com1, grpc10 Com2 (uniq)* grpa50 (uniq)* <coM3> (uniq)* grpb20 (uniq)*
+1730671576000000004 10         *:00:00] Com1, grpd10 Com2 (uniq)* grpa50 (uniq)* <coM3> (uniq)* grpb20 (uniq)*
 ```

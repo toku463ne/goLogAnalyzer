@@ -133,11 +133,11 @@ func Test_patternkeys_detectPatternsByPatternKeys(t *testing.T) {
 
 	expectedPatterns := map[string]map[string]*pattern{
 		"5 6 7": {
-			"1234": {startEpoch: 1, count: 2},
-			"5678": {startEpoch: 15, count: 1},
+			"relationKey:1234": {startEpoch: 1, count: 2},
+			"relationKey:5678": {startEpoch: 15, count: 1},
 		},
 		"5 6 7 7": {
-			"5678": {startEpoch: 25, count: 1},
+			"relationKey:5678": {startEpoch: 25, count: 1},
 		},
 	}
 	for patternId, subPatterns := range expectedPatterns {
