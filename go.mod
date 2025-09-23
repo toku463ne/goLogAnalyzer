@@ -2,7 +2,7 @@ module goLogAnalyzer
 
 go 1.23.0
 
-toolchain go1.24.6
+toolchain go1.24.7
 
 require (
 	github.com/go-ini/ini v1.67.0

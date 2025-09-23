@@ -408,6 +408,11 @@ func run() error {
 		return nil
 	}
 
+	if cmd != "groups" && configPath == "" {
+		println(usageStr)
+		return fmt.Errorf("configPath is mandatory when cmd is not groups")
+	}
+
 	tblDir := fmt.Sprintf("%s/config.json", dataDir)
 	if utils.PathExist(tblDir) && !testMode {
 		logrus.Infof("Loading config from %s\n", tblDir)
@@ -451,6 +456,10 @@ func run() error {
 		return err
 	}
 
+	if N == 0 {
+		N = logan.CDefaultN
+	}
+
 	switch cmd {
 	case "feed":
 		err = a.Feed(0)
@@ -474,12 +483,17 @@ func run() error {
 
 func main() {
 
-	if len(os.Args) < 2 {
+	if len(os.Args) < 1 {
 		println(usageStr)
 		return
 	}
-
+	flgStartPos := 2
 	cmd = os.Args[1]
+	if cmd[:1] == "-" {
+		cmd = "groups"
+		flgStartPos = 1
+	}
+
 	if !loaded {
 		_flagSet = flag.NewFlagSet(fmt.Sprintf("logan %s", cmd), flag.ExitOnError)
 
@@ -490,7 +504,7 @@ func main() {
 			setCommonFlag(_flagSet)
 		case "history":
 			setOutFlag(_flagSet)
-		case "groups":
+		case "groups", "":
 			setOutFlag(_flagSet)
 		case "patterns":
 			setOutFlag(_flagSet)
@@ -507,7 +521,7 @@ func main() {
 
 		loaded = true
 	}
-	_flagSet.Parse(os.Args[2:])
+	_flagSet.Parse(os.Args[flgStartPos:])
 
 	// log setting
 	logrus.SetFormatter(&logrus.TextFormatter{

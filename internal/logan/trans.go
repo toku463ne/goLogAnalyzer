@@ -46,6 +46,7 @@ type trans struct {
 	timestampRe         *regexp.Regexp
 	testMode            bool
 	ignoreNumbers       bool
+	dataDir             string
 }
 
 func newTrans(dataDir, logFormat, timestampLayout string,
@@ -64,6 +65,7 @@ func newTrans(dataDir, logFormat, timestampLayout string,
 	separators string,
 	useGzip, readOnly, testMode, ignoreNumbers bool) (*trans, error) {
 	tr := new(trans)
+	tr.dataDir = dataDir
 	tr.replacer = getDelimReplacer(separators)
 	tr.timestampLayout = timestampLayout
 	tr._parseLogFormat(logFormat)
@@ -706,7 +708,7 @@ func (tr *trans) load() error {
 
 func (tr *trans) next(updated int64) error {
 	lgs := tr.lgs
-	if tr.readOnly {
+	if tr.readOnly || tr.dataDir == "" {
 		return nil
 	}
 

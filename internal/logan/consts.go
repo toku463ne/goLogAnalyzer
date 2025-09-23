@@ -16,6 +16,7 @@ const (
 	CDefaultSeparators          = ` "'\\,;[]<>{}=()|:&?/+!@`
 	CDefaultStdThreshold        = 2
 	CDefaultMinOccurrences      = 10
+	CDefaultN                   = 10
 	CFileFormatJson             = "json"
 	CFileFormatCsv              = "csv"
 

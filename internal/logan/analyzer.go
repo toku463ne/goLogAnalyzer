@@ -659,7 +659,7 @@ func (a *Analyzer) _printLogGroups(groupIds []int64) error {
 	// Print header for log groups
 	fmt.Println("Log Groups")
 	fmt.Println("==========")
-	fmt.Printf("%-10s %-10s %-s\n", "Group ID", "Count", "Text")
+	fmt.Printf("%-10s %-10s %-s\n", "groupId", "Count", "Text")
 	for _, groupId := range groupIds {
 		lg := lgs[groupId]
 		fmt.Printf("%-10d %-10d %s\n", groupId, lg.count, lg.displayString)
