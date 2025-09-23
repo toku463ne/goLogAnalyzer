@@ -280,9 +280,27 @@ func Test_detectPatterns(t *testing.T) {
 	//os.Args = []string{"logan", "test", "-c", config, "-line", `06th, 22:40:14.880+0900 TBLV1 CALL: CTBCMCLeg::Construct( LegId=0xbf97484b Type CALL, NAP NAPS_BR_PRO_FE, calling/called 05088882360/0199997017 )`}
 	//main()
 
-	os.Args = []string{"logan", "patterns", "-c", config}
+	outDir := dataDir
+	os.Args = []string{"logan", "patterns", "-c", config, "-N", "1", "-o", outDir}
 	main()
 
+	// read text file
+	content, err := os.ReadFile(outDir + "/pattern_001.txt")
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	lines := strings.Split(string(content), "\n")
+	// lines length should be more than 10
+	if err := utils.GetGotExpErr("len(lines)", len(lines) > 10, true); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if err := utils.GetGotExpErr("key line", strings.HasPrefix(lines[1], "from:05000002360, to:0111117017"), true); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
 }
 
 func Test_no_datadir(t *testing.T) {

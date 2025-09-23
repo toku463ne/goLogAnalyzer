@@ -610,7 +610,7 @@ example1)
 
 	all: {startEpoch: 15, count: 5}
 */
-func (pk *patternkeys) ShowPatternsByPatternsKeys(minCount int, lgs *logGroups) (map[string](map[string]*pattern), error) {
+func (pk *patternkeys) ShowPatternsByPatternsKeys(minCount int, lgs *logGroups, outDir string) (map[string](map[string]*pattern), error) {
 	patterns := pk.detectPatternsByPatternKeys()
 	if patterns == nil {
 		return nil, nil
@@ -647,8 +647,28 @@ func (pk *patternkeys) ShowPatternsByPatternsKeys(minCount int, lgs *logGroups) 
 		}
 	}
 
-	for _, ps := range sums {
-		fmt.Printf("%s => total %d\n", ps.patternStr, ps.total)
+	// output helper
+	outputLine := func(f *os.File, format string, a ...interface{}) {
+		if f != nil {
+			fmt.Fprintf(f, format+"\n", a...)
+		}
+		fmt.Printf(format+"\n", a...)
+	}
+
+	for i, ps := range sums {
+		f := (*os.File)(nil)
+		err := error(nil)
+		if outDir != "" {
+			// write to file
+			fpath := fmt.Sprintf("%s/pattern_%03d.txt", outDir, i+1)
+			f, err = os.Create(fpath)
+			if err != nil {
+				return nil, fmt.Errorf("error creating file %s: %v", fpath, err)
+			}
+			defer f.Close()
+		}
+
+		outputLine(f, "%s => total %d", ps.patternStr, ps.total)
 
 		// collect pt for ordering
 		type relInfo struct {
@@ -674,9 +694,9 @@ func (pk *patternkeys) ShowPatternsByPatternsKeys(minCount int, lgs *logGroups) 
 		}
 		for _, ri := range relInfos {
 			ts := time.Unix(ri.startEpoch, 0).Local().Format("2006/01/02 15:04:05")
-			fmt.Printf("%s: {startEpoch: %s, count: %d}\n", ri.relationKey, ts, ri.count)
+			outputLine(f, "%s: {startEpoch: %s, count: %d}", ri.relationKey, ts, ri.count)
 		}
-		fmt.Println("---")
+		outputLine(f, "---")
 
 		// print display strings for the pattern
 		for _, groupIdStr := range strings.Split(ps.patternStr, " ") {
@@ -685,13 +705,12 @@ func (pk *patternkeys) ShowPatternsByPatternsKeys(minCount int, lgs *logGroups) 
 				return nil, fmt.Errorf("error parsing groupId %s: %v", groupIdStr, err)
 			}
 			if displayString, ok := lgs.displayStrings[groupId]; ok {
-				fmt.Printf("%s\n", displayString)
+				outputLine(f, "%s", displayString)
 			} else {
-				fmt.Printf("(not found for groupId %d)\n", groupId)
+				outputLine(f, "(not found for groupId %d)", groupId)
 			}
 		}
-		fmt.Println()
-		fmt.Println("--------------------------------------------------")
+		outputLine(f, "--------------------------------------------------")
 	}
 
 	return patterns, nil

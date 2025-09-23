@@ -88,15 +88,7 @@ logan feed -c myConfig.yaml
 Devide log groups per `unitSecs` and saves in timestamp order.  
 You can the log group count per `unitSecs`.  
 For access logs, this would help to see what kind of accesses are frequent in a timeline.  
-For example, you can list the top 5 log groups by 
-```
-logan -c myConfig.yaml
-```
-and then check the history by the groupId
-```
-logan history -c myConfig.yaml -groupId 123456789 
-```
-or output to CSV files
+This is provided as CSV files. (metrics format)
 ```
 logan history -c myConfig.yaml -o /tmp/logancsv
 ```
@@ -119,4 +111,55 @@ patternKeyRegexes:
   - 'TBLV1 CALL: CTBCMCLeg::Construct.* LegId=(?P<patternKey>\w+) Type CALL, NAP .* calling/called (?P<from>\w+)/(?P<to>\w+) .*'
 ignoreRegexes:
   - '^0x.*'
+```
+`<patternKey>` is a key to identify a session.  
+`<from>` and `<to>` are user defined keys to group the patterns.
+Then run the command
+```
+logan patterns -c myConfig.yaml 
+```
+This will show up the patterns found in the log file.  
+Output example:
+```
+175716601400021 175716601400022 175716601400023 175716601400023 175716601400024 175716601400025 175716601400026 175716601400027 175716601400028 175716601400029 175716601400030 175716601400031 175716601400032 175716601400033 175716601400034 175716601400035 175716601400026 175716601400036 175716601400028 175716601400029 175716601400037 175716601400038 175716601400039 175716601400034 175716617300004 175716601400040 175716601400041 175716601400042 175716601400043 175716601400044 175716601400045 175716601400046 175716601400042 175716601400047 175716601400043 175716601500048 175716601500049 175716601500050 175716617300001 175716617300002 175716617300003 175716617300004 175716617300005 175716617300004 175716617300006 175716617300007 175716617300008 175716617300009 175716617300010 175716617300011 175716617300012 
+=> total 1
+to:0111117017, from:05000002360: {startEpoch: 2025/09/06 22:40:14, count: 1}
+---
+TBLV1 CALL: CTBCMCLeg::*( LegId=* Type CALL, NAP NAPS_BR_PRO_FE, calling/* */* )
+TBLV1 CALL: Unknown Entity * [*: *-*] CTBCAFBridge: CTBCAFCallLeg::CTBCAFCallLeg
+TBLV1 CALL: Leg * [*: *-*] *: *
+TBLV1 CALL: Leg * [*: *-*] *: *
+TBLV3 CALL: [*: *-*] CTBCAFBridge: *: Leg *, MappingId * (calling 05000002360, called 0111117017, NAP NAPS_BR_PRO_FE):
+TBLV3 CALL: [*: *-*] CTBCAFBridge: Local SDP:
+TBLV3 CALL: [*: *-*] CTBCAFBridge: v=0
+TBLV3 CALL: [*: *-*] CTBCAFBridge: o=- 0 0 IN IP4 1.2.3.111
+TBLV3 CALL: [*: *-*] CTBCAFBridge: s=-
+TBLV3 CALL: [*: *-*] CTBCAFBridge: t=0 0
+TBLV3 CALL: [*: *-*] CTBCAFBridge: m=audio * RTP/AVP 0 8 18 101
+TBLV3 CALL: [*: *-*] CTBCAFBridge: c=IN IP4 1.2.3.111
+TBLV3 CALL: [*: *-*] CTBCAFBridge: a=rtpmap:101 telephone-event/8000
+TBLV3 CALL: [*: *-*] CTBCAFBridge: a=fmtp:101 0-15,32-36
+* CALL: [*: *-*] CTBCAFBridge:
+TBLV3 CALL: [*: *-*] CTBCAFBridge: Peer SDP:
+TBLV3 CALL: [*: *-*] CTBCAFBridge: v=0
+TBLV3 CALL: [*: *-*] CTBCAFBridge: o=- 1754469684 1754469685 IN IP4 1.2.3.209
+TBLV3 CALL: [*: *-*] CTBCAFBridge: s=-
+TBLV3 CALL: [*: *-*] CTBCAFBridge: t=0 0
+TBLV3 CALL: [*: *-*] CTBCAFBridge: m=audio * RTP/AVP 0 8 * 18
+TBLV3 CALL: [*: *-*] CTBCAFBridge: c=IN IP4 1.2.3.209
+TBLV3 CALL: [*: *-*] CTBCAFBridge: a=fmtp:18 *=no
+* CALL: [*: *-*] CTBCAFBridge:
+TBLV1 CALL: Leg * [*: *-*] CTBCAFBridge: *::*
+TBLV1 CALL: [*: *-*] CTBCAFCallBehaviorBusyTone: OnInitCallDone
+TBLV1 CALL: [*: *-*] CTBCAFBridge: CTBCAFCallFlow::OnInitCallDone
+TBLV1 CALL: Leg * [*: *-*] CTBCAFCallBehaviorBridgeCdr: OnLegEvent type = 4
+TBLV1 CALL: Leg * [*: *-*] CTBCAFCallBehaviorRouting: Route: Now routing for a new outgoing call...
+TBLV1 CALL: Leg * [*: *-*] CTBCAFCallBehaviorRouting: ProcessRouteResult: ReasonCode 219
+TBLV1 CALL: Leg * [*: *-*] *: * check...
+```
+  
+## more details
+Run
+```
+logan groups -h
 ```

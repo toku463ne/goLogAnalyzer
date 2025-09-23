@@ -783,7 +783,7 @@ func (a *Analyzer) rebuildTrans() error {
 	return nil
 }
 
-func (a *Analyzer) DetectPatterns(minCnt int, mode string) error {
+func (a *Analyzer) DetectPatterns(minCnt int, mode, outDir string) error {
 	if err := a.Feed(0); err != nil {
 		return err
 	}
@@ -793,7 +793,7 @@ func (a *Analyzer) DetectPatterns(minCnt int, mode string) error {
 		return nil
 	}
 
-	if err := a.trans.detectPaterns(minCnt, mode); err != nil {
+	if err := a.trans.detectPaterns(minCnt, mode, outDir); err != nil {
 		return fmt.Errorf("error detecting patterns: %w", err)
 	}
 

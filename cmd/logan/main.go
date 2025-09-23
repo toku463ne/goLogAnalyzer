@@ -468,7 +468,7 @@ func run() error {
 	case "groups":
 		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, false, ascOrder)
 	case "patterns":
-		err = a.DetectPatterns(N, patternDetectionMode)
+		err = a.DetectPatterns(N, patternDetectionMode, outDir)
 	case "test":
 		a.ParseLogLine(line)
 	default:
