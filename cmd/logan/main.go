@@ -71,6 +71,7 @@ var (
 	stdThreshold         float64
 	minOccurrences       float64
 	lastFileEpoch        int64
+	groupId              int64
 )
 
 type config struct {
@@ -129,7 +130,7 @@ func setCommonFlag(fs *flag.FlagSet) {
 	fs.BoolVar(&ignoreNumbers, "ignoreNumbers", false, "ignore all numbers")
 	fs.StringVar(&analLogPath, "anallog", "", "File to output logs of this application")
 	fs.Int64Var(&lastFileEpoch, "lastEpoch", 0, "last epoch of the log file")
-
+	fs.Int64Var(&groupId, "groupId", -1, "logGroup id to show the history")
 }
 
 func setNonFeedFlag(fs *flag.FlagSet) {
@@ -464,9 +465,9 @@ func run() error {
 	case "feed":
 		err = a.Feed(0)
 	case "history":
-		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, true, ascOrder)
+		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, true, ascOrder, groupId)
 	case "groups":
-		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, false, ascOrder)
+		err = a.OutputLogGroups(N, outDir, searchString, excludeString, minLastUpdate, minLogCount, maxLogCount, false, ascOrder, -1)
 	case "patterns":
 		err = a.DetectPatterns(N, patternDetectionMode, outDir)
 	case "test":

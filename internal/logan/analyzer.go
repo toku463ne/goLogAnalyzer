@@ -87,7 +87,7 @@ func NewAnalyzer(conf *AnalConfig, lastFileEpoch int64, readOnly, testMode bool)
 	a.IgnoreNumbers = conf.IgnoreNumbers
 
 	// set defaults
-	a.UnitSecs = utils.CFreqDay
+	a.UnitSecs = utils.GetUnitsecs(utils.CFreqDay)
 	a.KeepPeriod = CDefaultKeepPeriod
 	a.TermCountBorder = CDefaultTermCountBorder
 	a.TermCountBorderRate = CDefaultTermCountBorderRate
@@ -573,7 +573,7 @@ func (a *Analyzer) _registerLogGroups(targetLinesCnt int) error {
 func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	searchString, excludeString string,
 	minLastUpdate int64, minCnt, maxCnt int,
-	isHistory, asc bool) error {
+	isHistory, asc bool, groupId int64) error {
 	if err := a.Feed(0); err != nil {
 		return err
 	}
@@ -583,16 +583,22 @@ func (a *Analyzer) OutputLogGroups(N int, outdir string,
 	//}
 
 	allgroupIds := a.trans.getTopNGroupIds(len(a.trans.lgs.alllg), minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
-
-	var groupIds []int64
-	if N > 0 {
-		groupIds = a.trans.getTopNGroupIds(N, minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
-	} else {
-		groupIds = allgroupIds
+	if N == 0 {
+		N = CDefaultN
 	}
 
+	//var groupIds []int64
+	groupIds := a.trans.getTopNGroupIds(N, minLastUpdate, searchString, excludeString, minCnt, maxCnt, asc)
+
 	if outdir == "" {
-		a._printLogGroups(groupIds)
+		if isHistory {
+			if groupId <= 0 {
+				return fmt.Errorf("you need to specify a groupId for history")
+			}
+			a._printLogGroupHistory(groupId)
+		} else {
+			a._printLogGroups(groupIds)
+		}
 		return nil
 	}
 
@@ -663,6 +669,32 @@ func (a *Analyzer) _printLogGroups(groupIds []int64) error {
 	for _, groupId := range groupIds {
 		lg := lgs[groupId]
 		fmt.Printf("%-10d %-10d %s\n", groupId, lg.count, lg.displayString)
+	}
+	fmt.Println()
+
+	return nil
+}
+
+func (a *Analyzer) _printLogGroupHistory(groupId int64) error {
+	lg := a.trans.lgs.alllg[groupId]
+	if lg == nil {
+		return fmt.Errorf("log group %d not found", groupId)
+	}
+
+	lgsh, err := a.trans.getLogGroupsHistory([]int64{groupId})
+	if err != nil {
+		return err
+	}
+
+	// Print header for log group history
+	fmt.Printf("History for Log Group %d\n", groupId)
+	fmt.Println("=======================")
+	fmt.Printf("%-20s %-10s\n", "Timestamp", "Value")
+
+	rows := lgsh.buildRows(1)
+
+	for _, row := range rows {
+		fmt.Printf("%-20s %-10s\n", utils.EpochToString(utils.StringToInt64(row[1])), row[2])
 	}
 	fmt.Println()
 
